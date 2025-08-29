@@ -1,0 +1,100 @@
+name: Security Audit
+
+on:
+  schedule:
+    # Run daily at 9 AM UTC
+    - cron: '0 9 * * *'
+  workflow_dispatch: # Allow manual triggering
+  push:
+    branches: [ main ]
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'deny.toml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust toolchain
+      run: |
+        rustup update stable
+        rustup default stable
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-audit-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-audit-cargo-
+    
+    - name: Install cargo-deny
+      run: cargo install --locked cargo-deny
+    
+    - name: Install cargo-audit
+      run: cargo install --locked cargo-audit
+    
+    - name: Run cargo deny
+      run: cargo deny check
+    
+    - name: Run cargo audit
+      run: cargo audit
+    
+    - name: Create issue on failure
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const title = `Security audit failed - ${new Date().toISOString().split('T')[0]}`;
+          const body = `## Security Audit Failure
+          
+          The daily security audit has detected issues in the dependencies.
+          
+          **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          
+          Please review the following:
+          1. Check for known security vulnerabilities with \`cargo audit\`
+          2. Check for license and dependency issues with \`cargo deny check\`
+          3. Update dependencies if necessary
+          4. Review and update the deny.toml configuration if needed
+          
+          This issue was automatically created by the security audit workflow.`;
+          
+          // Check if an issue already exists
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: ['security-audit', 'automated']
+          });
+          
+          const existingIssue = issues.data.find(issue => 
+            issue.title.includes('Security audit failed')
+          );
+          
+          if (!existingIssue) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['security-audit', 'automated', 'priority:high']
+            });
+          } else {
+            // Update existing issue with new information
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existingIssue.number,
+              body: `Security audit failed again on ${new Date().toISOString().split('T')[0]}.\n\n**Latest run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+            });
+          }
