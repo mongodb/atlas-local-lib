@@ -1,12 +1,18 @@
 #![doc = include_str!("../README.md")]
 
+const ATLAS_LOCAL_IMAGE: &str = "mongodb/mongodb-atlas-local";
+const ATLAS_LOCAL_TAG: &str = "latest";
+
 use bollard::{
     Docker,
     query_parameters::{
-        InspectContainerOptions, ListContainersOptionsBuilder, RemoveContainerOptions,
+        CreateContainerOptionsBuilder, CreateImageOptionsBuilder, InspectContainerOptions,
+        ListContainersOptionsBuilder, RemoveContainerOptions, StartContainerOptions,
         StopContainerOptions,
     },
+    secret::ContainerCreateBody,
 };
+use futures_util::StreamExt;
 use maplit::hashmap;
 
 use crate::models::{
@@ -46,6 +52,47 @@ impl Client {
     /// See the [module-level documentation](crate) for usage examples.
     pub fn new(docker: Docker) -> Client {
         Client { docker }
+    }
+
+    ///Creates a local Atlas deployment.
+    pub async fn create_deployment(&self, cluster_name: &str) -> Result<(), CreateDeploymentError> {
+        // Check if a container with that name already exists
+        if self.check_container_exists(cluster_name).await? {
+            return Err(CreateDeploymentError::ContainerAlreadyExists);
+        }
+
+        // Pull the latest image for Atlas Local
+        self.pull_image().await?;
+
+        // Create the container with the correct configuration
+        let create_container_options = Some(
+            CreateContainerOptionsBuilder::default()
+                .name(cluster_name)
+                .build(),
+        );
+
+        let create_container_config = ContainerCreateBody {
+            image: Some(ATLAS_LOCAL_IMAGE.to_string()),
+            labels: Some(
+                hashmap! { LOCAL_DEPLOYMENT_LABEL_KEY.to_string() => LOCAL_DEPLOYMENT_LABEL_VALUE.to_string() },
+            ),
+            exposed_ports: Some(hashmap! {
+                "27017/tcp".to_string() => hashmap! {},
+            }),
+            ..Default::default()
+        };
+
+        let _create_response = self
+            .docker
+            .create_container(create_container_options, create_container_config)
+            .await?;
+
+        // Start the Atlas Local container
+        self.docker
+            .start_container(cluster_name, None::<StartContainerOptions>)
+            .await?;
+
+        Ok(())
     }
 
     /// Deletes a local Atlas deployment.
@@ -117,6 +164,50 @@ impl Client {
         // Convert the container inspect response to a deployment
         Ok(container_inspect_response.try_into()?)
     }
+
+    pub async fn pull_image(&self) -> Result<(), CreateDeploymentError> {
+        // Build the options for pulling the Atlas Local Docker image
+        let create_image_options = CreateImageOptionsBuilder::default()
+            .from_image(ATLAS_LOCAL_IMAGE)
+            .tag(ATLAS_LOCAL_TAG)
+            .build();
+
+        // Start pulling the image, which returns a stream of progress events
+        let mut stream = self
+            .docker
+            .create_image(Some(create_image_options), None, None);
+
+        // Iterate over the stream and check for errors
+        while let Some(result) = stream.next().await {
+            let image_info = result.map_err(CreateDeploymentError::PullImage)?;
+
+            // Optionally print the status of the image pull in debug mode
+            if let Some(status) = image_info.status {
+                #[cfg(debug_assertions)]
+                println!("{}", status);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn check_container_exists(&self, name: &str) -> Result<bool, bollard::errors::Error> {
+        // Build the options for listing containers with a filter on the name
+        let list_container_options = ListContainersOptionsBuilder::default()
+            .all(true)
+            .filters(&hashmap! {
+                "name" => vec![name.to_string()],
+            })
+            .build();
+
+        // List the containers with the specified name filter
+        let containers = self
+            .docker
+            .list_containers(Some(list_container_options))
+            .await?;
+        // Return true if any containers were found with that name
+        Ok(!containers.is_empty())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -132,4 +223,13 @@ pub enum DeleteDeploymentError {
     ContainerInspect(#[from] bollard::errors::Error),
     #[error("Failed to get deployment: {0}")]
     GetDeployment(#[from] GetDeploymentError),
+}
+#[derive(Debug, thiserror::Error)]
+pub enum CreateDeploymentError {
+    #[error("Failed to create container: {0}")]
+    CreateContainer(#[from] bollard::errors::Error),
+    #[error("Failed to pull image: {0}")]
+    PullImage(bollard::errors::Error),
+    #[error("Container with that name already exists")]
+    ContainerAlreadyExists,
 }

@@ -52,6 +52,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new MongoDB Atlas Local client
     let client = Client::new(docker);
 
+    // Create a deployment
+    client.create_deployment("local1234").await?;
+
     // List the running deployments
     let deployments = client.list_deployments().await.unwrap();
 
@@ -59,6 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for deployment in deployments {
         println!("[{}] \t{}", deployment.mongodb_version, deployment.name.unwrap_or_default());
     }
+
+    // Delete the new deployment
+    client.delete_deployment("local1234").await?;
 
     Ok(())
 }

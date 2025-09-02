@@ -15,6 +15,7 @@ include = [
 
 [dependencies]
 bollard = "0.19.2"
+futures-util = "0.3.31"
 maplit = "1.0.2"
 semver = "1.0.26"
 thiserror = "2.0.16"
