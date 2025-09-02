@@ -1,5 +1,5 @@
 [package]
-name = "atlas-local-lib"
+name = "atlas-local"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
@@ -15,7 +15,10 @@ include = [
 
 [dependencies]
 bollard = "0.19.2"
+maplit = "1.0.2"
+semver = "1.0.26"
 thiserror = "2.0.16"
 
 [dev-dependencies]
+anyhow = "1.0.99"
 tokio = { version = "1.0", features = ["full"] }
