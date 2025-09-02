@@ -21,5 +21,25 @@ async fn main() -> Result<()> {
         );
     }
 
+    println!("DeletingDeployment 1234");
+    client.delete_deployment("local1234").await?;
+
+    let deployments = client
+        .list_deployments()
+        .await
+        .context("listing deployments")?;
+
+    println!("Deployments:");
+    for deployment in deployments {
+        println!(
+            "[{}] \t{}",
+            deployment.mongodb_version,
+            deployment.name.unwrap_or_default()
+        );
+    }
+
+    println!("Attempting to delete other process local1111");
+    client.delete_deployment("local1111").await?;
+
     Ok(())
 }
