@@ -42,7 +42,7 @@ Here's a simple example to get you started:
 
 ```rust,no_run
 use bollard::Docker;
-use atlas_local_lib::Client;
+use atlas_local::Client;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -52,12 +52,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create a new MongoDB Atlas Local client
     let client = Client::new(docker);
 
-    // TODO: Add examples of client usage once implemented
-    println!("MongoDB Atlas Local client created successfully!");
+    // List the running deployments
+    let deployments = client.list_deployments().await.unwrap();
+
+    // Print the deployments
+    for deployment in deployments {
+        println!("[{}] \t{}", deployment.mongodb_version, deployment.name.unwrap_or_default());
+    }
 
     Ok(())
 }
 ```
+
+More examples can be found in `examples/*` and ran using `cargo run --example [example-name]`
 
 ## Development
 
