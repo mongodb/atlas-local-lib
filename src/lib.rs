@@ -5,6 +5,7 @@ const ATLAS_LOCAL_TAG: &str = "latest";
 
 use bollard::{
     Docker,
+    errors::Error::DockerResponseServerError,
     query_parameters::{
         CreateContainerOptionsBuilder, CreateImageOptionsBuilder, InspectContainerOptions,
         ListContainersOptionsBuilder, RemoveContainerOptions, StartContainerOptions,
@@ -56,11 +57,6 @@ impl Client {
 
     ///Creates a local Atlas deployment.
     pub async fn create_deployment(&self, cluster_name: &str) -> Result<(), CreateDeploymentError> {
-        // Check if a container with that name already exists
-        if self.check_container_exists(cluster_name).await? {
-            return Err(CreateDeploymentError::ContainerAlreadyExists);
-        }
-
         // Pull the latest image for Atlas Local
         self.pull_image().await?;
 
@@ -82,10 +78,25 @@ impl Client {
             ..Default::default()
         };
 
-        let _create_response = self
+        let create_response = self
             .docker
             .create_container(create_container_options, create_container_config)
-            .await?;
+            .await;
+
+        match create_response {
+            Ok(_) => {}
+            Err(DockerResponseServerError {
+                status_code: 409, ..
+            }) => {
+                return Err(CreateDeploymentError::ContainerAlreadyExists(
+                    DockerResponseServerError {
+                        status_code: 409,
+                        message: format!("A container named '{}' already exists", cluster_name),
+                    },
+                ));
+            }
+            Err(e) => return Err(CreateDeploymentError::CreateContainer(e)),
+        }
 
         // Start the Atlas Local container
         self.docker
@@ -190,24 +201,6 @@ impl Client {
 
         Ok(())
     }
-
-    pub async fn check_container_exists(&self, name: &str) -> Result<bool, bollard::errors::Error> {
-        // Build the options for listing containers with a filter on the name
-        let list_container_options = ListContainersOptionsBuilder::default()
-            .all(true)
-            .filters(&hashmap! {
-                "name" => vec![name.to_string()],
-            })
-            .build();
-
-        // List the containers with the specified name filter
-        let containers = self
-            .docker
-            .list_containers(Some(list_container_options))
-            .await?;
-        // Return true if any containers were found with that name
-        Ok(!containers.is_empty())
-    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -230,6 +223,6 @@ pub enum CreateDeploymentError {
     CreateContainer(#[from] bollard::errors::Error),
     #[error("Failed to pull image: {0}")]
     PullImage(bollard::errors::Error),
-    #[error("Container with that name already exists")]
-    ContainerAlreadyExists,
+    #[error("Container already exists: {0}")]
+    ContainerAlreadyExists(bollard::errors::Error),
 }
