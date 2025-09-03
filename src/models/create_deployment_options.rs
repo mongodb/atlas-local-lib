@@ -170,7 +170,7 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             }
             None => {}
         }
-        
+
         // Only set env if we have any to set, otherwise leave it as None
         if !env_vars.is_empty() {
             create_container_config.env = Some(env_vars);
