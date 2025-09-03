@@ -107,7 +107,6 @@ mod tests {
         PortBinding {
             host_ip: Some(host_ip.to_string()),
             host_port: Some(host_port.to_string()),
-            ..Default::default()
         }
     }
 
@@ -246,7 +245,6 @@ mod tests {
         let container = create_container_response_with_mongodb_ports(vec![PortBinding {
             host_ip: Some("127.0.0.1".to_string()),
             host_port: None,
-            ..Default::default()
         }]);
 
         let result = MongoDBPortBinding::try_from(&container);
@@ -261,7 +259,6 @@ mod tests {
         let container = create_container_response_with_mongodb_ports(vec![PortBinding {
             host_ip: Some("127.0.0.1".to_string()),
             host_port: Some("invalid_port".to_string()),
-            ..Default::default()
         }]);
 
         let result = MongoDBPortBinding::try_from(&container);
@@ -276,7 +273,6 @@ mod tests {
         let container = create_container_response_with_mongodb_ports(vec![PortBinding {
             host_ip: None,
             host_port: Some("27017".to_string()),
-            ..Default::default()
         }]);
 
         let result = MongoDBPortBinding::try_from(&container);
@@ -291,7 +287,6 @@ mod tests {
         let container = create_container_response_with_mongodb_ports(vec![PortBinding {
             host_ip: Some("invalid_ip".to_string()),
             host_port: Some("27017".to_string()),
-            ..Default::default()
         }]);
 
         let result = MongoDBPortBinding::try_from(&container);

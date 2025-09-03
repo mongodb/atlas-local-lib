@@ -197,7 +197,6 @@ mod tests {
         let port_binding = PortBinding {
             host_ip: Some("127.0.0.1".to_string()),
             host_port: Some("27017".to_string()),
-            ..Default::default()
         };
         let mut port_map = HashMap::new();
         port_map.insert("27017/tcp".to_string(), Some(vec![port_binding]));

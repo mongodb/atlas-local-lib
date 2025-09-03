@@ -197,7 +197,7 @@ mod tests {
     fn test_state_debug_and_clone() {
         // Test that State implements Debug and Clone
         let state = State::Running;
-        let cloned_state = state.clone();
+        let cloned_state = state;
         assert_eq!(state, cloned_state);
 
         // Test Debug implementation
