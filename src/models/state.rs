@@ -24,7 +24,11 @@ impl TryFrom<&ContainerInspectResponse> for State {
     type Error = GetStateError;
 
     fn try_from(value: &ContainerInspectResponse) -> Result<Self, Self::Error> {
-        let state = &value.state.as_ref().and_then(|s| s.status).ok_or(GetStateError::MissingState)?;
+        let state = &value
+            .state
+            .as_ref()
+            .and_then(|s| s.status)
+            .ok_or(GetStateError::MissingState)?;
         Ok(state.try_into()?)
     }
 }
@@ -47,8 +51,10 @@ impl TryFrom<&ContainerStateStatusEnum> for State {
             ContainerStateStatusEnum::REMOVING => State::Removing,
             ContainerStateStatusEnum::RESTARTING => State::Restarting,
             ContainerStateStatusEnum::RUNNING => State::Running,
-            
-            ContainerStateStatusEnum::EMPTY => return Err(FromContainerStateStatusEnumError::EmptyState),
+
+            ContainerStateStatusEnum::EMPTY => {
+                return Err(FromContainerStateStatusEnumError::EmptyState);
+            }
         })
     }
 }
@@ -60,13 +66,34 @@ mod tests {
     #[test]
     fn test_try_from_container_state_status_enum_success() {
         // Test all successful conversions
-        assert_eq!(State::try_from(&ContainerStateStatusEnum::CREATED).unwrap(), State::Created);
-        assert_eq!(State::try_from(&ContainerStateStatusEnum::DEAD).unwrap(), State::Dead);
-        assert_eq!(State::try_from(&ContainerStateStatusEnum::EXITED).unwrap(), State::Exited);
-        assert_eq!(State::try_from(&ContainerStateStatusEnum::PAUSED).unwrap(), State::Paused);
-        assert_eq!(State::try_from(&ContainerStateStatusEnum::REMOVING).unwrap(), State::Removing);
-        assert_eq!(State::try_from(&ContainerStateStatusEnum::RESTARTING).unwrap(), State::Restarting);
-        assert_eq!(State::try_from(&ContainerStateStatusEnum::RUNNING).unwrap(), State::Running);
+        assert_eq!(
+            State::try_from(&ContainerStateStatusEnum::CREATED).unwrap(),
+            State::Created
+        );
+        assert_eq!(
+            State::try_from(&ContainerStateStatusEnum::DEAD).unwrap(),
+            State::Dead
+        );
+        assert_eq!(
+            State::try_from(&ContainerStateStatusEnum::EXITED).unwrap(),
+            State::Exited
+        );
+        assert_eq!(
+            State::try_from(&ContainerStateStatusEnum::PAUSED).unwrap(),
+            State::Paused
+        );
+        assert_eq!(
+            State::try_from(&ContainerStateStatusEnum::REMOVING).unwrap(),
+            State::Removing
+        );
+        assert_eq!(
+            State::try_from(&ContainerStateStatusEnum::RESTARTING).unwrap(),
+            State::Restarting
+        );
+        assert_eq!(
+            State::try_from(&ContainerStateStatusEnum::RUNNING).unwrap(),
+            State::Running
+        );
     }
 
     #[test]
@@ -74,13 +101,16 @@ mod tests {
         // Test error case for EMPTY status
         let result = State::try_from(&ContainerStateStatusEnum::EMPTY);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), FromContainerStateStatusEnumError::EmptyState));
+        assert!(matches!(
+            result.unwrap_err(),
+            FromContainerStateStatusEnumError::EmptyState
+        ));
     }
 
     #[test]
     fn test_try_from_container_inspect_response_success() {
         use bollard::secret::ContainerState;
-        
+
         // Test successful conversion with a valid state
         let container_state = ContainerState {
             status: Some(ContainerStateStatusEnum::RUNNING),
@@ -100,7 +130,7 @@ mod tests {
     fn test_try_from_container_inspect_response_missing_state() {
         // Test error case when state is None
         let container_inspect = ContainerInspectResponse::default();
-        
+
         let result = State::try_from(&container_inspect);
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), GetStateError::MissingState));
@@ -109,7 +139,7 @@ mod tests {
     #[test]
     fn test_try_from_container_inspect_response_missing_status() {
         use bollard::secret::ContainerState;
-        
+
         // Test error case when state exists but status is None
         let container_inspect = ContainerInspectResponse {
             state: Some(ContainerState::default()), // status is None by default
@@ -124,7 +154,7 @@ mod tests {
     #[test]
     fn test_try_from_container_inspect_response_empty_status() {
         use bollard::secret::ContainerState;
-        
+
         // Test error case when status is EMPTY
         let container_state = ContainerState {
             status: Some(ContainerStateStatusEnum::EMPTY),
@@ -137,7 +167,10 @@ mod tests {
 
         let result = State::try_from(&container_inspect);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), GetStateError::FromContainerStateStatusEnum(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            GetStateError::FromContainerStateStatusEnum(_)
+        ));
     }
 
     #[test]
@@ -166,7 +199,7 @@ mod tests {
         let state = State::Running;
         let cloned_state = state.clone();
         assert_eq!(state, cloned_state);
-        
+
         // Test Debug implementation
         let debug_output = format!("{:?}", state);
         assert_eq!(debug_output, "Running");

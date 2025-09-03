@@ -2,7 +2,9 @@ use bollard::secret::ContainerInspectResponse;
 use semver::Version;
 
 use crate::models::{
-    CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError, GetMongoDBPortBindingError, GetStateError, LocalDeploymentLabels, MongoDBPortBinding, MongodbType, State
+    CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError,
+    GetMongoDBPortBindingError, GetStateError, LocalDeploymentLabels, MongoDBPortBinding,
+    MongodbType, State,
 };
 
 const LOCAL_SEED_LOCATION: &str = "/docker-entrypoint-initdb.d";

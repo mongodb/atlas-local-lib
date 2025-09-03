@@ -88,7 +88,9 @@ mod tests {
     use bollard::secret::NetworkSettings;
     use std::collections::HashMap;
 
-    fn create_container_response_with_mongodb_ports(ports: Vec<PortBinding>) -> ContainerInspectResponse {
+    fn create_container_response_with_mongodb_ports(
+        ports: Vec<PortBinding>,
+    ) -> ContainerInspectResponse {
         let mut port_map = HashMap::new();
         port_map.insert("27017/tcp".to_string(), Some(ports));
 
@@ -111,13 +113,14 @@ mod tests {
 
     #[test]
     fn test_try_from_successful_parse_loopback() {
-        let container = create_container_response_with_mongodb_ports(vec![
-            create_port_binding("127.0.0.1", "27017")
-        ]);
+        let container = create_container_response_with_mongodb_ports(vec![create_port_binding(
+            "127.0.0.1",
+            "27017",
+        )]);
 
         let result = MongoDBPortBinding::try_from(&container).unwrap();
         assert!(result.is_some());
-        
+
         let binding = result.unwrap();
         assert_eq!(binding.port, 27017);
         assert_eq!(binding.binding_type, BindingType::Loopback);
@@ -125,13 +128,13 @@ mod tests {
 
     #[test]
     fn test_try_from_successful_parse_any_interface() {
-        let container = create_container_response_with_mongodb_ports(vec![
-            create_port_binding("0.0.0.0", "27017")
-        ]);
+        let container = create_container_response_with_mongodb_ports(vec![create_port_binding(
+            "0.0.0.0", "27017",
+        )]);
 
         let result = MongoDBPortBinding::try_from(&container).unwrap();
         assert!(result.is_some());
-        
+
         let binding = result.unwrap();
         assert_eq!(binding.port, 27017);
         assert_eq!(binding.binding_type, BindingType::AnyInterface);
@@ -139,30 +142,36 @@ mod tests {
 
     #[test]
     fn test_try_from_successful_parse_specific_ipv4() {
-        let container = create_container_response_with_mongodb_ports(vec![
-            create_port_binding("192.168.1.100", "27017")
-        ]);
+        let container = create_container_response_with_mongodb_ports(vec![create_port_binding(
+            "192.168.1.100",
+            "27017",
+        )]);
 
         let result = MongoDBPortBinding::try_from(&container).unwrap();
         assert!(result.is_some());
-        
+
         let binding = result.unwrap();
         assert_eq!(binding.port, 27017);
-        assert_eq!(binding.binding_type, BindingType::Specific("192.168.1.100".parse().unwrap()));
+        assert_eq!(
+            binding.binding_type,
+            BindingType::Specific("192.168.1.100".parse().unwrap())
+        );
     }
 
     #[test]
     fn test_try_from_successful_parse_specific_ipv6() {
-        let container = create_container_response_with_mongodb_ports(vec![
-            create_port_binding("::1", "27017")
-        ]);
+        let container =
+            create_container_response_with_mongodb_ports(vec![create_port_binding("::1", "27017")]);
 
         let result = MongoDBPortBinding::try_from(&container).unwrap();
         assert!(result.is_some());
-        
+
         let binding = result.unwrap();
         assert_eq!(binding.port, 27017);
-        assert_eq!(binding.binding_type, BindingType::Specific("::1".parse().unwrap()));
+        assert_eq!(
+            binding.binding_type,
+            BindingType::Specific("::1".parse().unwrap())
+        );
     }
 
     #[test]
@@ -191,9 +200,10 @@ mod tests {
     #[test]
     fn test_try_from_missing_mongodb_port() {
         let mut port_map = HashMap::new();
-        port_map.insert("3000/tcp".to_string(), Some(vec![
-            create_port_binding("127.0.0.1", "3000")
-        ]));
+        port_map.insert(
+            "3000/tcp".to_string(),
+            Some(vec![create_port_binding("127.0.0.1", "3000")]),
+        );
 
         let container = ContainerInspectResponse {
             network_settings: Some(NetworkSettings {
@@ -211,7 +221,10 @@ mod tests {
     fn test_try_from_empty_mongodb_ports() {
         let container = create_container_response_with_mongodb_ports(vec![]);
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound)));
+        assert!(matches!(
+            result,
+            Err(GetMongoDBPortBindingError::MultiplePortsFound)
+        ));
     }
 
     #[test]
@@ -222,62 +235,69 @@ mod tests {
         ]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound)));
+        assert!(matches!(
+            result,
+            Err(GetMongoDBPortBindingError::MultiplePortsFound)
+        ));
     }
 
     #[test]
     fn test_try_from_missing_port_number() {
-        let container = create_container_response_with_mongodb_ports(vec![
-            PortBinding {
-                host_ip: Some("127.0.0.1".to_string()),
-                host_port: None,
-                ..Default::default()
-            }
-        ]);
+        let container = create_container_response_with_mongodb_ports(vec![PortBinding {
+            host_ip: Some("127.0.0.1".to_string()),
+            host_port: None,
+            ..Default::default()
+        }]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(result, Err(GetMongoDBPortBindingError::MissingPortNumber)));
+        assert!(matches!(
+            result,
+            Err(GetMongoDBPortBindingError::MissingPortNumber)
+        ));
     }
 
     #[test]
     fn test_try_from_invalid_port_number() {
-        let container = create_container_response_with_mongodb_ports(vec![
-            PortBinding {
-                host_ip: Some("127.0.0.1".to_string()),
-                host_port: Some("invalid_port".to_string()),
-                ..Default::default()
-            }
-        ]);
+        let container = create_container_response_with_mongodb_ports(vec![PortBinding {
+            host_ip: Some("127.0.0.1".to_string()),
+            host_port: Some("invalid_port".to_string()),
+            ..Default::default()
+        }]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(result, Err(GetMongoDBPortBindingError::InvalidPortNumber(_))));
+        assert!(matches!(
+            result,
+            Err(GetMongoDBPortBindingError::InvalidPortNumber(_))
+        ));
     }
 
     #[test]
     fn test_try_from_missing_host_ip() {
-        let container = create_container_response_with_mongodb_ports(vec![
-            PortBinding {
-                host_ip: None,
-                host_port: Some("27017".to_string()),
-                ..Default::default()
-            }
-        ]);
+        let container = create_container_response_with_mongodb_ports(vec![PortBinding {
+            host_ip: None,
+            host_port: Some("27017".to_string()),
+            ..Default::default()
+        }]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(result, Err(GetMongoDBPortBindingError::MissingHostIP)));
+        assert!(matches!(
+            result,
+            Err(GetMongoDBPortBindingError::MissingHostIP)
+        ));
     }
 
     #[test]
     fn test_try_from_invalid_host_ip() {
-        let container = create_container_response_with_mongodb_ports(vec![
-            PortBinding {
-                host_ip: Some("invalid_ip".to_string()),
-                host_port: Some("27017".to_string()),
-                ..Default::default()
-            }
-        ]);
+        let container = create_container_response_with_mongodb_ports(vec![PortBinding {
+            host_ip: Some("invalid_ip".to_string()),
+            host_port: Some("27017".to_string()),
+            ..Default::default()
+        }]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(result, Err(GetMongoDBPortBindingError::InvalidHostIP(_))));
+        assert!(matches!(
+            result,
+            Err(GetMongoDBPortBindingError::InvalidHostIP(_))
+        ));
     }
 }
