@@ -2,8 +2,7 @@ use bollard::secret::ContainerInspectResponse;
 use semver::Version;
 
 use crate::models::{
-    CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError, LocalDeploymentLabels,
-    MongodbType,
+    CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError, GetMongoDBPortBindingError, GetStateError, LocalDeploymentLabels, MongoDBPortBinding, MongodbType, State
 };
 
 const LOCAL_SEED_LOCATION: &str = "/docker-entrypoint-initdb.d";
@@ -13,6 +12,10 @@ pub struct Deployment {
     // Identifiers
     pub container_id: String,
     pub name: Option<String>,
+
+    // Docker specific
+    pub state: State,
+    pub port_bindings: Option<MongoDBPortBinding>,
 
     // MongoDB details (MongoD)
     pub mongodb_type: MongodbType,
@@ -44,6 +47,10 @@ pub enum IntoDeploymentError {
     MissingContainerID,
     #[error(transparent)]
     LocalDeploymentLabels(#[from] GetLocalDeploymentLabelsError),
+    #[error(transparent)]
+    MongoDBPortBinding(#[from] GetMongoDBPortBindingError),
+    #[error(transparent)]
+    State(#[from] GetStateError),
 }
 
 impl TryFrom<ContainerInspectResponse> for Deployment {
@@ -69,6 +76,8 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
         let container_labels = LocalDeploymentLabels::try_from(&value)?;
         let container_environment_variables = EnvironmentVariables::from(&value);
         let local_seed_location = extract_local_seed_location(&value);
+        let port_bindings = MongoDBPortBinding::try_from(&value)?;
+        let state = State::try_from(&value)?;
 
         // Deconstruct the labels and environment variables
         let LocalDeploymentLabels {
@@ -93,6 +102,10 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             // Identifiers
             name,
             container_id,
+
+            // Docker specific
+            state,
+            port_bindings,
 
             // MongoDB details (MongoD)
             mongodb_type,
