@@ -7,7 +7,7 @@ use crate::models::{
     MongodbType, State,
 };
 
-const LOCAL_SEED_LOCATION: &str = "/docker-entrypoint-initdb.d";
+pub const LOCAL_SEED_LOCATION: &str = "/docker-entrypoint-initdb.d";
 
 #[derive(Debug)]
 pub struct Deployment {
