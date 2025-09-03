@@ -2,8 +2,9 @@ use bollard::secret::ContainerInspectResponse;
 use semver::Version;
 
 use crate::models::{
-    CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError, LocalDeploymentLabels,
-    MongodbType,
+    CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError,
+    GetMongoDBPortBindingError, GetStateError, LocalDeploymentLabels, MongoDBPortBinding,
+    MongodbType, State,
 };
 
 const LOCAL_SEED_LOCATION: &str = "/docker-entrypoint-initdb.d";
@@ -13,6 +14,10 @@ pub struct Deployment {
     // Identifiers
     pub container_id: String,
     pub name: Option<String>,
+
+    // Docker specific
+    pub state: State,
+    pub port_bindings: Option<MongoDBPortBinding>,
 
     // MongoDB details (MongoD)
     pub mongodb_type: MongodbType,
@@ -44,6 +49,10 @@ pub enum IntoDeploymentError {
     MissingContainerID,
     #[error(transparent)]
     LocalDeploymentLabels(#[from] GetLocalDeploymentLabelsError),
+    #[error(transparent)]
+    MongoDBPortBinding(#[from] GetMongoDBPortBindingError),
+    #[error(transparent)]
+    State(#[from] GetStateError),
 }
 
 impl TryFrom<ContainerInspectResponse> for Deployment {
@@ -69,6 +78,8 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
         let container_labels = LocalDeploymentLabels::try_from(&value)?;
         let container_environment_variables = EnvironmentVariables::from(&value);
         let local_seed_location = extract_local_seed_location(&value);
+        let port_bindings = MongoDBPortBinding::try_from(&value)?;
+        let state = State::try_from(&value)?;
 
         // Deconstruct the labels and environment variables
         let LocalDeploymentLabels {
@@ -93,6 +104,10 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             // Identifiers
             name,
             container_id,
+
+            // Docker specific
+            state,
+            port_bindings,
 
             // MongoDB details (MongoD)
             mongodb_type,
@@ -137,12 +152,14 @@ fn extract_local_seed_location(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bollard::secret::{ContainerConfig, MountPoint};
+    use bollard::secret::{
+        ContainerConfig, ContainerState, ContainerStateStatusEnum, MountPoint, NetworkSettings,
+        PortBinding,
+    };
+    use std::collections::HashMap;
 
     #[test]
     fn test_into_deployment() {
-        use std::collections::HashMap;
-
         // Create required labels for LocalDeploymentLabels
         let mut labels = HashMap::new();
         labels.insert("mongodb-atlas-local".to_string(), "container".to_string());
@@ -170,6 +187,24 @@ mod tests {
             ..Default::default()
         };
 
+        // Create state for the container
+        let container_state = ContainerState {
+            status: Some(ContainerStateStatusEnum::RUNNING),
+            ..Default::default()
+        };
+
+        // Create network settings with port bindings
+        let port_binding = PortBinding {
+            host_ip: Some("127.0.0.1".to_string()),
+            host_port: Some("27017".to_string()),
+        };
+        let mut port_map = HashMap::new();
+        port_map.insert("27017/tcp".to_string(), Some(vec![port_binding]));
+        let network_settings = NetworkSettings {
+            ports: Some(port_map),
+            ..Default::default()
+        };
+
         let container_inspect_response = ContainerInspectResponse {
             id: Some("container_id".to_string()),
             name: Some("/test-deployment".to_string()),
@@ -179,6 +214,8 @@ mod tests {
                 ..Default::default()
             }),
             mounts: Some(vec![mount]),
+            state: Some(container_state),
+            network_settings: Some(network_settings),
             ..Default::default()
         };
 
@@ -187,6 +224,14 @@ mod tests {
         // Test all the fields to ensure proper parsing
         assert_eq!(deployment.container_id, "container_id");
         assert_eq!(deployment.name, Some("test-deployment".to_string()));
+        assert_eq!(deployment.state, State::Running);
+        assert!(deployment.port_bindings.is_some());
+        let port_binding = deployment.port_bindings.unwrap();
+        assert_eq!(port_binding.port, 27017);
+        assert_eq!(
+            port_binding.binding_type,
+            crate::models::BindingType::Loopback
+        );
         assert_eq!(deployment.creation_source, Some(CreationSource::AtlasCLI));
         assert_eq!(deployment.mongodb_type, MongodbType::Community);
         assert_eq!(deployment.mongodb_version, Version::new(8, 0, 0));
