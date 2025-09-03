@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use atlas_local::Client;
+use atlas_local::{Client, models::CreateDeploymentOptions};
 use bollard::Docker;
 
 #[tokio::main]
@@ -7,17 +7,21 @@ async fn main() -> Result<()> {
     let docker = Docker::connect_with_socket_defaults().context("connecting to docker")?;
     let client = Client::new(docker);
 
+    let deployment1 = CreateDeploymentOptions {
+        name: "local1234".to_string(),
+        ..Default::default()
+    };
     client
-        .create_deployment("local1234")
+        .create_deployment(&deployment1)
         .await
         .context("creating deployment local 1234")?;
 
     print_deployments(&client).await?;
 
     client
-        .create_deployment("local4321")
+        .create_deployment(&CreateDeploymentOptions::default())
         .await
-        .context("creating deployment local4321")?;
+        .context("creating default deployment")?;
 
     print_deployments(&client).await?;
 

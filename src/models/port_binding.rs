@@ -82,17 +82,17 @@ impl MongoDBPortBinding {
     }
 }
 
-impl From<&MongoDBPortBinding> for Vec<PortBinding> {
+impl From<&MongoDBPortBinding> for PortBinding {
     fn from(mdb_port_binding: &MongoDBPortBinding) -> Self {
         let host_ip = match mdb_port_binding.binding_type {
             BindingType::AnyInterface => "0.0.0.0".to_string(),
             BindingType::Loopback => "127.0.0.1".to_string(),
             BindingType::Specific(ip) => ip.to_string(),
         };
-        vec![PortBinding {
+        PortBinding {
             host_ip: Some(host_ip),
             host_port: Some(mdb_port_binding.port.to_string()),
-        }]
+        }
     }
 }
 
@@ -313,29 +313,26 @@ mod tests {
     #[test]
     fn test_loopback_into_port_binding_vec() {
         let mdb_port_binding = MongoDBPortBinding::new(27017, BindingType::Loopback);
-        let port_bindings: Vec<PortBinding> = (&mdb_port_binding).into();
+        let port_bindings: PortBinding = (&mdb_port_binding).into();
 
-        assert_eq!(port_bindings.len(), 1);
-        assert_eq!(port_bindings[0].host_ip.as_deref(), Some("127.0.0.1"));
-        assert_eq!(port_bindings[0].host_port.as_deref(), Some("27017"));
+        assert_eq!(port_bindings.host_ip.as_deref(), Some("127.0.0.1"));
+        assert_eq!(port_bindings.host_port.as_deref(), Some("27017"));
     }
     #[test]
     fn test_any_interface_into_port_binding_vec() {
         let mdb_port_binding = MongoDBPortBinding::new(27017, BindingType::AnyInterface);
-        let port_bindings: Vec<PortBinding> = (&mdb_port_binding).into();
+        let port_bindings: PortBinding = (&mdb_port_binding).into();
 
-        assert_eq!(port_bindings.len(), 1);
-        assert_eq!(port_bindings[0].host_ip.as_deref(), Some("0.0.0.0"));
-        assert_eq!(port_bindings[0].host_port.as_deref(), Some("27017"));
+        assert_eq!(port_bindings.host_ip.as_deref(), Some("0.0.0.0"));
+        assert_eq!(port_bindings.host_port.as_deref(), Some("27017"));
     }
     #[test]
     fn test_specific_ip_into_port_binding_vec() {
         let specific_ip: IpAddr = "128.128.128.128".parse().unwrap();
         let mdb_port_binding = MongoDBPortBinding::new(27017, BindingType::Specific(specific_ip));
-        let port_bindings: Vec<PortBinding> = (&mdb_port_binding).into();
+        let port_bindings: PortBinding = (&mdb_port_binding).into();
 
-        assert_eq!(port_bindings.len(), 1);
-        assert_eq!(port_bindings[0].host_ip.as_deref(), Some("128.128.128.128"));
-        assert_eq!(port_bindings[0].host_port.as_deref(), Some("27017"));
+        assert_eq!(port_bindings.host_ip.as_deref(), Some("128.128.128.128"));
+        assert_eq!(port_bindings.host_port.as_deref(), Some("27017"));
     }
 }
