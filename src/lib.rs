@@ -60,17 +60,27 @@ impl Client {
     ) -> Result<(), CreateDeploymentError> {
         // Pull the latest image for Atlas Local
         self.pull_image(
-            &deployment_options.image.clone().unwrap_or(ATLAS_LOCAL_IMAGE.to_string()),
-            &deployment_options
-                .mongodb_version.clone()
-                .unwrap_or(ATLAS_LOCAL_VERSION_TAG).to_string(),
+            deployment_options
+                .image
+                .as_ref()
+                .unwrap_or(&ATLAS_LOCAL_IMAGE.to_string()),
+            deployment_options
+                .mongodb_version
+                .as_ref()
+                .unwrap_or(&ATLAS_LOCAL_VERSION_TAG)
+                .to_string()
+                .as_ref(),
         )
         .await?;
 
         // Create the container with the correct configuration
         let create_container_options: CreateContainerOptions = deployment_options.into();
         let create_container_config: ContainerCreateBody = deployment_options.into();
-        let cluster_name = create_container_options.name.clone().expect("Container name");
+        let cluster_name = create_container_options
+            .name
+            .clone()
+            .expect("Container name");
+
         self.docker
             .create_container(Some(create_container_options), create_container_config)
             .await

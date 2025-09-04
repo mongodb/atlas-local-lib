@@ -1,4 +1,4 @@
-use std::vec;
+use std::{ops::Deref, vec};
 
 use bollard::{
     query_parameters::{CreateContainerOptions, CreateContainerOptionsBuilder},
@@ -56,10 +56,10 @@ impl From<&CreateDeploymentOptions> for CreateContainerOptions {
     fn from(deployment_options: &CreateDeploymentOptions) -> Self {
         CreateContainerOptionsBuilder::default()
             .name(
-                &deployment_options
+                deployment_options
                     .name
-                    .clone()
-                    .unwrap_or(format!("local{}", rand::rng().random_range(0..10000))),
+                    .as_ref()
+                    .unwrap_or(&format!("local{}", rand::rng().random_range(0..10000))),
             )
             .build()
     }
@@ -85,7 +85,7 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
         let volume_bindings_map =
             deployment_options
                 .local_seed_location
-                .clone()
+                .as_ref()
                 .map(|local_seed_location| {
                     vec![format!("{local_seed_location}:{LOCAL_SEED_LOCATION}:rw")]
                 });
