@@ -297,7 +297,7 @@ mod tests {
             .unwrap()
             .first()
             .unwrap();
-        assert_eq!(port_binding.host_ip, Some("0.0.0.0".to_string()));
+        assert_eq!(port_binding.host_ip, Some("127.0.0.1".to_string()));
         assert!(port_binding.host_port.is_none());
 
         assert_eq!(
@@ -329,17 +329,24 @@ mod tests {
     }
 
     #[test]
-    fn test_create_deployment_options_default() {
+    fn test_into_create_container_options_default() {
         // Create a default CreateDeploymentOptions
+        let options: CreateDeploymentOptions = CreateDeploymentOptions::default();
+        let create_container_options: CreateContainerOptions =
+            CreateContainerOptions::from(&options);
+
+        // Name should start with "local" followed by random numbers
+        assert!(create_container_options.name.unwrap().starts_with("local"));
+    }
+
+    #[test]
+    fn test_create_deployment_options_default() {
         let options = CreateDeploymentOptions::default();
 
-        // Assert default fields are set correctly
-        // Name should start with "local" followed by random numbers
-        // Image and tag should be set to the latest Atlas Local image
-        // All other optional fields should be None
-        assert!(options.name.unwrap().starts_with("local"));
-        assert_eq!(options.image, Some(ATLAS_LOCAL_IMAGE.to_string()));
-        assert_eq!(options.mongodb_version, Some(ATLAS_LOCAL_VERSION_TAG));
+        // All fields should be None by default
+        assert!(options.name.is_none());
+        assert!(options.image.is_none());
+        assert!(options.mongodb_version.is_none());
         assert!(options.creation_source.is_none());
         assert!(options.local_seed_location.is_none());
         assert!(options.mongodb_initdb_database.is_none());
