@@ -31,7 +31,6 @@ pub mod models;
 /// See the [module-level documentation](crate) for a complete example of creating
 /// a new client instance.
 pub struct Client {
-    #[allow(dead_code)] // TODO: remove this once we have methods on the client struct
     docker: Docker,
 }
 
