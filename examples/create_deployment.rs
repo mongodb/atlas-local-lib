@@ -8,7 +8,7 @@ async fn main() -> Result<()> {
     let client = Client::new(docker);
 
     let deployment1 = CreateDeploymentOptions {
-        name: "local1234".to_string(),
+        name: Some("local1234".to_string()),
         ..Default::default()
     };
     client

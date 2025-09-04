@@ -2,6 +2,7 @@
 pub enum CreationSource {
     AtlasCLI,
     Container,
+    MCPServer,
     Unknown(String),
 }
 

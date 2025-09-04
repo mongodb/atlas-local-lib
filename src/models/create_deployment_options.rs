@@ -6,6 +6,7 @@ use bollard::{
 };
 use maplit::hashmap;
 use rand::Rng;
+use semver::Version;
 
 use crate::models::{
     CreationSource, ENV_VAR_DO_NOT_TRACK, ENV_VAR_MONGODB_INITDB_DATABASE,
@@ -15,17 +16,17 @@ use crate::models::{
     LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
 };
 use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
-const ATLAS_LOCAL_IMAGE: &str = "mongodb/mongodb-atlas-local";
-const ATLAS_LOCAL_TAG: &str = "latest";
+pub const ATLAS_LOCAL_IMAGE: &str = "mongodb/mongodb-atlas-local";
+pub const ATLAS_LOCAL_VERSION_TAG: Version = Version::new(8, 0, 0);
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CreateDeploymentOptions {
     // Identifiers
-    pub name: String,
+    pub name: Option<String>,
 
     // Image details
-    pub image: String,
-    pub tag: String,
+    pub image: Option<String>,
+    pub mongodb_version: Option<Version>,
 
     // Creation source
     pub creation_source: Option<CreationSource>,
@@ -43,7 +44,7 @@ pub struct CreateDeploymentOptions {
     pub runner_log_file: Option<String>,
 
     // Telemetry
-    pub do_not_track: Option<String>,
+    pub do_not_track: Option<bool>,
     pub telemetry_base_url: Option<String>,
 
     // Port configuration
@@ -51,69 +52,43 @@ pub struct CreateDeploymentOptions {
     // Note: MongoDB version and type are part of the image so are not set here
 }
 
-impl Default for CreateDeploymentOptions {
-    fn default() -> Self {
-        CreateDeploymentOptions {
-            name: format!("local{}", rand::rng().random_range(0..10000)),
-            image: ATLAS_LOCAL_IMAGE.to_string(),
-            tag: ATLAS_LOCAL_TAG.to_string(),
-            creation_source: None,
-            local_seed_location: None,
-            mongodb_initdb_database: None,
-            mongodb_initdb_root_password_file: None,
-            mongodb_initdb_root_password: None,
-            mongodb_initdb_root_username_file: None,
-            mongodb_initdb_root_username: None,
-            mongot_log_file: None,
-            runner_log_file: None,
-            do_not_track: None,
-            telemetry_base_url: None,
-            mongodb_port_binding: None,
-        }
-    }
-}
-
 impl From<&CreateDeploymentOptions> for CreateContainerOptions {
     fn from(deployment_options: &CreateDeploymentOptions) -> Self {
         CreateContainerOptionsBuilder::default()
-            .name(&deployment_options.name)
+            .name(
+                &deployment_options
+                    .name
+                    .clone()
+                    .unwrap_or(format!("local{}", rand::rng().random_range(0..10000))),
+            )
             .build()
     }
 }
 
 impl From<&CreateDeploymentOptions> for ContainerCreateBody {
     fn from(deployment_options: &CreateDeploymentOptions) -> Self {
-        let mut create_container_config = ContainerCreateBody {
-            ..Default::default()
-        };
-
-        // Set the port bindings if available, otherwise default to binding to all interfaces on a random port
-        let mut port_bindings = Vec::with_capacity(1);
-        if let Some(mongodb_port) = &deployment_options.mongodb_port_binding {
-            port_bindings.push(mongodb_port.into());
-        } else {
-            port_bindings.push(PortBinding {
-                host_ip: Some("0.0.0.0".to_string()),
+        // Get the port bindings if available, otherwise default to binding a random avaiable port on 127.0.0.1
+        let port_binding = deployment_options
+            .mongodb_port_binding
+            .as_ref()
+            .map(PortBinding::from)
+            .unwrap_or(PortBinding {
+                host_ip: Some("127.0.0.1".to_string()),
                 host_port: None,
             });
-        }
-        let port_bindings_map = Some(hashmap! {"27017/tcp".to_string() => Some(port_bindings)});
+
+        let port_bindings_map = Some(hashmap! {
+            "27017/tcp".to_string() => Some(vec![port_binding])
+        });
 
         // Set up volume bindings if a local seed location is provided
-        let mut volume_bindings_map = None;
-        if let Some(local_seed_location) = &deployment_options.local_seed_location {
-            volume_bindings_map = Some(vec![format!(
-                "{}:{}:rw",
-                local_seed_location, LOCAL_SEED_LOCATION
-            )]);
-        }
-        // Create the HostConfig with port bindings and volume mounts
-        let host_config = HostConfig {
-            port_bindings: port_bindings_map,
-            binds: volume_bindings_map,
-            ..Default::default()
-        };
-        create_container_config.host_config = Some(host_config);
+        let volume_bindings_map =
+            deployment_options
+                .local_seed_location
+                .clone()
+                .map(|local_seed_location| {
+                    vec![format!("{local_seed_location}:{LOCAL_SEED_LOCATION}:rw")]
+                });
 
         // Set environment variables if they are provided in the deployment options
         let mut env_vars = [
@@ -151,7 +126,11 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             ),
             (
                 ENV_VAR_DO_NOT_TRACK,
-                deployment_options.do_not_track.as_ref(),
+                deployment_options
+                    .do_not_track
+                    .as_ref()
+                    .map(|b| b.to_string())
+                    .as_ref(),
             ),
             (
                 ENV_VAR_TELEMETRY_BASE_URL,
@@ -159,12 +138,15 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             ),
         ]
         .into_iter()
-        .filter_map(|(key, value_opt)| value_opt.map(|value| format!("{}={}", key, value)))
+        .filter_map(|(env_key, value_opt)| {
+            value_opt.map(|env_value| format!("{env_key}={env_value}"))
+        })
         .collect::<Vec<String>>();
 
         match deployment_options.creation_source {
             Some(CreationSource::AtlasCLI) => env_vars.push(format!("{}=ATLASCLI", ENV_VAR_TOOL)),
             Some(CreationSource::Container) => env_vars.push(format!("{}=CONTAINER", ENV_VAR_TOOL)),
+            Some(CreationSource::MCPServer) => env_vars.push(format!("{}=MCPSERVER", ENV_VAR_TOOL)),
             Some(CreationSource::Unknown(ref s)) => {
                 env_vars.push(format!("{}={}", ENV_VAR_TOOL, s))
             }
@@ -172,17 +154,34 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
         }
 
         // Only set env if we have any to set, otherwise leave it as None
-        if !env_vars.is_empty() {
-            create_container_config.env = Some(env_vars);
-        }
+        let env = if env_vars.is_empty() {
+            None
+        } else {
+            Some(env_vars)
+        };
 
-        // Set the image and labels
-        create_container_config.image = Some(deployment_options.image.clone());
-        create_container_config.labels = Some(hashmap! {
+        // Get the image and labels
+        let image = Some(
+            deployment_options
+                .image
+                .clone()
+                .unwrap_or(ATLAS_LOCAL_IMAGE.to_string()),
+        );
+        let labels = Some(hashmap! {
             LOCAL_DEPLOYMENT_LABEL_KEY.to_string() => LOCAL_DEPLOYMENT_LABEL_VALUE.to_string(),
         });
 
-        create_container_config
+        ContainerCreateBody {
+            image,
+            labels,
+            env,
+            host_config: Some(HostConfig {
+                port_bindings: port_bindings_map,
+                binds: volume_bindings_map,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
     }
 }
 
@@ -197,9 +196,9 @@ mod tests {
     fn test_into_container_create_body_full() {
         // Create a full CreateDeploymentOptions with all fields set
         let create_deployment_options = CreateDeploymentOptions {
-            name: "deployment_name".to_string(),
-            image: ATLAS_LOCAL_IMAGE.to_string(),
-            tag: ATLAS_LOCAL_TAG.to_string(),
+            name: Some("deployment_name".to_string()),
+            image: Some(ATLAS_LOCAL_IMAGE.to_string()),
+            mongodb_version: Some(ATLAS_LOCAL_VERSION_TAG),
             creation_source: Some(CreationSource::Container),
             local_seed_location: Some("/host/seed-data".to_string()),
             mongodb_initdb_database: Some("testdb".to_string()),
@@ -209,7 +208,7 @@ mod tests {
             mongodb_initdb_root_username: Some("admin".to_string()),
             mongot_log_file: Some("/tmp/mongot.log".to_string()),
             runner_log_file: Some("/tmp/runner.log".to_string()),
-            do_not_track: Some("false".to_string()),
+            do_not_track: Some(false),
             telemetry_base_url: Some("https://telemetry.example.com".to_string()),
             mongodb_port_binding: Some(MongoDBPortBinding::new(50000, BindingType::Loopback)),
         };
@@ -219,10 +218,7 @@ mod tests {
             ContainerCreateBody::from(&create_deployment_options);
 
         // Assert all fields are set correctly
-        assert_eq!(
-            container_create_body.image,
-            Some(create_deployment_options.image)
-        );
+        assert_eq!(container_create_body.image, create_deployment_options.image);
         assert_eq!(
             container_create_body
                 .labels
@@ -318,7 +314,7 @@ mod tests {
     fn test_into_create_container_options_minimal() {
         // Create a minimal CreateDeploymentOptions with only name set
         let create_deployment_options = CreateDeploymentOptions {
-            name: "deployment_name".to_string(),
+            name: Some("deployment_name".to_string()),
             ..Default::default()
         };
 
@@ -341,9 +337,9 @@ mod tests {
         // Name should start with "local" followed by random numbers
         // Image and tag should be set to the latest Atlas Local image
         // All other optional fields should be None
-        assert!(options.name.starts_with("local"));
-        assert_eq!(options.image, ATLAS_LOCAL_IMAGE.to_string());
-        assert_eq!(options.tag, ATLAS_LOCAL_TAG.to_string());
+        assert!(options.name.unwrap().starts_with("local"));
+        assert_eq!(options.image, Some(ATLAS_LOCAL_IMAGE.to_string()));
+        assert_eq!(options.mongodb_version, Some(ATLAS_LOCAL_VERSION_TAG));
         assert!(options.creation_source.is_none());
         assert!(options.local_seed_location.is_none());
         assert!(options.mongodb_initdb_database.is_none());
