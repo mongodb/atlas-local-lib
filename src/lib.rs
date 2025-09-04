@@ -32,7 +32,7 @@ pub mod models;
 /// a new client instance.
 pub struct Client {
     #[allow(dead_code)] // TODO: remove this once we have methods on the client struct
-    pub docker: Docker,
+    docker: Docker,
 }
 
 impl Client {

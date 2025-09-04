@@ -1,7 +1,7 @@
 use std::vec;
 
 use bollard::{
-    query_parameters::{CreateContainerOptions, CreateContainerOptionsBuilder},
+    query_parameters::CreateContainerOptions,
     secret::{ContainerCreateBody, HostConfig, PortBinding},
 };
 use maplit::hashmap;
@@ -54,14 +54,15 @@ pub struct CreateDeploymentOptions {
 
 impl From<&CreateDeploymentOptions> for CreateContainerOptions {
     fn from(deployment_options: &CreateDeploymentOptions) -> Self {
-        CreateContainerOptionsBuilder::default()
-            .name(
-                deployment_options
-                    .name
-                    .as_ref()
-                    .unwrap_or(&format!("local{}", rand::rng().random_range(0..10000))),
-            )
-            .build()
+        let name = deployment_options
+            .name
+            .clone()
+            .unwrap_or_else(|| format!("local{}", rand::rng().random_range(0..10000)));
+
+        CreateContainerOptions {
+            name: Some(name),
+            ..Default::default()
+        }
     }
 }
 
