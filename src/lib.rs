@@ -2,15 +2,20 @@
 
 use bollard::{
     Docker,
+    errors::Error::DockerResponseServerError,
     query_parameters::{
-        InspectContainerOptions, ListContainersOptionsBuilder, RemoveContainerOptions,
+        CreateContainerOptions, CreateImageOptionsBuilder, InspectContainerOptions,
+        ListContainersOptionsBuilder, RemoveContainerOptions, StartContainerOptions,
         StopContainerOptions,
     },
+    secret::ContainerCreateBody,
 };
+use futures_util::StreamExt;
 use maplit::hashmap;
 
 use crate::models::{
-    Deployment, IntoDeploymentError, LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
+    ATLAS_LOCAL_IMAGE, ATLAS_LOCAL_VERSION_TAG, CreateDeploymentOptions, Deployment,
+    IntoDeploymentError, LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
 };
 
 pub mod models;
@@ -26,7 +31,6 @@ pub mod models;
 /// See the [module-level documentation](crate) for a complete example of creating
 /// a new client instance.
 pub struct Client {
-    #[allow(dead_code)] // TODO: remove this once we have methods on the client struct
     docker: Docker,
 }
 
@@ -46,6 +50,53 @@ impl Client {
     /// See the [module-level documentation](crate) for usage examples.
     pub fn new(docker: Docker) -> Client {
         Client { docker }
+    }
+
+    ///Creates a local Atlas deployment.
+    pub async fn create_deployment(
+        &self,
+        deployment_options: &CreateDeploymentOptions,
+    ) -> Result<(), CreateDeploymentError> {
+        // Pull the latest image for Atlas Local
+        self.pull_image(
+            deployment_options
+                .image
+                .as_ref()
+                .unwrap_or(&ATLAS_LOCAL_IMAGE.to_string()),
+            deployment_options
+                .mongodb_version
+                .as_ref()
+                .unwrap_or(&ATLAS_LOCAL_VERSION_TAG)
+                .to_string()
+                .as_ref(),
+        )
+        .await?;
+
+        // Create the container with the correct configuration
+        let create_container_options: CreateContainerOptions = deployment_options.into();
+        let create_container_config: ContainerCreateBody = deployment_options.into();
+        let cluster_name = create_container_options
+            .name
+            .clone()
+            .expect("Container name");
+
+        self.docker
+            .create_container(Some(create_container_options), create_container_config)
+            .await
+            .map_err(|err| match err {
+                DockerResponseServerError {
+                    status_code: 409, ..
+                } => CreateDeploymentError::ContainerAlreadyExists(cluster_name.to_string()),
+                _ => CreateDeploymentError::CreateContainer(err),
+            })?;
+
+        // Start the Atlas Local container
+        self.docker
+            .start_container(&cluster_name.to_string(), None::<StartContainerOptions>)
+            .await
+            .map_err(CreateDeploymentError::CreateContainer)?;
+
+        Ok(())
     }
 
     /// Deletes a local Atlas deployment.
@@ -117,6 +168,26 @@ impl Client {
         // Convert the container inspect response to a deployment
         Ok(container_inspect_response.try_into()?)
     }
+
+    pub async fn pull_image(&self, image: &str, tag: &str) -> Result<(), CreateDeploymentError> {
+        // Build the options for pulling the Atlas Local Docker image
+        let create_image_options = CreateImageOptionsBuilder::default()
+            .from_image(image)
+            .tag(tag)
+            .build();
+
+        // Start pulling the image, which returns a stream of progress events
+        let mut stream = self
+            .docker
+            .create_image(Some(create_image_options), None, None);
+
+        // Iterate over the stream and check for errors
+        while let Some(result) = stream.next().await {
+            let _image_info = result.map_err(CreateDeploymentError::PullImage)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -132,4 +203,13 @@ pub enum DeleteDeploymentError {
     ContainerInspect(#[from] bollard::errors::Error),
     #[error("Failed to get deployment: {0}")]
     GetDeployment(#[from] GetDeploymentError),
+}
+#[derive(Debug, thiserror::Error)]
+pub enum CreateDeploymentError {
+    #[error("Failed to create container: {0}")]
+    CreateContainer(bollard::errors::Error),
+    #[error("Failed to pull image: {0}")]
+    PullImage(bollard::errors::Error),
+    #[error("Container already exists: {0}")]
+    ContainerAlreadyExists(String),
 }
