@@ -1,4 +1,4 @@
-use std::{ops::Deref, vec};
+use std::vec;
 
 use bollard::{
     query_parameters::{CreateContainerOptions, CreateContainerOptionsBuilder},
