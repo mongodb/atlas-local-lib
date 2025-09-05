@@ -18,6 +18,13 @@ async fn test_delete_only_deletes_atlas_local() {
     let docker = Docker::connect_with_socket_defaults().unwrap();
     let client = Client::new(docker);
 
+    // We are using docker directly rather than client because we want to list all containers not just deployments
+    let docker = Docker::connect_with_socket_defaults().unwrap();
+    let container_count_before_create = docker
+        .list_containers(None::<ListContainersOptions>)
+        .await
+        .expect("Listing containers").len();
+
     // Create a deployment
     let deployment_name = "test_deployment_name";
     container_cleaner.add_container(deployment_name);
@@ -31,7 +38,6 @@ async fn test_delete_only_deletes_atlas_local() {
         .expect("Creating deployment");
 
     // Create a dummy container
-    let docker = Docker::connect_with_socket_defaults().unwrap();
     let dummy_container_name = "dummy-container";
     container_cleaner.add_container(dummy_container_name);
     create_persistent_unrelated_container(&docker, dummy_container_name)
@@ -39,11 +45,11 @@ async fn test_delete_only_deletes_atlas_local() {
         .expect("Creating dummy container");
 
     // We are using docker directly rather than client because we want to list all containers not just deployments
-    let containers = docker
+    let container_count_after_create = docker
         .list_containers(None::<ListContainersOptions>)
         .await
-        .expect("Listing containers");
-    assert_eq!(containers.len(), 2);
+        .expect("Listing containers")
+        .len();
 
     // Delete the deployment
     client
@@ -74,11 +80,22 @@ async fn test_delete_only_deletes_atlas_local() {
     }
 
     // Check only the deployment was deleted and the alpine container was not
-    let containers = docker
+    let container_count_after_delete = docker
         .list_containers(None::<ListContainersOptions>)
         .await
-        .expect("Listing containers");
-    assert_eq!(containers.len(), 1);
+        .expect("Listing containers")
+        .len();
+
+    // Check both containers were created
+    assert_eq!(
+        container_count_after_create - container_count_before_create,
+        2
+    );
+    // Check only one container was deleted (only deployment)
+    assert_eq!(
+         container_count_after_create- container_count_after_delete,
+        1
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
