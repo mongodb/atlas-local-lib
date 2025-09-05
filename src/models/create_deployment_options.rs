@@ -162,16 +162,15 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
         };
 
         // Get the image and tag
-        let image_string =
-            deployment_options
-                .image
-                .clone()
-                .unwrap_or(ATLAS_LOCAL_IMAGE.to_string());
+        let image_string = deployment_options
+            .image
+            .clone()
+            .unwrap_or(ATLAS_LOCAL_IMAGE.to_string());
         let tag = deployment_options
-                .mongodb_version
-                .as_ref()
-                .unwrap_or(&ATLAS_LOCAL_VERSION_TAG)
-                .to_string();
+            .mongodb_version
+            .as_ref()
+            .unwrap_or(&ATLAS_LOCAL_VERSION_TAG)
+            .to_string();
 
         let image = Some(format!("{image_string}:{tag}"));
 
@@ -227,7 +226,10 @@ mod tests {
             ContainerCreateBody::from(&create_deployment_options);
 
         // Assert all fields are set correctly
-        assert_eq!(container_create_body.image, Some("mongodb/mongodb-atlas-local:8.0.0".to_string()));
+        assert_eq!(
+            container_create_body.image,
+            Some("mongodb/mongodb-atlas-local:8.0.0".to_string())
+        );
         assert_eq!(
             container_create_body
                 .labels
@@ -293,7 +295,8 @@ mod tests {
         // Assert default fields are set correctly and optional fields are None
         assert_eq!(
             container_create_body.image,
-            Some(format!("{ATLAS_LOCAL_IMAGE}:{ATLAS_LOCAL_VERSION_TAG}")));
+            Some(format!("{ATLAS_LOCAL_IMAGE}:{ATLAS_LOCAL_VERSION_TAG}"))
+        );
 
         assert!(container_create_body.env.is_none());
 
