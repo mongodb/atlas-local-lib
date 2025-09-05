@@ -23,7 +23,8 @@ async fn test_delete_only_deletes_atlas_local() {
     let container_count_before_create = docker
         .list_containers(None::<ListContainersOptions>)
         .await
-        .expect("Listing containers").len();
+        .expect("Listing containers")
+        .len();
 
     // Create a deployment
     let deployment_name = "test_deployment_name";
@@ -93,7 +94,7 @@ async fn test_delete_only_deletes_atlas_local() {
     );
     // Check only one container was deleted (only deployment)
     assert_eq!(
-         container_count_after_create- container_count_after_delete,
+        container_count_after_create - container_count_after_delete,
         1
     );
 }
