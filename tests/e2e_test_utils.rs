@@ -7,12 +7,12 @@ use bollard::{
     secret::ContainerCreateBody,
 };
 use futures_util::StreamExt;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use tokio::{runtime::Handle, sync::Mutex};
 
 // Mutex that ensures e2e tests that create deployments are completed in isolation
 // Important for avoiding naming conflicts and for counting how many docker containers were created
-pub static DOCKER_TEST_MUTEX: Lazy<Mutex<i32>> = Lazy::new(|| Mutex::new(0));
+pub static DOCKER_TEST_MUTEX: LazyLock<Mutex<i32>> = LazyLock::new(|| Mutex::new(0));
 
 #[derive(Default)]
 pub struct TestContainerCleaner {
