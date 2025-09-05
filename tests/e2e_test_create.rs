@@ -8,8 +8,7 @@ use crate::e2e_test_utils::{DOCKER_TEST_MUTEX, TestContainerCleaner};
 #[tokio::test(flavor = "multi_thread")]
 async fn test_create_list_then_delete_deployment() {
     // Acquire the global lock to ensure isolation for docker tests
-    // If another test panics, the lock may be poisoned but we still want to run the tests
-    let _guard = DOCKER_TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = DOCKER_TEST_MUTEX.lock().await;
     let mut container_cleaner = TestContainerCleaner::new();
 
     let docker = Docker::connect_with_socket_defaults().unwrap();
@@ -51,7 +50,7 @@ async fn test_create_list_then_delete_deployment() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_create_five_deployments_concurrent() {
-    let _guard = DOCKER_TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = DOCKER_TEST_MUTEX.lock().await;
     let mut container_cleaner = TestContainerCleaner::new();
 
     let docker = Docker::connect_with_socket_defaults().unwrap();
@@ -111,7 +110,7 @@ async fn test_create_five_deployments_concurrent() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_create_deployments_same_name() {
-    let _guard = DOCKER_TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = DOCKER_TEST_MUTEX.lock().await;
     let mut container_cleaner = TestContainerCleaner::new();
 
     let docker = Docker::connect_with_socket_defaults().unwrap();

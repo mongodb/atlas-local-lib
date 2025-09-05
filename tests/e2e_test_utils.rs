@@ -8,8 +8,7 @@ use bollard::{
 };
 use futures_util::StreamExt;
 use once_cell::sync::Lazy;
-use std::sync::Mutex;
-use tokio::runtime::Handle;
+use tokio::{runtime::Handle, sync::Mutex};
 
 // Mutex that ensures e2e tests that create deployments are completed in isolation
 // Important for avoiding naming conflicts and for counting how many docker containers were created

@@ -12,8 +12,7 @@ use crate::e2e_test_utils::{
 #[tokio::test(flavor = "multi_thread")]
 async fn test_delete_only_deletes_atlas_local() {
     // Acquire the global lock to ensure isolation for docker tests
-    // If another test panics, the lock may be poisoned but we still want to run the tests
-    let _guard = DOCKER_TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = DOCKER_TEST_MUTEX.lock().await;
     let mut container_cleaner = TestContainerCleaner::new();
 
     let docker = Docker::connect_with_socket_defaults().unwrap();
@@ -84,7 +83,7 @@ async fn test_delete_only_deletes_atlas_local() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_deletion_deployment_does_not_exist() {
-    let _guard = DOCKER_TEST_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = DOCKER_TEST_MUTEX.lock().await;
 
     let docker = Docker::connect_with_socket_defaults().unwrap();
     let client = Client::new(docker);
