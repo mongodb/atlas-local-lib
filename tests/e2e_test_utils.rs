@@ -53,6 +53,7 @@ impl Drop for TestContainerCleaner {
     }
 }
 
+#[allow(dead_code)]
 pub async fn create_persistent_unrelated_container(
     docker: &Docker,
     name: &str,
