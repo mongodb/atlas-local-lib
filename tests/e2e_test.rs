@@ -6,6 +6,7 @@ pub struct TestContainerCleaner {
     container_names: Vec<String>,
 }
 
+#[allow(clippy::new_without_default)]
 impl TestContainerCleaner {
     pub fn new() -> Self {
         let container_names = Vec::new();
