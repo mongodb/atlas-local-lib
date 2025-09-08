@@ -11,6 +11,7 @@ impl From<&str> for CreationSource {
         match s {
             "ATLASCLI" => CreationSource::AtlasCLI,
             "CONTAINER" => CreationSource::Container,
+            "MCPSERVER" => CreationSource::MCPServer,
             unknown => CreationSource::Unknown(unknown.to_string()),
         }
     }
@@ -30,6 +31,12 @@ mod tests {
     fn test_creation_source_from_container() {
         let source = CreationSource::from("CONTAINER");
         assert_eq!(source, CreationSource::Container);
+    }
+
+    #[test]
+    fn test_creation_source_from_mcp_server() {
+        let source = CreationSource::from("MCPSERVER");
+        assert_eq!(source, CreationSource::MCPServer);
     }
 
     #[test]
