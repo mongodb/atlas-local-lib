@@ -1,5 +1,5 @@
 use atlas_local::{Client, models::CreateDeploymentOptions};
-use bollard::{query_parameters::RemoveContainerOptionsBuilder, Docker};
+use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
 
 pub struct TestContainerCleaner {
@@ -51,7 +51,8 @@ async fn test_e2e_smoke_test() {
     let start_deployment_count = client
         .list_deployments()
         .await
-        .expect("Listing deployments").len();
+        .expect("Listing deployments")
+        .len();
 
     // Create a deployment
     let name = "test_deployment_name";
@@ -83,6 +84,7 @@ async fn test_e2e_smoke_test() {
     let end_deployment_count = client
         .list_deployments()
         .await
-        .expect("Listing deployments").len();
+        .expect("Listing deployments")
+        .len();
     assert_eq!(start_deployment_count, end_deployment_count);
 }
