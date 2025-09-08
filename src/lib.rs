@@ -14,8 +14,8 @@ use futures_util::StreamExt;
 use maplit::hashmap;
 
 use crate::models::{
-    ATLAS_LOCAL_IMAGE, ATLAS_LOCAL_VERSION_TAG, CreateDeploymentOptions, Deployment,
-    IntoDeploymentError, LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
+    ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, IntoDeploymentError,
+    LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
 };
 
 pub mod models;
@@ -66,8 +66,7 @@ impl Client {
             deployment_options
                 .mongodb_version
                 .as_ref()
-                .unwrap_or(&ATLAS_LOCAL_VERSION_TAG)
-                .to_string()
+                .map_or_else(|| "latest".to_string(), |version| version.to_string())
                 .as_ref(),
         )
         .await?;
