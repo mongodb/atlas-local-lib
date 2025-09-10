@@ -23,8 +23,6 @@ pub enum CreateDeploymentError {
     PullImage(#[from] PullImageError),
     #[error("Container already exists: {0}")]
     ContainerAlreadyExists(String),
-    #[error("Architecture not supported by Atlas Local: {0}")]
-    UnsupportedArchitecture(String),
     #[error("Failed to check status of started container: {0}")]
     ContainerInspect(bollard::errors::Error),
     #[error("Created Deployment {0} is not healthy")]
@@ -183,7 +181,7 @@ mod tests {
     async fn test_create_deployment() {
         // Arrange
         let mut mock_docker = MockDocker::new();
-        let create_options = CreateDeploymentOptions {
+        let options = CreateDeploymentOptions {
             name: Some("test-deployment".to_string()),
             ..Default::default()
         };
@@ -240,7 +238,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&create_options).await;
+        let result = client.create_deployment(&options).await;
 
         // Assert
         assert!(result.is_ok());
