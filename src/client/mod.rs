@@ -2,12 +2,14 @@ use bollard::Docker;
 
 mod create_deployment;
 mod delete_deployment;
+mod get_connection_string;
 mod get_deployment;
 mod list_deployments;
 mod pull_image;
 
 pub use create_deployment::CreateDeploymentError;
 pub use delete_deployment::DeleteDeploymentError;
+pub use get_connection_string::GetConnectionStringError;
 pub use get_deployment::GetDeploymentError;
 pub use pull_image::PullImageError;
 
