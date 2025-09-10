@@ -1,23 +1,27 @@
 #![doc = include_str!("../README.md")]
 
 use bollard::{
-    Docker,
     errors::Error::DockerResponseServerError,
     query_parameters::{
-        CreateContainerOptions, CreateImageOptionsBuilder, InspectContainerOptions,
-        ListContainersOptionsBuilder, RemoveContainerOptions, StartContainerOptions,
-        StopContainerOptions,
+        CreateContainerOptions, InspectContainerOptions, ListContainersOptionsBuilder,
+        RemoveContainerOptions, StartContainerOptions, StopContainerOptions,
     },
-    secret::ContainerCreateBody,
+    secret::ContainerCreateBody, Docker,
 };
-use futures_util::StreamExt;
 use maplit::hashmap;
 
-use crate::models::{
-    ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, IntoDeploymentError,
-    LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
+use crate::{
+    docker::{
+        DockerCreateContainer, DockerInspectContainer, DockerListContainers, DockerPullImage,
+        DockerRemoveContainer, DockerStartContainer, DockerStopContainer,
+    },
+    models::{
+        ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, IntoDeploymentError,
+        LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
+    },
 };
 
+pub mod docker;
 pub mod models;
 
 /// The main entry point for interacting with local Atlas deployments.
@@ -30,11 +34,11 @@ pub mod models;
 ///
 /// See the [module-level documentation](crate) for a complete example of creating
 /// a new client instance.
-pub struct Client {
-    docker: Docker,
+pub struct Client<D = Docker> {
+    docker: D,
 }
 
-impl Client {
+impl<D> Client<D> {
     /// Creates a new Atlas Local client.
     ///
     /// # Arguments
@@ -48,10 +52,12 @@ impl Client {
     /// # Examples
     ///
     /// See the [module-level documentation](crate) for usage examples.
-    pub fn new(docker: Docker) -> Client {
+    pub fn new(docker: D) -> Client<D> {
         Client { docker }
     }
+}
 
+impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer> Client<D> {
     ///Creates a local Atlas deployment.
     pub async fn create_deployment(
         &self,
@@ -97,7 +103,9 @@ impl Client {
 
         Ok(())
     }
+}
 
+impl<D: DockerStopContainer + DockerRemoveContainer + DockerInspectContainer> Client<D> {
     /// Deletes a local Atlas deployment.
     pub async fn delete_deployment(&self, name: &str) -> Result<(), DeleteDeploymentError> {
         // Check that a deployment with that name exists and get the container ID.
@@ -120,7 +128,9 @@ impl Client {
 
         Ok(())
     }
+}
 
+impl<D: DockerListContainers + DockerInspectContainer> Client<D> {
     /// Lists all local Atlas deployments.
     pub async fn list_deployments(&self) -> Result<Vec<Deployment>, GetDeploymentError> {
         // Build the list containers options which will filter for containers with the local deployment label
@@ -153,7 +163,14 @@ impl Client {
 
         Ok(deployments)
     }
+}
 
+impl<D: DockerInspectContainer> Client<D> {
+    /// Inspects a container.
+    ///
+    /// # Arguments
+    ///
+    /// * `container_id_or_name` - The ID or name of the container to inspect.
     pub async fn get_deployment(
         &self,
         container_id_or_name: &str,
@@ -167,24 +184,17 @@ impl Client {
         // Convert the container inspect response to a deployment
         Ok(container_inspect_response.try_into()?)
     }
+}
 
-    pub async fn pull_image(&self, image: &str, tag: &str) -> Result<(), CreateDeploymentError> {
-        // Build the options for pulling the Atlas Local Docker image
-        let create_image_options = CreateImageOptionsBuilder::default()
-            .from_image(image)
-            .tag(tag)
-            .build();
-
-        // Start pulling the image, which returns a stream of progress events
-        let mut stream = self
-            .docker
-            .create_image(Some(create_image_options), None, None);
-
-        // Iterate over the stream and check for errors
-        while let Some(result) = stream.next().await {
-            let _image_info = result.map_err(CreateDeploymentError::PullImage)?;
-        }
-
+impl<D: DockerPullImage> Client<D> {
+    /// Pulls the Atlas Local image.
+    ///
+    /// # Arguments
+    ///
+    /// * `image` - The image to pull.
+    /// * `tag` - The tag to pull.
+    pub async fn pull_image(&self, image: &str, tag: &str) -> Result<(), PullImageError> {
+        self.docker.pull_image(image, tag).await?;
         Ok(())
     }
 }
@@ -207,8 +217,12 @@ pub enum DeleteDeploymentError {
 pub enum CreateDeploymentError {
     #[error("Failed to create container: {0}")]
     CreateContainer(bollard::errors::Error),
-    #[error("Failed to pull image: {0}")]
-    PullImage(bollard::errors::Error),
+    #[error(transparent)]
+    PullImage(#[from] PullImageError),
     #[error("Container already exists: {0}")]
     ContainerAlreadyExists(String),
 }
+
+#[derive(Debug, thiserror::Error)]
+#[error("Failed to pull image: {0}")]
+pub struct PullImageError(#[from] bollard::errors::Error);
