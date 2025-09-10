@@ -1,3 +1,4 @@
+#![feature(result_flattening)]
 use bollard::{
     errors::Error::DockerResponseServerError,
     query_parameters::{CreateContainerOptions, InspectContainerOptions, StartContainerOptions},
