@@ -112,7 +112,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Install Rust 1.89 (edition 2024 requirement)
+    - name: Install Rust 1.89
       run: |
         rustup update 1.89
         rustup default 1.89
