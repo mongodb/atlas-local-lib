@@ -77,23 +77,22 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
 
         // Default to waiting for the deployment to be healthy
         if deployment_options.wait_until_healthy.unwrap_or(true) {
-            // Timeout after 10 minutes
+            // Default timeout after 10 minutes
             // Container should become unhealthy before the timeout is reached
-            match time::timeout(
-                time::Duration::from_secs(60) * 10,
+            let timeout_duration = deployment_options
+                .wait_until_healthy_timeout
+                .unwrap_or(time::Duration::from_secs(60) * 10);
+            time::timeout(
+                timeout_duration,
                 self.wait_for_healthy_deployment(&cluster_name),
             )
             .await
-            {
-                // Wait for Healthy Deployment finishes before timeout
-                Ok(result) => result?,
-                // Timeout reached
-                Err(_) => {
-                    return Err(CreateDeploymentError::UnhealthyDeployment(format!(
-                        "Timeout while waiting for container {cluster_name} to become healthy"
-                    )));
-                }
-            }
+            .map_err(|_| {
+                CreateDeploymentError::UnhealthyDeployment(format!(
+                    "Timeout while waiting for container {cluster_name} to become healthy"
+                ))
+            })
+            .flatten()?;
         }
 
         Ok(())

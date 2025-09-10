@@ -1,5 +1,3 @@
-use std::vec;
-
 use bollard::{
     query_parameters::CreateContainerOptions,
     secret::{ContainerCreateBody, HostConfig, PortBinding},
@@ -7,6 +5,7 @@ use bollard::{
 use maplit::hashmap;
 use rand::Rng;
 use semver::Version;
+use std::{time::Duration, vec};
 
 use crate::models::{
     CreationSource, ENV_VAR_DO_NOT_TRACK, ENV_VAR_MONGODB_INITDB_DATABASE,
@@ -30,6 +29,7 @@ pub struct CreateDeploymentOptions {
 
     // Creation Options
     pub wait_until_healthy: Option<bool>,
+    pub wait_until_healthy_timeout: Option<Duration>,
     pub creation_source: Option<CreationSource>,
 
     // Initial database configuration
@@ -208,6 +208,7 @@ mod tests {
             image: Some(ATLAS_LOCAL_IMAGE.to_string()),
             mongodb_version: Some(ATLAS_LOCAL_VERSION_TAG),
             wait_until_healthy: Some(true),
+            wait_until_healthy_timeout: Some(Duration::from_secs(60)),
             creation_source: Some(CreationSource::Container),
             local_seed_location: Some("/host/seed-data".to_string()),
             mongodb_initdb_database: Some("testdb".to_string()),
@@ -369,6 +370,7 @@ mod tests {
         assert!(options.image.is_none());
         assert!(options.mongodb_version.is_none());
         assert!(options.wait_until_healthy.is_none());
+        assert!(options.wait_until_healthy_timeout.is_none());
         assert!(options.creation_source.is_none());
         assert!(options.local_seed_location.is_none());
         assert!(options.mongodb_initdb_database.is_none());
