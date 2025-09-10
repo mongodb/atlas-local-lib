@@ -49,7 +49,6 @@ pub struct CreateDeploymentOptions {
 
     // Port configuration
     pub mongodb_port_binding: Option<MongoDBPortBinding>,
-    // Note: MongoDB version and type are part of the image so are not set here
 }
 
 impl From<&CreateDeploymentOptions> for CreateContainerOptions {

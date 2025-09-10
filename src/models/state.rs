@@ -12,7 +12,7 @@ pub enum State {
     Running,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum GetStateError {
     #[error("Missing state")]
     MissingState,
@@ -33,7 +33,7 @@ impl TryFrom<&ContainerInspectResponse> for State {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum FromContainerStateStatusEnumError {
     #[error("Empty state")]
     EmptyState,
