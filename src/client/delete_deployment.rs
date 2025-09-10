@@ -5,7 +5,7 @@ use crate::{
     docker::{DockerInspectContainer, DockerRemoveContainer, DockerStopContainer},
 };
 
-use super::{GetDeploymentError};
+use super::GetDeploymentError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeleteDeploymentError {

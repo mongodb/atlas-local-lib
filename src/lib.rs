@@ -8,4 +8,3 @@ pub mod models;
 pub use client::{
     Client, CreateDeploymentError, DeleteDeploymentError, GetDeploymentError, PullImageError,
 };
-

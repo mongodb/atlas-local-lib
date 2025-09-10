@@ -1,7 +1,4 @@
-use crate::{
-    client::Client,
-    docker::DockerPullImage,
-};
+use crate::{client::Client, docker::DockerPullImage};
 
 #[derive(Debug, thiserror::Error)]
 #[error("Failed to pull image: {0}")]

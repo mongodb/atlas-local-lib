@@ -7,7 +7,7 @@ use bollard::{
 use crate::{
     client::Client,
     docker::{DockerCreateContainer, DockerPullImage, DockerStartContainer},
-    models::{CreateDeploymentOptions, ATLAS_LOCAL_IMAGE},
+    models::{ATLAS_LOCAL_IMAGE, CreateDeploymentOptions},
 };
 
 use super::PullImageError;
