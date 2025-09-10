@@ -62,9 +62,7 @@ impl DockerPullImage for Docker {
 
         // Iterate over the stream and check for errors
         while let Some(result) = stream.next().await {
-            if let Err(e) = result {
-                return Err(e);
-            }
+            result?;
         }
 
         Ok(())
