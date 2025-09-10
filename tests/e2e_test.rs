@@ -1,3 +1,4 @@
+#![cfg(feature = "e2e-tests")]
 use atlas_local::{Client, models::CreateDeploymentOptions};
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;

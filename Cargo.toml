@@ -13,6 +13,9 @@ include = [
     "license.html"
 ]
 
+[features]
+e2e-tests = []
+
 [dependencies]
 bollard = "0.19.2"
 futures-util = "0.3.31"
