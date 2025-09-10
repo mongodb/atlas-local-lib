@@ -24,6 +24,7 @@ mockall = "0.13.1"
 rand = "0.9.2"
 semver = "1.0.26"
 thiserror = "2.0.16"
+tokio = { version = "1.0", features = ["time"] }
 
 [dev-dependencies]
 anyhow = "1.0.99"

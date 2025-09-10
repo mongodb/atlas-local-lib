@@ -13,6 +13,7 @@ async fn main() -> Result<()> {
         .context("Deleting atlas local container local1234")?;
     println!("local1234 successfully deleted");
 
+    // This should fail as the container is not a local Atlas container
     client
         .delete_deployment("other_none_local_atlas")
         .await

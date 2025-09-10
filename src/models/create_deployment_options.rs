@@ -28,7 +28,8 @@ pub struct CreateDeploymentOptions {
     pub image: Option<String>,
     pub mongodb_version: Option<Version>,
 
-    // Creation source
+    // Creation Options
+    pub wait_until_healthy: Option<bool>,
     pub creation_source: Option<CreationSource>,
 
     // Initial database configuration
@@ -206,6 +207,7 @@ mod tests {
             name: Some("deployment_name".to_string()),
             image: Some(ATLAS_LOCAL_IMAGE.to_string()),
             mongodb_version: Some(ATLAS_LOCAL_VERSION_TAG),
+            wait_until_healthy: Some(true),
             creation_source: Some(CreationSource::Container),
             local_seed_location: Some("/host/seed-data".to_string()),
             mongodb_initdb_database: Some("testdb".to_string()),
@@ -237,6 +239,14 @@ mod tests {
             Some(&LOCAL_DEPLOYMENT_LABEL_VALUE.to_string())
         );
 
+        // Check Creation Options
+        assert_eq!(create_deployment_options.wait_until_healthy, Some(true));
+        assert_eq!(
+            create_deployment_options.creation_source,
+            Some(CreationSource::Container)
+        );
+
+        // Check environment variables
         let env_vars = container_create_body.env.unwrap();
         assert!(env_vars.contains(&format!("{}=CONTAINER", ENV_VAR_TOOL)));
         assert!(env_vars.contains(&format!("{}=/tmp/runner.log", ENV_VAR_RUNNER_LOG_FILE)));
@@ -358,6 +368,7 @@ mod tests {
         assert!(options.name.is_none());
         assert!(options.image.is_none());
         assert!(options.mongodb_version.is_none());
+        assert!(options.wait_until_healthy.is_none());
         assert!(options.creation_source.is_none());
         assert!(options.local_seed_location.is_none());
         assert!(options.mongodb_initdb_database.is_none());
