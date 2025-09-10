@@ -47,8 +47,8 @@ mod tests {
     };
     use maplit::hashmap;
     use mockall::mock;
-    use semver::Version;
     use pretty_assertions::assert_eq;
+    use semver::Version;
 
     mock! {
         Docker {}
