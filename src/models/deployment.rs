@@ -9,7 +9,7 @@ use crate::models::{
 
 pub const LOCAL_SEED_LOCATION: &str = "/docker-entrypoint-initdb.d";
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Deployment {
     // Identifiers
     pub container_id: String,
@@ -43,7 +43,7 @@ pub struct Deployment {
     pub telemetry_base_url: Option<String>,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum IntoDeploymentError {
     #[error("Container ID is missing")]
     MissingContainerID,

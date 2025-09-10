@@ -15,7 +15,7 @@ pub enum BindingType {
     Specific(IpAddr), // Specific IP address
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq)]
 pub enum GetMongoDBPortBindingError {
     #[error("Multiple MongoDB ports found")]
     MultiplePortsFound,
