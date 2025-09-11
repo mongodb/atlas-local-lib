@@ -4,7 +4,7 @@ use bollard::secret::{ContainerInspectResponse, PortBinding};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MongoDBPortBinding {
-    pub port: u16,
+    pub port: Option<u16>,
     pub binding_type: BindingType,
 }
 
@@ -30,7 +30,7 @@ pub enum GetMongoDBPortBindingError {
 }
 
 impl MongoDBPortBinding {
-    pub fn new(port: u16, binding_type: BindingType) -> Self {
+    pub fn new(port: Option<u16>, binding_type: BindingType) -> Self {
         Self { port, binding_type }
     }
 
@@ -71,7 +71,10 @@ impl MongoDBPortBinding {
             ),
         };
 
-        Ok(Some(MongoDBPortBinding::new(port_number, binding_type)))
+        Ok(Some(MongoDBPortBinding::new(
+            Some(port_number),
+            binding_type,
+        )))
     }
 
     fn get_mongodb_ports(value: &ContainerInspectResponse) -> Option<&Vec<PortBinding>> {
@@ -91,7 +94,7 @@ impl From<&MongoDBPortBinding> for PortBinding {
         };
         PortBinding {
             host_ip: Some(host_ip),
-            host_port: Some(mdb_port_binding.port.to_string()),
+            host_port: mdb_port_binding.port.map(|port| port.to_string()),
         }
     }
 }
@@ -135,7 +138,7 @@ mod tests {
         assert!(result.is_some());
 
         let binding = result.unwrap();
-        assert_eq!(binding.port, 27017);
+        assert_eq!(binding.port, Some(27017));
         assert_eq!(binding.binding_type, BindingType::Loopback);
     }
 
@@ -149,7 +152,7 @@ mod tests {
         assert!(result.is_some());
 
         let binding = result.unwrap();
-        assert_eq!(binding.port, 27017);
+        assert_eq!(binding.port, Some(27017));
         assert_eq!(binding.binding_type, BindingType::AnyInterface);
     }
 
@@ -164,7 +167,7 @@ mod tests {
         assert!(result.is_some());
 
         let binding = result.unwrap();
-        assert_eq!(binding.port, 27017);
+        assert_eq!(binding.port, Some(27017));
         assert_eq!(
             binding.binding_type,
             BindingType::Specific("192.168.1.100".parse().unwrap())
@@ -180,7 +183,7 @@ mod tests {
         assert!(result.is_some());
 
         let binding = result.unwrap();
-        assert_eq!(binding.port, 27017);
+        assert_eq!(binding.port, Some(27017));
         assert_eq!(
             binding.binding_type,
             BindingType::Specific("::1".parse().unwrap())
@@ -312,7 +315,7 @@ mod tests {
 
     #[test]
     fn test_loopback_into_port_binding_vec() {
-        let mdb_port_binding = MongoDBPortBinding::new(27017, BindingType::Loopback);
+        let mdb_port_binding = MongoDBPortBinding::new(Some(27017), BindingType::Loopback);
         let port_bindings: PortBinding = (&mdb_port_binding).into();
 
         assert_eq!(port_bindings.host_ip.as_deref(), Some("127.0.0.1"));
@@ -320,7 +323,7 @@ mod tests {
     }
     #[test]
     fn test_any_interface_into_port_binding_vec() {
-        let mdb_port_binding = MongoDBPortBinding::new(27017, BindingType::AnyInterface);
+        let mdb_port_binding = MongoDBPortBinding::new(Some(27017), BindingType::AnyInterface);
         let port_bindings: PortBinding = (&mdb_port_binding).into();
 
         assert_eq!(port_bindings.host_ip.as_deref(), Some("0.0.0.0"));
@@ -329,10 +332,20 @@ mod tests {
     #[test]
     fn test_specific_ip_into_port_binding_vec() {
         let specific_ip: IpAddr = "128.128.128.128".parse().unwrap();
-        let mdb_port_binding = MongoDBPortBinding::new(27017, BindingType::Specific(specific_ip));
+        let mdb_port_binding =
+            MongoDBPortBinding::new(Some(27017), BindingType::Specific(specific_ip));
         let port_bindings: PortBinding = (&mdb_port_binding).into();
 
         assert_eq!(port_bindings.host_ip.as_deref(), Some("128.128.128.128"));
         assert_eq!(port_bindings.host_port.as_deref(), Some("27017"));
+    }
+    #[test]
+    fn test_specific_ip_into_port_binding_vec_no_port() {
+        let specific_ip: IpAddr = "128.128.128.128".parse().unwrap();
+        let mdb_port_binding = MongoDBPortBinding::new(None, BindingType::Specific(specific_ip));
+        let port_bindings: PortBinding = (&mdb_port_binding).into();
+
+        assert_eq!(port_bindings.host_ip.as_deref(), Some("128.128.128.128"));
+        assert_eq!(port_bindings.host_port.as_deref(), None);
     }
 }

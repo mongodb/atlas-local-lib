@@ -11,37 +11,27 @@ async fn main() -> Result<()> {
         name: Some("local1234".to_string()),
         ..Default::default()
     };
-    client
+    let deployment = client
         .create_deployment(&deployment1)
         .await
         .context("creating deployment local 1234")?;
 
-    print_deployments(&client).await?;
+    println!(
+        "[{}] \t{}",
+        deployment.mongodb_version,
+        deployment.name.unwrap_or_default()
+    );
 
-    client
+    let deployment2 = client
         .create_deployment(&CreateDeploymentOptions::default())
         .await
         .context("creating default deployment")?;
 
-    print_deployments(&client).await?;
-
-    Ok(())
-}
-
-async fn print_deployments(client: &Client) -> Result<()> {
-    let deployments = client
-        .list_deployments()
-        .await
-        .context("listing deployments")?;
-
-    println!("Deployments:");
-    for deployment in deployments {
-        println!(
-            "[{}] \t{}",
-            deployment.mongodb_version,
-            deployment.name.unwrap_or_default()
-        );
-    }
+    println!(
+        "[{}] \t{}",
+        deployment2.mongodb_version,
+        deployment2.name.unwrap_or_default()
+    );
 
     Ok(())
 }

@@ -6,11 +6,12 @@ use bollard::{
 use tokio::time;
 
 use crate::{
+    GetDeploymentError,
     client::Client,
     docker::{
         DockerCreateContainer, DockerInspectContainer, DockerPullImage, DockerStartContainer,
     },
-    models::{ATLAS_LOCAL_IMAGE, CreateDeploymentOptions},
+    models::{ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment},
 };
 
 use super::PullImageError;
@@ -27,6 +28,8 @@ pub enum CreateDeploymentError {
     ContainerInspect(bollard::errors::Error),
     #[error("Created Deployment {0} is not healthy")]
     UnhealthyDeployment(String),
+    #[error("Unable to get details for Deployment: {0}")]
+    GetDeploymentError(GetDeploymentError),
 }
 
 impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerInspectContainer>
@@ -36,7 +39,7 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
     pub async fn create_deployment(
         &self,
         deployment_options: &CreateDeploymentOptions,
-    ) -> Result<(), CreateDeploymentError> {
+    ) -> Result<Deployment, CreateDeploymentError> {
         // Pull the latest image for Atlas Local
         self.pull_image(
             deployment_options
@@ -95,7 +98,10 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
             .flatten()?;
         }
 
-        Ok(())
+        // Return the deployment details
+        self.get_deployment(&cluster_name)
+            .await
+            .map_err(CreateDeploymentError::GetDeploymentError)
     }
 }
 
@@ -139,8 +145,12 @@ mod tests {
     use super::*;
     use bollard::{
         errors::Error as BollardError,
-        secret::{ContainerCreateResponse, ContainerInspectResponse, ContainerState},
+        secret::{
+            ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState,
+            ContainerStateStatusEnum,
+        },
     };
+    use maplit::hashmap;
     use mockall::mock;
     use pretty_assertions::assert_eq;
 
@@ -173,6 +183,79 @@ mod tests {
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
             ) -> Result<ContainerInspectResponse, BollardError>;
+        }
+    }
+
+    fn create_test_container_inspect_response() -> ContainerInspectResponse {
+        ContainerInspectResponse {
+            id: Some("test_container_id".to_string()),
+            name: Some("/test-deployment".to_string()),
+            config: Some(ContainerConfig {
+                labels: Some(hashmap! {
+                    "mongodb-atlas-local".to_string() => "container".to_string(),
+                    "version".to_string() => "8.0.0".to_string(),
+                    "mongodb-type".to_string() => "community".to_string(),
+                }),
+                env: Some(vec!["TOOL=ATLASCLI".to_string()]),
+                ..Default::default()
+            }),
+            state: Some(ContainerState {
+                status: Some(ContainerStateStatusEnum::RUNNING),
+                health: Some(bollard::secret::Health {
+                    status: Some(HealthStatusEnum::HEALTHY),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn create_test_container_inspect_response_unhealthy() -> ContainerInspectResponse {
+        ContainerInspectResponse {
+            id: Some("test_container_id".to_string()),
+            name: Some("/test-deployment".to_string()),
+            config: Some(ContainerConfig {
+                labels: Some(hashmap! {
+                    "mongodb-atlas-local".to_string() => "container".to_string(),
+                    "version".to_string() => "8.0.0".to_string(),
+                    "mongodb-type".to_string() => "community".to_string(),
+                }),
+                env: Some(vec!["TOOL=ATLASCLI".to_string()]),
+                ..Default::default()
+            }),
+            state: Some(ContainerState {
+                health: Some(bollard::secret::Health {
+                    status: Some(HealthStatusEnum::UNHEALTHY),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn create_test_container_inspect_response_starting() -> ContainerInspectResponse {
+        ContainerInspectResponse {
+            id: Some("test_container_id".to_string()),
+            name: Some("/test-deployment".to_string()),
+            config: Some(ContainerConfig {
+                labels: Some(hashmap! {
+                    "mongodb-atlas-local".to_string() => "container".to_string(),
+                    "version".to_string() => "8.0.0".to_string(),
+                    "mongodb-type".to_string() => "community".to_string(),
+                }),
+                env: Some(vec!["TOOL=ATLASCLI".to_string()]),
+                ..Default::default()
+            }),
+            state: Some(ContainerState {
+                health: Some(bollard::secret::Health {
+                    status: Some(HealthStatusEnum::STARTING),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
         }
     }
 
@@ -220,19 +303,8 @@ mod tests {
                 mockall::predicate::eq("test-deployment"),
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
-            .times(1)
-            .returning(|_, _| {
-                Ok(ContainerInspectResponse {
-                    state: Some(ContainerState {
-                        health: Some(bollard::secret::Health {
-                            status: Some(HealthStatusEnum::HEALTHY),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                })
-            });
+            .times(2)
+            .returning(|_, _| Ok(create_test_container_inspect_response()));
 
         let client = Client::new(mock_docker);
 
@@ -400,7 +472,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_deployment_wait_for_healthy_deployment_error() {
+    async fn test_create_deployment_wait_for_healthy_deployment_unhealthy() {
         // Arrange
         let mut mock_docker = MockDocker::new();
         let options = CreateDeploymentOptions {
@@ -444,18 +516,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Ok(ContainerInspectResponse {
-                    state: Some(ContainerState {
-                        health: Some(bollard::secret::Health {
-                            status: Some(HealthStatusEnum::UNHEALTHY),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                })
-            });
+            .returning(|_, _| Ok(create_test_container_inspect_response_unhealthy()));
 
         let client = Client::new(mock_docker);
 
@@ -515,18 +576,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Ok(ContainerInspectResponse {
-                    state: Some(ContainerState {
-                        health: Some(bollard::secret::Health {
-                            status: Some(HealthStatusEnum::STARTING),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                })
-            });
+            .returning(|_, _| Ok(create_test_container_inspect_response_starting()));
 
         mock_docker
             .expect_inspect_container()
@@ -534,19 +584,8 @@ mod tests {
                 mockall::predicate::eq("test-deployment"),
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
-            .times(1)
-            .returning(|_, _| {
-                Ok(ContainerInspectResponse {
-                    state: Some(ContainerState {
-                        health: Some(bollard::secret::Health {
-                            status: Some(HealthStatusEnum::HEALTHY),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                })
-            });
+            .times(2)
+            .returning(|_, _| Ok(create_test_container_inspect_response()));
 
         let client = Client::new(mock_docker);
 
@@ -602,7 +641,8 @@ mod tests {
                 mockall::predicate::eq("test-deployment"),
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
-            .times(0);
+            .times(1)
+            .returning(|_, _| Ok(create_test_container_inspect_response()));
 
         let client = Client::new(mock_docker);
 
