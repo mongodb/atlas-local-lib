@@ -227,7 +227,7 @@ mod tests {
         assert_eq!(deployment.state, State::Running);
         assert!(deployment.port_bindings.is_some());
         let port_binding = deployment.port_bindings.unwrap();
-        assert_eq!(port_binding.port, 27017);
+        assert_eq!(port_binding.port, Some(27017));
         assert_eq!(
             port_binding.binding_type,
             crate::models::BindingType::Loopback

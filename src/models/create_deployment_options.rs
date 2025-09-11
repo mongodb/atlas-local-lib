@@ -220,7 +220,7 @@ mod tests {
             runner_log_file: Some("/tmp/runner.log".to_string()),
             do_not_track: Some(false),
             telemetry_base_url: Some("https://telemetry.example.com".to_string()),
-            mongodb_port_binding: Some(MongoDBPortBinding::new(50000, BindingType::Loopback)),
+            mongodb_port_binding: Some(MongoDBPortBinding::new(Some(50000), BindingType::Loopback)),
         };
 
         // Convert to ContainerCreateBody
