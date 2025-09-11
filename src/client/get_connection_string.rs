@@ -26,32 +26,45 @@ impl<D: DockerInspectContainer> Client<D> {
         // Get deployment
         let deployment = self.get_deployment(req.container_id_or_name).await?;
 
-        // Extract port binding and auth credentials
+        // Extract port binding
         let port = match &deployment.port_bindings {
             Some(MongoDBPortBinding { port, .. }) => *port,
             _ => return Err(GetConnectionStringError::MissingPortBinding),
         };
 
-        // Construct the connection string with format depending on presence of username/password
-        let connection_string = match (req.db_username, req.db_password) {
-            (Some(u), Some(p)) if !u.is_empty() && !p.is_empty() => {
-                format!(
-                    "mongodb://{}:{}@localhost:{}/?directConnection=true",
-                    u, p, port
-                )
-            }
-            _ => format!("mongodb://localhost:{}/?directConnection=true", port),
-        };
+        // Construct the connection string
+        let connection_string = format_connection_string(req.db_username, req.db_password, port);
 
-        // Optionally verify the connection string by connecting to MongoDB and executing a simple command
+        // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
-            let client_options = ClientOptions::parse(&connection_string).await?;
-            let mongo_client = MongoClient::with_options(client_options)?;
-            mongo_client.list_database_names().await?;
+            verify_connection_string(&connection_string)
+                .await
+                .map_err(GetConnectionStringError::MongoConnect)?;
         }
 
         Ok(connection_string)
     }
+}
+
+// format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
+fn format_connection_string(username: Option<&str>, password: Option<&str>, port: u16) -> String {
+    match (username, password) {
+        (Some(u), Some(p)) if !u.is_empty() && !p.is_empty() => {
+            format!(
+                "mongodb://{}:{}@localhost:{}/?directConnection=true",
+                u, p, port
+            )
+        }
+        _ => format!("mongodb://localhost:{}/?directConnection=true", port),
+    }
+}
+
+// verify_connection_string verifies the provided connection string by attempting to connect to MongoDB and running a simple command.
+async fn verify_connection_string(connection_string: &str) -> Result<(), mongodb::error::Error> {
+    let client_options = ClientOptions::parse(connection_string).await?;
+    let mongo_client = MongoClient::with_options(client_options)?;
+    mongo_client.list_database_names().await?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -80,8 +93,6 @@ mod tests {
     }
 
     fn create_container_inspect_response_with_auth(port: u16) -> ContainerInspectResponse {
-        let env_vars = vec!["TOOL=ATLASCLI".to_string()];
-
         ContainerInspectResponse {
             id: Some("test_container_id".to_string()),
             name: Some("/test-deployment".to_string()),
@@ -91,7 +102,6 @@ mod tests {
                     "version".to_string() => "7.0.0".to_string(),
                     "mongodb-type".to_string() => "community".to_string(),
                 }),
-                env: Some(env_vars),
                 ..Default::default()
             }),
             state: Some(ContainerState {
@@ -123,7 +133,6 @@ mod tests {
                     "version".to_string() => "7.0.0".to_string(),
                     "mongodb-type".to_string() => "community".to_string(),
                 }),
-                env: Some(vec!["TOOL=ATLASCLI".to_string()]),
                 ..Default::default()
             }),
             state: Some(ContainerState {
