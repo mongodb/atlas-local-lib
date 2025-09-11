@@ -1,5 +1,8 @@
 #![cfg(feature = "e2e-tests")]
-use atlas_local::{models::{CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding}, Client};
+use atlas_local::{
+    Client,
+    models::{CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding},
+};
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
 
@@ -99,7 +102,10 @@ async fn test_e2e_smoke_test() {
         .expect("Getting connection string");
     assert_eq!(
         conn_string,
-        format!("mongodb://{}:{}@localhost:{}/?directConnection=true", username, password, port)
+        format!(
+            "mongodb://{}:{}@localhost:{}/?directConnection=true",
+            username, password, port
+        )
     );
 
     // Delete Deployment

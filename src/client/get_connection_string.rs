@@ -1,9 +1,9 @@
-use mongodb::{options::ClientOptions, Client as MongoClient};
 use crate::{
     client::Client,
     docker::DockerInspectContainer,
-    models::{MongoDBPortBinding, GetConnectionStringOptions},
+    models::{GetConnectionStringOptions, MongoDBPortBinding},
 };
+use mongodb::{Client as MongoClient, options::ClientOptions};
 
 use super::GetDeploymentError;
 
@@ -35,7 +35,10 @@ impl<D: DockerInspectContainer> Client<D> {
         // Construct the connection string with format depending on presence of username/password
         let connection_string = match (req.db_username, req.db_password) {
             (Some(u), Some(p)) if !u.is_empty() && !p.is_empty() => {
-                format!("mongodb://{}:{}@localhost:{}/?directConnection=true", u, p, port)
+                format!(
+                    "mongodb://{}:{}@localhost:{}/?directConnection=true",
+                    u, p, port
+                )
             }
             _ => format!("mongodb://localhost:{}/?directConnection=true", port),
         };
@@ -55,9 +58,11 @@ impl<D: DockerInspectContainer> Client<D> {
 mod tests {
     use super::*;
     use bollard::{
-        query_parameters::InspectContainerOptions,
-        secret::{ContainerInspectResponse, ContainerConfig, ContainerState, ContainerStateStatusEnum},
         errors::Error as BollardError,
+        query_parameters::InspectContainerOptions,
+        secret::{
+            ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
+        },
     };
     use maplit::hashmap;
     use mockall::mock;
@@ -75,10 +80,8 @@ mod tests {
     }
 
     fn create_container_inspect_response_with_auth(port: u16) -> ContainerInspectResponse {
-        let env_vars = vec![
-            "TOOL=ATLASCLI".to_string(),
-        ];
-        
+        let env_vars = vec!["TOOL=ATLASCLI".to_string()];
+
         ContainerInspectResponse {
             id: Some("test_container_id".to_string()),
             name: Some("/test-deployment".to_string()),
@@ -240,7 +243,10 @@ mod tests {
 
         // Assert
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), GetConnectionStringError::GetDeployment(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            GetConnectionStringError::GetDeployment(_)
+        ));
     }
 
     #[tokio::test]
@@ -292,6 +298,9 @@ mod tests {
 
         // Assert
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), GetConnectionStringError::MissingPortBinding));
+        assert!(matches!(
+            result.unwrap_err(),
+            GetConnectionStringError::MissingPortBinding
+        ));
     }
 }

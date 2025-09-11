@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use atlas_local::{models::GetConnectionStringOptions, Client};
+use atlas_local::{Client, models::GetConnectionStringOptions};
 use bollard::Docker;
 
 #[tokio::main]
@@ -14,9 +14,14 @@ async fn main() -> Result<()> {
 
     println!("DEPLOYMENT \t CONNECTION STRING");
     for deployment in deployments {
-        let username = &deployment.mongodb_initdb_root_username.clone().unwrap_or_default();
-        let password = &deployment.mongodb_initdb_root_password.clone().unwrap_or_default();
-        
+        let username = &deployment
+            .mongodb_initdb_root_username
+            .clone()
+            .unwrap_or_default();
+        let password = &deployment
+            .mongodb_initdb_root_password
+            .clone()
+            .unwrap_or_default();
 
         let req = GetConnectionStringOptions {
             container_id_or_name: &deployment.container_id,
@@ -25,15 +30,11 @@ async fn main() -> Result<()> {
             verify: Some(true),
         };
         let conn_str = client
-        .get_connection_string(req)
-        .await
-        .unwrap_or_else(|e| format!("Error: {}", e));
+            .get_connection_string(req)
+            .await
+            .unwrap_or_else(|e| format!("Error: {}", e));
 
-        println!(
-            "[{}] \t{}",
-            deployment.name.unwrap_or_default(),
-            conn_str
-        );
+        println!("[{}] \t{}", deployment.name.unwrap_or_default(), conn_str);
     }
 
     Ok(())
