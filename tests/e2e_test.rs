@@ -58,9 +58,13 @@ async fn test_e2e_smoke_test() {
 
     // Create a deployment
     let name = "test_deployment_name";
+    let username = "testuser";
+    let password = "testpassword";
     container_cleaner.add_container(name);
     let deployment1 = CreateDeploymentOptions {
         name: Some(name.to_string()),
+        mongodb_initdb_root_username: Some(username.to_string()),
+        mongodb_initdb_root_password: Some(password.to_string()),
         ..Default::default()
     };
     client
@@ -76,22 +80,26 @@ async fn test_e2e_smoke_test() {
     assert_eq!(deployments.len() - start_deployment_count, 1);
     assert_eq!(deployments.first().unwrap().name.as_deref(), Some(name));
 
+    // Get port of created deployment to verify connection string
     let port = match &deployments.first().unwrap().port_bindings {
         Some(MongoDBPortBinding { port, .. }) => *port,
         _ => panic!("No port binding found"),
     };
+
+    // Get Connection String
     let get_conn_string_req = GetConnectionStringOptions {
         container_id_or_name: &name,
+        db_username: Some(username),
+        db_password: Some(password),
         verify: Some(true),
     };
-    // Get Connection String
     let conn_string = client
         .get_connection_string(get_conn_string_req)
         .await
         .expect("Getting connection string");
     assert_eq!(
         conn_string,
-        format!("mongodb://localhost:{}/?directConnection=true", port)
+        format!("mongodb://{}:{}@localhost:{}/?directConnection=true", username, password, port)
     );
 
     // Delete Deployment

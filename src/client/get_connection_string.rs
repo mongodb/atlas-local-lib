@@ -31,24 +31,13 @@ impl<D: DockerInspectContainer> Client<D> {
             Some(MongoDBPortBinding { port, .. }) => *port,
             _ => return Err(GetConnectionStringError::MissingPortBinding),
         };
-        // No error is returned if username or password is missing - just assume no auth is set
-        let username = deployment
-            .mongodb_initdb_root_username
-            .as_deref()
-            .unwrap_or("");
-        let password = deployment
-            .mongodb_initdb_root_password
-            .as_deref()
-            .unwrap_or("");
 
-        // Construct the connection string
-        let connection_string = if username.is_empty() && password.is_empty() {
-            format!("mongodb://localhost:{}/?directConnection=true", port)
-        } else {
-            format!(
-                "mongodb://{}:{}@localhost:{}/?directConnection=true",
-                username, password, port
-            )
+        // Construct the connection string with format depending on presence of username/password
+        let connection_string = match (req.db_username, req.db_password) {
+            (Some(u), Some(p)) if !u.is_empty() && !p.is_empty() => {
+                format!("mongodb://{}:{}@localhost:{}/?directConnection=true", u, p, port)
+            }
+            _ => format!("mongodb://localhost:{}/?directConnection=true", port),
         };
 
         // Optionally verify the connection string by connecting to MongoDB and executing a simple command
@@ -88,8 +77,6 @@ mod tests {
     fn create_container_inspect_response_with_auth(port: u16) -> ContainerInspectResponse {
         let env_vars = vec![
             "TOOL=ATLASCLI".to_string(),
-            "MONGODB_INITDB_ROOT_USERNAME=testuser".to_string(),
-            "MONGODB_INITDB_ROOT_PASSWORD=testpass".to_string(),
         ];
         
         ContainerInspectResponse {
@@ -172,7 +159,9 @@ mod tests {
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment",
-            verify: Some(false),
+            db_username: Some("testuser"),
+            db_password: Some("testpass"),
+            verify: None,
         };
 
         // Act
@@ -203,7 +192,9 @@ mod tests {
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment",
-            verify: Some(false),
+            db_username: None,
+            db_password: None,
+            verify: None,
         };
 
         // Act
@@ -239,7 +230,9 @@ mod tests {
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
             container_id_or_name: "nonexistent-deployment",
-            verify: Some(false),
+            db_username: None,
+            db_password: None,
+            verify: None,
         };
 
         // Act
@@ -289,7 +282,9 @@ mod tests {
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment",
-            verify: Some(false),
+            db_username: None,
+            db_password: None,
+            verify: None,
         };
 
         // Act

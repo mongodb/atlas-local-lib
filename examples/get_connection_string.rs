@@ -14,8 +14,14 @@ async fn main() -> Result<()> {
 
     println!("DEPLOYMENT \t CONNECTION STRING");
     for deployment in deployments {
+        let username = &deployment.mongodb_initdb_root_username.clone().unwrap_or_default();
+        let password = &deployment.mongodb_initdb_root_password.clone().unwrap_or_default();
+        
+
         let req = GetConnectionStringOptions {
             container_id_or_name: &deployment.container_id,
+            db_username: Some(username),
+            db_password: Some(password),
             verify: Some(true),
         };
         let conn_str = client
