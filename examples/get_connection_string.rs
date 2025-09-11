@@ -5,7 +5,7 @@ use bollard::Docker;
 #[tokio::main]
 async fn main() -> Result<()> {
     let docker = Docker::connect_with_socket_defaults().context("connecting to docker")?;
-    let client = Client::new(docker);
+    let client = Client::new(docker.clone());
 
     let deployments = client
         .list_deployments()
@@ -22,6 +22,9 @@ async fn main() -> Result<()> {
             .mongodb_initdb_root_password
             .clone()
             .unwrap_or_default();
+
+        let inspect_response = docker.inspect_container(&deployment.container_id, None::<InspectContainerOptions>).await?;
+        println!("{:#?}", inspect_response);
 
         let req = GetConnectionStringOptions {
             container_id_or_name: &deployment.container_id,

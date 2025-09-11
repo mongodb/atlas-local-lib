@@ -133,12 +133,12 @@ jobs:
 
   e2e-tests:
       runs-on: ubuntu-latest
-      services:
-        docker:
-          image: docker:dind
-          options: --privileged
-          ports:
-            - 2375:2375
+      # services:
+      #   docker:
+      #     image: docker:dind
+      #     options: --privileged
+      #     ports:
+      #       - 2375:2375
       container:
         image: ubuntu:latest
       steps:

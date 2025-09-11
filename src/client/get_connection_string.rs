@@ -34,6 +34,7 @@ impl<D: DockerInspectContainer> Client<D> {
 
         // Construct the connection string
         let connection_string = format_connection_string(req.db_username, req.db_password, port);
+        print!("Connection String: {}", connection_string);
 
         // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
@@ -51,11 +52,11 @@ fn format_connection_string(username: Option<&str>, password: Option<&str>, port
     match (username, password) {
         (Some(u), Some(p)) if !u.is_empty() && !p.is_empty() => {
             format!(
-                "mongodb://{}:{}@localhost:{}/?directConnection=true",
+                "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
                 u, p, port
             )
         }
-        _ => format!("mongodb://localhost:{}/?directConnection=true", port),
+        _ => format!("mongodb://127.0.0.1:{}/?directConnection=true", port),
     }
 }
 
@@ -183,7 +184,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            "mongodb://testuser:testpass@localhost:27017/?directConnection=true"
+            "mongodb://testuser:testpass@127.0.0.1:27017/?directConnection=true"
         );
     }
 
@@ -216,7 +217,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            "mongodb://localhost:27017/?directConnection=true"
+            "mongodb://127.0.0.1:27017/?directConnection=true"
         );
     }
 
