@@ -6,6 +6,7 @@ use bollard::{
 use tokio::time;
 
 use crate::{
+    GetDeploymentError,
     client::Client,
     docker::{
         DockerCreateContainer, DockerInspectContainer, DockerPullImage, DockerStartContainer,
@@ -27,8 +28,8 @@ pub enum CreateDeploymentError {
     ContainerInspect(bollard::errors::Error),
     #[error("Created Deployment {0} is not healthy")]
     UnhealthyDeployment(String),
-    #[error("Unable to get details for Deployment {0}")]
-    GetDeploymentError(String),
+    #[error("Unable to get details for Deployment: {0}")]
+    GetDeploymentError(GetDeploymentError),
 }
 
 impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerInspectContainer>
@@ -100,7 +101,7 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
         // Return the deployment details
         self.get_deployment(&cluster_name)
             .await
-            .map_err(|_| CreateDeploymentError::GetDeploymentError(cluster_name.to_string()))
+            .map_err(CreateDeploymentError::GetDeploymentError)
     }
 }
 
