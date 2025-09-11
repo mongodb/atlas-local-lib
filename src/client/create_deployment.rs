@@ -144,7 +144,10 @@ mod tests {
     use super::*;
     use bollard::{
         errors::Error as BollardError,
-        secret::{ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum},
+        secret::{
+            ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState,
+            ContainerStateStatusEnum,
+        },
     };
     use maplit::hashmap;
     use mockall::mock;
@@ -255,7 +258,6 @@ mod tests {
         }
     }
 
-
     #[tokio::test]
     async fn test_create_deployment() {
         // Arrange
@@ -301,9 +303,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(2)
-            .returning(|_, _| {
-                Ok(create_test_container_inspect_response())
-            });
+            .returning(|_, _| Ok(create_test_container_inspect_response()));
 
         let client = Client::new(mock_docker);
 
@@ -515,9 +515,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Ok(create_test_container_inspect_response_unhealthy())
-            });
+            .returning(|_, _| Ok(create_test_container_inspect_response_unhealthy()));
 
         let client = Client::new(mock_docker);
 
@@ -577,9 +575,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Ok(create_test_container_inspect_response_starting())
-            });
+            .returning(|_, _| Ok(create_test_container_inspect_response_starting()));
 
         mock_docker
             .expect_inspect_container()
@@ -588,9 +584,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(2)
-            .returning(|_, _| {
-                Ok(create_test_container_inspect_response())
-            });
+            .returning(|_, _| Ok(create_test_container_inspect_response()));
 
         let client = Client::new(mock_docker);
 
@@ -647,9 +641,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Ok(create_test_container_inspect_response())
-            });
+            .returning(|_, _| Ok(create_test_container_inspect_response()));
 
         let client = Client::new(mock_docker);
 

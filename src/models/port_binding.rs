@@ -71,7 +71,10 @@ impl MongoDBPortBinding {
             ),
         };
 
-        Ok(Some(MongoDBPortBinding::new(Some(port_number), binding_type)))
+        Ok(Some(MongoDBPortBinding::new(
+            Some(port_number),
+            binding_type,
+        )))
     }
 
     fn get_mongodb_ports(value: &ContainerInspectResponse) -> Option<&Vec<PortBinding>> {
@@ -91,7 +94,7 @@ impl From<&MongoDBPortBinding> for PortBinding {
         };
         PortBinding {
             host_ip: Some(host_ip),
-            host_port: mdb_port_binding.port.map(|port| port.to_string())
+            host_port: mdb_port_binding.port.map(|port| port.to_string()),
         }
     }
 }
@@ -329,7 +332,8 @@ mod tests {
     #[test]
     fn test_specific_ip_into_port_binding_vec() {
         let specific_ip: IpAddr = "128.128.128.128".parse().unwrap();
-        let mdb_port_binding = MongoDBPortBinding::new(Some(27017), BindingType::Specific(specific_ip));
+        let mdb_port_binding =
+            MongoDBPortBinding::new(Some(27017), BindingType::Specific(specific_ip));
         let port_bindings: PortBinding = (&mdb_port_binding).into();
 
         assert_eq!(port_bindings.host_ip.as_deref(), Some("128.128.128.128"));

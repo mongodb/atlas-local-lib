@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use atlas_local::{models::CreateDeploymentOptions, Client};
+use atlas_local::{Client, models::CreateDeploymentOptions};
 use bollard::Docker;
 
 #[tokio::main]
@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
         deployment.mongodb_version,
         deployment.name.unwrap_or_default()
     );
-        
+
     let deployment2 = client
         .create_deployment(&CreateDeploymentOptions::default())
         .await
