@@ -23,9 +23,6 @@ async fn main() -> Result<()> {
             .clone()
             .unwrap_or_default();
 
-        let inspect_response = docker.inspect_container(&deployment.container_id, None::<InspectContainerOptions>).await?;
-        println!("{:#?}", inspect_response);
-
         let req = GetConnectionStringOptions {
             container_id_or_name: &deployment.container_id,
             db_username: Some(username),

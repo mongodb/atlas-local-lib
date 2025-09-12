@@ -5,7 +5,7 @@ use atlas_local::{
         BindingType, CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding,
     },
 };
-use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
+use bollard::{query_parameters::{InspectContainerOptions, RemoveContainerOptionsBuilder}, Docker};
 use tokio::runtime::Handle;
 
 pub struct TestContainerCleaner {
@@ -52,7 +52,7 @@ async fn test_e2e_smoke_test() {
     let mut container_cleaner = TestContainerCleaner::new();
 
     let docker = Docker::connect_with_socket_defaults().unwrap();
-    let client = Client::new(docker);
+    let client = Client::new(docker.clone());
 
     // Count number of active deployments
     let start_deployment_count = client
@@ -96,8 +96,9 @@ async fn test_e2e_smoke_test() {
     };
 
     // tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-    let deployment2 = client.get_deployment(name).await.unwrap();
-    println!("{deployment2:#?}");
+    let inspect_response = docker.inspect_container(&name, None::<InspectContainerOptions>).await.unwrap();
+    println!("{:#?}", inspect_response);
+
 
     // Get Connection String
     let get_conn_string_req = GetConnectionStringOptions {
