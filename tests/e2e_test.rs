@@ -96,8 +96,8 @@ async fn test_e2e_smoke_test() {
     };
 
     // tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-    // let inspect_response = docker.inspect_container(&name, None::<InspectContainerOptions>).await.unwrap();
-    // println!("{:#?}", inspect_response);
+    let inspect_response = docker.inspect_container(&name, None::<InspectContainerOptions>).await.unwrap();
+    println!("{:#?}", inspect_response);
 
 
     // Get Connection String
@@ -134,5 +134,5 @@ async fn test_e2e_smoke_test() {
         .len();
     assert_eq!(start_deployment_count, end_deployment_count);
 
-    // panic!("Remove me!")
+    panic!("Remove me!")
 }

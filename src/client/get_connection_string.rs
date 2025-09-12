@@ -1,8 +1,9 @@
 use crate::{
     client::Client,
-    docker::DockerInspectContainer,
+    docker::{DockerInspectContainer},
     models::{GetConnectionStringOptions, MongoDBPortBinding},
 };
+use bollard::{query_parameters::InspectContainerOptions};
 use mongodb::{Client as MongoClient, options::ClientOptions};
 
 use super::GetDeploymentError;
@@ -33,8 +34,9 @@ impl<D: DockerInspectContainer> Client<D> {
         };
         let port = port.flatten().ok_or(GetConnectionStringError::MissingPortBinding)?;
 
+        let hostname = self.get_hostname(req.container_id_or_name).await;
         // Construct the connection string
-        let connection_string = format_connection_string(req.db_username, req.db_password, port);
+        let connection_string = format_connection_string(&hostname,req.db_username, req.db_password, port);
         // print!("Connection String: {}", connection_string);
 
         // Optionally, verify the connection string
@@ -46,19 +48,32 @@ impl<D: DockerInspectContainer> Client<D> {
 
         Ok(connection_string)
     }
+
+    async fn get_hostname(&self, name: &str) -> String {
+        let mut hostname = "127.0.0.1".to_string();
+        // Check if we are running inside a docker container
+        if std::path::Path::new("/.dockerenv").exists() {
+            // Inspect the container to get the config hostname
+            let container_inspect_response = self
+                .docker
+                .inspect_container(name, None::<InspectContainerOptions>)
+                .await.unwrap();
+            hostname = container_inspect_response.config.and_then(|c| c.hostname).unwrap_or(hostname);
+        }
+        hostname
+    }
 }
 
 // format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
-fn format_connection_string(username: Option<&str>, password: Option<&str>, port: u16) -> String {
-    match (username, password) {
+fn format_connection_string(hostname: &str, username: Option<&str>, password: Option<&str>, port: u16) -> String {
+    let auth_string = match (username, password) {
         (Some(u), Some(p)) if !u.is_empty() && !p.is_empty() => {
-            format!(
-                "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
-                u, p, port
-            )
+            format!("{u}:{p}@")
         }
-        _ => format!("mongodb://127.0.0.1:{}/?directConnection=true", port),
-    }
+        _ => "".to_string(),
+    };
+
+    format!("mongodb://{auth_string}{hostname}:{port}/?directConnection=true",)
 }
 
 // verify_connection_string verifies the provided connection string by attempting to connect to MongoDB and running a simple command.
