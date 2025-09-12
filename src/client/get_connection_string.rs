@@ -37,7 +37,7 @@ impl<D: DockerInspectContainer> Client<D> {
         let hostname = self.get_hostname(req.container_id_or_name).await;
         // Construct the connection string
         let connection_string = format_connection_string(&hostname,req.db_username, req.db_password, port);
-        // print!("Connection String: {}", connection_string);
+        print!("Connection String: {}", connection_string);
 
         // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
