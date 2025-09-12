@@ -28,9 +28,10 @@ impl<D: DockerInspectContainer> Client<D> {
 
         // Extract port binding
         let port = match &deployment.port_bindings {
-            Some(MongoDBPortBinding { port, .. }) => *port,
-            _ => return Err(GetConnectionStringError::MissingPortBinding),
+            Some(MongoDBPortBinding { port, .. }) => Some(*port),
+            _ => None,
         };
+        let port = port.flatten().ok_or(GetConnectionStringError::MissingPortBinding)?;
 
         // Construct the connection string
         let connection_string = format_connection_string(req.db_username, req.db_password, port);

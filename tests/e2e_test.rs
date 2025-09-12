@@ -71,7 +71,7 @@ async fn test_e2e_smoke_test() {
         mongodb_initdb_root_username: Some(username.to_string()),
         mongodb_initdb_root_password: Some(password.to_string()),
         mongodb_port_binding: Some(MongoDBPortBinding {
-            port: 27017,
+            port: Some(27017),
             binding_type: BindingType::AnyInterface,
         }),
         ..Default::default()
@@ -95,7 +95,7 @@ async fn test_e2e_smoke_test() {
         _ => panic!("No port binding found"),
     };
 
-    tokio::time::sleep(std::time::Duration::from_secs(120)).await;
+    // tokio::time::sleep(std::time::Duration::from_secs(120)).await;
     let deployment2 = client.get_deployment(name).await.unwrap();
     println!("{deployment2:#?}");
 
@@ -115,7 +115,7 @@ async fn test_e2e_smoke_test() {
         conn_string,
         format!(
             "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
-            username, password, port
+            username, password, port.unwrap()
         )
     );
 
