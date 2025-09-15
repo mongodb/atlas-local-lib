@@ -5,7 +5,6 @@ use crate::{
     docker::{DockerInspectContainer},
     models::{GetConnectionStringOptions, MongoDBPortBinding},
 };
-use bollard::{query_parameters::InspectContainerOptions};
 use mongodb::{Client as MongoClient, options::ClientOptions};
 
 use super::GetDeploymentError;
