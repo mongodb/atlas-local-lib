@@ -1,3 +1,5 @@
+use std::fs;
+
 use crate::{
     client::Client,
     docker::{DockerInspectContainer},
@@ -34,7 +36,7 @@ impl<D: DockerInspectContainer> Client<D> {
         };
         let port = port.flatten().ok_or(GetConnectionStringError::MissingPortBinding)?;
 
-        let hostname = self.get_hostname(req.container_id_or_name).await;
+        let hostname = get_hostname().await.map_err(|_| GetConnectionStringError::MissingPortBinding)?;
         // Construct the connection string
         let connection_string = format_connection_string(&hostname,req.db_username, req.db_password, port);
         print!("Connection String: {}", connection_string);
@@ -48,20 +50,17 @@ impl<D: DockerInspectContainer> Client<D> {
 
         Ok(connection_string)
     }
+}
 
-    async fn get_hostname(&self, name: &str) -> String {
-        let mut hostname = "127.0.0.1".to_string();
-        // Check if we are running inside a docker container
-        if std::path::Path::new("/.dockerenv").exists() {
-            // Inspect the container to get the config hostname
-            let container_inspect_response = self
-                .docker
-                .inspect_container(name, None::<InspectContainerOptions>)
-                .await.unwrap();
-            hostname = container_inspect_response.config.and_then(|c| c.hostname).unwrap_or(hostname);
-        }
-        hostname
+async fn get_hostname() -> std::io::Result<String> {
+    let hostname = "127.0.0.1".to_string();
+    // Check if we are running inside a docker container
+    if std::path::Path::new("/.dockerenv").exists() {
+        // Inspect the container this action is running in to get the hostname
+        let hostname = fs::read_to_string("/etc/hostname")?;
+        return Ok(hostname.trim().to_string());
     }
+    Ok(hostname)
 }
 
 // format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
