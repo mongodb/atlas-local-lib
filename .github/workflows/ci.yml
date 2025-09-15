@@ -9,6 +9,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_DENY_VERSION: 0.18.4
   CARGO_AUDIT_VERSION: 0.21.2
+  CARGO_LLVM_COV_VERSION: 0.6.19
 
 jobs:
   check:
@@ -93,7 +94,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-llvm-cov-0.6.19
+        key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
         restore-keys: |
           ${{ runner.os }}-cargo-llvm-cov-
 
@@ -101,7 +102,7 @@ jobs:
       shell: bash
       run: |
         if ! command -v cargo-llvm-cov &> /dev/null; then
-          cargo install cargo-llvm-cov@0.6.19
+          cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
         fi
 
     - name: Cache cargo registry
@@ -182,14 +183,14 @@ jobs:
           uses: actions/cache@v4
           with:
             path: ~/.cargo/bin
-            key: ${{ runner.os }}-cargo-llvm-cov-0.6.19
+            key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
             restore-keys: |
               ${{ runner.os }}-cargo-llvm-cov-
 
         - name: Install cargo-llvm-cov
           run: |
             if ! command -v cargo-llvm-cov &> /dev/null; then
-              cargo install cargo-llvm-cov@0.6.19
+              cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
             fi
 
         - name: Run E2E Tests
