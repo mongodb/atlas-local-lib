@@ -1,10 +1,9 @@
-use std::fs;
-
 use crate::{
     client::Client,
     docker::{DockerInspectContainer},
     models::{GetConnectionStringOptions, MongoDBPortBinding},
 };
+use bollard::{query_parameters::InspectContainerOptions, Docker};
 use mongodb::{Client as MongoClient, options::ClientOptions};
 
 use super::GetDeploymentError;
@@ -51,15 +50,32 @@ impl<D: DockerInspectContainer> Client<D> {
     }
 }
 
-async fn get_hostname() -> std::io::Result<String> {
-    let hostname = "127.0.0.1".to_string();
-    // Check if we are running inside a docker container
-    if std::path::Path::new("/.dockerenv").exists() {
-        // Inspect the container this action is running in to get the hostname
-        let hostname = fs::read_to_string("/etc/hostname")?;
-        return Ok(hostname.trim().to_string());
+pub async fn get_dind_host_ip() -> Option<String> {
+    let docker = Docker::connect_with_socket_defaults().ok()?;
+    // "docker" is the default service name in GitHub Actions
+    let inspect = docker.inspect_container("docker", None::<InspectContainerOptions>).await.ok()?;
+    let network_settings = inspect.network_settings?;
+    let networks = network_settings.networks?;
+    // Get the first network's IPAddress, print and return it
+    if let Some(ip) = networks.values().next()?.ip_address.clone() {
+        return Some(ip);
     }
-    Ok(hostname)
+    None
+}
+
+async fn get_hostname() -> std::io::Result<String> {
+    if std::path::Path::new("/.dockerenv").exists() {
+        print!("In docker, searching for Docker socket...");
+        if std::path::Path::new("/var/run/docker.sock").exists() {
+            print!("Detected Docker socket, attempting to get host IP from 'docker' container...");
+            if let Some(ip) = get_dind_host_ip().await {
+                print!("Found Docker host IP: {}", ip);
+                return Ok(ip);
+            }
+        }
+    }
+    print!("Could not find Docker host IP, defaulting to 127.0.0.1");
+    Ok("127.0.0.1".to_string())
 }
 
 // format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
