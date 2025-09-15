@@ -93,7 +93,9 @@ jobs:
     - name: Cache cargo-llvm-cov
       uses: actions/cache@v4
       with:
-        path: ~/.cargo/bin
+        path: |
+          ~/.cargo/bin
+          ~/.rustup/toolchains
         key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
         restore-keys: |
           ${{ runner.os }}-cargo-llvm-cov-
@@ -184,7 +186,9 @@ jobs:
         - name: Cache cargo-llvm-cov
           uses: actions/cache@v4
           with:
-            path: ~/.cargo/bin
+            path: |
+              ~/.cargo/bin
+              ~/.rustup/toolchains
             key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
             restore-keys: |
               ${{ runner.os }}-cargo-llvm-cov-
