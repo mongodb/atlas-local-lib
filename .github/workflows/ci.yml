@@ -141,7 +141,7 @@ jobs:
 
       services:
         docker:
-          image: docker:dind
+          image: docker:dind-rootless
           options: --privileged --network-alias docker
           volumes:
             - docker-certs:/certs
@@ -157,12 +157,8 @@ jobs:
         - name: Configure Docker client
           run: |
             # Point the docker client to the dind service daemon
-            echo "DOCKER_HOST=tcp://docker:2376" >> $GITHUB_ENV
-            echo "DOCKER_TLS_VERIFY=1" >> $GITHUB_ENV
-            echo "DOCKER_CERT_PATH=/certs" >> $GITHUB_ENV
-        
-        - name: Wait for volume to populate
-          run: sleep 5
+            echo "DOCKER_HOST=tcp://docker:2375" >> $GITHUB_ENV
+            echo "DOCKER_TLS_VERIFY=0" >> $GITHUB_ENV
 
         - name: Wait for Docker daemon
           run: |
