@@ -51,9 +51,9 @@ impl<D: DockerInspectContainer> Client<D> {
 }
 
 pub async fn get_dind_host_ip() -> Option<String> {
-    let docker = Docker::connect_with_socket_defaults().ok()?;
+    let docker = Docker::connect_with_socket_defaults().unwrap();
     // "docker" is the default service name in GitHub Actions
-    let inspect = docker.inspect_container("docker", None::<InspectContainerOptions>).await.ok()?;
+    let inspect = docker.inspect_container("docker", None::<InspectContainerOptions>).await.unwrap();
     println!("Inspect: {:?}", inspect);
     let network_settings = inspect.network_settings?;
     println!("Network Settings: {:?}", network_settings);
