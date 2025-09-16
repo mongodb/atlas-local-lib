@@ -1,7 +1,7 @@
 use crate::{
     client::Client,
-    docker::{DockerInspectContainer},
-    models::{GetConnectionStringOptions, MongoDBPortBinding},
+    docker::DockerInspectContainer,
+    models::{BindingType, Deployment, GetConnectionStringOptions, MongoDBPortBinding},
 };
 use bollard::{query_parameters::InspectContainerOptions, Docker};
 use mongodb::{Client as MongoClient, options::ClientOptions};
@@ -34,9 +34,9 @@ impl<D: DockerInspectContainer> Client<D> {
         };
         let port = port.flatten().ok_or(GetConnectionStringError::MissingPortBinding)?;
 
-        let hostname = req.container_id_or_name;
+        let hostname = get_hostname(&deployment).await?;
         // Construct the connection string
-        let connection_string = format_connection_string(hostname,req.db_username, req.db_password, port);
+        let connection_string = format_connection_string(&hostname,req.db_username, req.db_password, port);
         print!("Connection String: {}", connection_string);
 
         // Optionally, verify the connection string
@@ -65,19 +65,27 @@ pub async fn get_dind_host_ip() -> Option<String> {
     None
 }
 
-async fn get_hostname() -> std::io::Result<String> {
+async fn get_hostname(deployment: &Deployment) -> Result<String, GetConnectionStringError> {
     if std::path::Path::new("/.dockerenv").exists() {
-        println!("In docker, searching for Docker socket...");
-        if std::path::Path::new("/var/run/docker.sock").exists() {
-            println!("Detected Docker socket, attempting to get host IP from 'docker' container...");
-            if let Some(ip) = get_dind_host_ip().await {
-                println!("Found Docker host IP: {}", ip);
-                return Ok(ip);
-            }
-        }
+        let hostname = deployment.name.clone().ok_or(GetConnectionStringError::MissingPortBinding)?;
+        return Ok(hostname);
+        // println!("In docker, searching for Docker socket...");
+        // if std::path::Path::new("/var/run/docker.sock").exists() {
+        //     println!("Detected Docker socket, attempting to get host IP from 'docker' container...");
+        //     if let Some(ip) = get_dind_host_ip().await {
+        //         println!("Found Docker host IP: {}", ip);
+        //         return Ok(ip);
+        //     }
+        // }
     }
-    println!("Could not find Docker host IP, defaulting to 127.0.0.1");
-    Ok("127.0.0.1".to_string())
+    // println!("Could not find Docker host IP, defaulting to 127.0.0.1");
+    // 
+    let port_binding = deployment.port_bindings.clone().ok_or(GetConnectionStringError::MissingPortBinding)?;
+    match port_binding.binding_type {
+        BindingType::Loopback => Ok("127.0.0.1".to_string()),
+        BindingType::AnyInterface => Ok("0.0.0.0".to_string()),
+        BindingType::Specific(ip) => Ok(ip.to_string()),
+    }
 }
 
 // format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
