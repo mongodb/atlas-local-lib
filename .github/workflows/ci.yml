@@ -140,9 +140,8 @@ jobs:
       services:
         docker:
           image: docker:dind
-          ports:
-            - 2375:2375
-          options: --privileged --network-alias docker -H tcp://0.0.0.0:2375
+          options: --privileged --network-alias docker
+
 
       steps:
         - name: Checkout
