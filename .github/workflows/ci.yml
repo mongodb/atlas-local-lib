@@ -135,9 +135,10 @@ jobs:
       runs-on: ubuntu-latest
       container:
         image: ubuntu:latest
+        name: runner
       services:
         docker:
-          image: docker:dind-rootless
+          image: docker:dind
           options: --privileged --network-alias docker
           ports:
             - 2375:2375
