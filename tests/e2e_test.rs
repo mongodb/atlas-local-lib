@@ -134,5 +134,4 @@ async fn test_e2e_smoke_test() {
         .len();
     assert_eq!(start_deployment_count, end_deployment_count);
 
-    panic!("Remove me!")
 }
