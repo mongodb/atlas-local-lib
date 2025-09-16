@@ -136,6 +136,7 @@ jobs:
       container:
         image: ubuntu:latest
         options: --name e2e-runner
+
       services:
         docker:
           image: docker:dind
@@ -155,9 +156,7 @@ jobs:
           run: |
             # Point the docker client to the dind service daemon
             echo "DOCKER_HOST=tcp://docker:2375" >> $GITHUB_ENV
-            echo "DOCKER_TLS_CERTDIR=/certs" >> $GITHUB_ENV
-            echo "DOCKER_TLS_VERIFY=1" >> $GITHUB_ENV
-            echo "DOCKER_CERT_PATH=/${DOCKER_TLS_CERTDIR}/client" >> $GITHUB_ENV
+            echo "DOCKER_TLS_VERIFY=0" >> $GITHUB_ENV
         - name: Wait for Docker daemon
           run: |
             for i in `seq 1 10`; do
