@@ -160,6 +160,10 @@ jobs:
             echo "DOCKER_HOST=tcp://docker:2376" >> $GITHUB_ENV
             echo "DOCKER_TLS_VERIFY=1" >> $GITHUB_ENV
             echo "DOCKER_CERT_PATH=/certs" >> $GITHUB_ENV
+        
+        - name: Wait for volume to populate
+          run: sleep 5
+
         - name: Wait for Docker daemon
           run: |
             for i in `seq 1 10`; do
