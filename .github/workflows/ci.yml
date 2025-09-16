@@ -133,14 +133,16 @@ jobs:
 
   e2e-tests:
       runs-on: ubuntu-latest
+      container:
+        image: ubuntu:latest
+        options: --name e2e-runner
       services:
         docker:
           image: docker:dind
-          options: --privileged
           ports:
             - 2375:2375
-      container:
-        image: ubuntu:latest
+          options: --privileged --network-alias docker --volume e2e-docker-certs:/certs
+
       steps:
         - name: Checkout
           uses: actions/checkout@v4
@@ -148,7 +150,19 @@ jobs:
         - name: Install dependencies
           run: |
             apt-get update
-            apt-get install -y curl gcc
+            apt-get install -y curl gcc docker.io
+        - name: Configure Docker client
+          run: |
+            # Point the docker client to the dind service daemon
+            echo "DOCKER_HOST=tcp://docker:2375" >> $GITHUB_ENV
+        - name: Wait for Docker daemon
+          run: |
+            for i in `seq 1 10`; do
+              docker info && break
+              echo "Waiting for Docker daemon to be ready..."
+              sleep 2
+            done
+        
         - name: Install Rust toolchain
           uses: actions-rust-lang/setup-rust-toolchain@v1
             
