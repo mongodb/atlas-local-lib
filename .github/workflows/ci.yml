@@ -9,6 +9,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_DENY_VERSION: 0.18.4
   CARGO_AUDIT_VERSION: 0.21.2
+  CARGO_LLVM_COV_VERSION: 0.6.19
 
 jobs:
   check:
@@ -88,7 +89,24 @@ jobs:
       run: |
         rustup update ${{ matrix.rust }}
         rustup default ${{ matrix.rust }}
-    
+   
+    - name: Cache cargo-llvm-cov
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin
+          ~/.rustup/toolchains
+        key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-llvm-cov-
+
+    - name: Install cargo-llvm-cov
+      shell: bash
+      run: |
+        if ! command -v cargo-llvm-cov &> /dev/null; then
+          cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
+        fi
+
     - name: Cache cargo registry
       uses: actions/cache@v4
       with:
@@ -105,6 +123,19 @@ jobs:
     
     - name: Run tests
       run: cargo test --verbose --lib
+
+    - name: Generate coverage report
+      run: cargo llvm-cov --lib --verbose --lcov --output-path=unit-tests.lcov
+    
+    - name: Upload coverage report
+      env:
+        COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+      uses: coverallsapp/github-action@v2.3.6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path-to-lcov: unit-tests.lcov
+        parallel: true
+        flag-name: ${{ matrix.os }}-${{ matrix.rust }}-unit-tests
 
   # Minimum supported Rust version check
   msrv:
@@ -151,6 +182,47 @@ jobs:
             apt-get install -y curl gcc
         - name: Install Rust toolchain
           uses: actions-rust-lang/setup-rust-toolchain@v1
-            
+
+        - name: Cache cargo-llvm-cov
+          uses: actions/cache@v4
+          with:
+            path: |
+              ~/.cargo/bin
+              ~/.rustup/toolchains
+            key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
+            restore-keys: |
+              ${{ runner.os }}-cargo-llvm-cov-
+
+        - name: Install cargo-llvm-cov
+          shell: bash
+          run: |
+            if ! command -v cargo-llvm-cov &> /dev/null; then
+              cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
+            fi
+
         - name: Run E2E Tests
           run: cargo test --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests
+
+        - name: Generate coverage report
+          run: cargo llvm-cov --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests --lcov --output-path=e2e-tests.lcov
+
+        - name: Upload coverage report
+          uses: coverallsapp/github-action@v2.3.6
+          with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            path-to-lcov: e2e-tests.lcov
+            parallel: true
+            flag-name: e2e-tests
+
+  coverage:
+    name: Report Coverage
+    runs-on: ubuntu-latest
+    needs: [test-matrix, e2e-tests]
+    steps:
+      - name: Send coverage
+        env:
+          COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        uses: coverallsapp/github-action@v2.3.6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel-finished: true
