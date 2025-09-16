@@ -136,12 +136,15 @@ jobs:
       container:
         image: ubuntu:latest
         options: --name e2e-runner
+        volumes:
+          - docker-certs:/certs
 
       services:
         docker:
           image: docker:dind
           options: --privileged --network-alias docker
-
+          volumes:
+            - docker-certs:/certs
 
       steps:
         - name: Checkout
@@ -154,8 +157,9 @@ jobs:
         - name: Configure Docker client
           run: |
             # Point the docker client to the dind service daemon
-            echo "DOCKER_HOST=tcp://docker:2375" >> $GITHUB_ENV
-            echo "DOCKER_TLS_VERIFY=0" >> $GITHUB_ENV
+            echo "DOCKER_HOST=tcp://docker:2376" >> $GITHUB_ENV
+            echo "DOCKER_TLS_VERIFY=1" >> $GITHUB_ENV
+            echo "DOCKER_CERT_PATH=/certs" >> $GITHUB_ENV
         - name: Wait for Docker daemon
           run: |
             for i in `seq 1 10`; do
