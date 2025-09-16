@@ -135,7 +135,6 @@ jobs:
       runs-on: ubuntu-latest
       container:
         image: ubuntu:latest
-        name: runner
       services:
         docker:
           image: docker:dind
@@ -155,6 +154,7 @@ jobs:
         - name: Check Docker is running
           run: |
             docker info
+            docker ps
             
         - name: Install Rust toolchain
           uses: actions-rust-lang/setup-rust-toolchain@v1
