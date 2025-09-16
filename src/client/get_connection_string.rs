@@ -54,9 +54,12 @@ pub async fn get_dind_host_ip() -> Option<String> {
     let docker = Docker::connect_with_socket_defaults().ok()?;
     // "docker" is the default service name in GitHub Actions
     let inspect = docker.inspect_container("docker", None::<InspectContainerOptions>).await.ok()?;
+    println!("Inspect: {:?}", inspect);
     let network_settings = inspect.network_settings?;
+    println!("Network Settings: {:?}", network_settings);
     let networks = network_settings.networks?;
     // Get the first network's IPAddress, print and return it
+    println!("Networks: {:?}", networks);
     if let Some(ip) = networks.values().next()?.ip_address.clone() {
         return Some(ip);
     }
@@ -65,16 +68,16 @@ pub async fn get_dind_host_ip() -> Option<String> {
 
 async fn get_hostname() -> std::io::Result<String> {
     if std::path::Path::new("/.dockerenv").exists() {
-        print!("In docker, searching for Docker socket...");
+        println!("In docker, searching for Docker socket...");
         if std::path::Path::new("/var/run/docker.sock").exists() {
-            print!("Detected Docker socket, attempting to get host IP from 'docker' container...");
+            println!("Detected Docker socket, attempting to get host IP from 'docker' container...");
             if let Some(ip) = get_dind_host_ip().await {
-                print!("Found Docker host IP: {}", ip);
+                println!("Found Docker host IP: {}", ip);
                 return Ok(ip);
             }
         }
     }
-    print!("Could not find Docker host IP, defaulting to 127.0.0.1");
+    println!("Could not find Docker host IP, defaulting to 127.0.0.1");
     Ok("127.0.0.1".to_string())
 }
 
