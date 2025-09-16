@@ -34,9 +34,9 @@ impl<D: DockerInspectContainer> Client<D> {
         };
         let port = port.flatten().ok_or(GetConnectionStringError::MissingPortBinding)?;
 
-        let hostname = get_hostname().await.map_err(|_| GetConnectionStringError::MissingPortBinding)?;
+        let hostname = req.container_id_or_name;
         // Construct the connection string
-        let connection_string = format_connection_string(&hostname,req.db_username, req.db_password, port);
+        let connection_string = format_connection_string(hostname,req.db_username, req.db_password, port);
         print!("Connection String: {}", connection_string);
 
         // Optionally, verify the connection string
@@ -52,7 +52,6 @@ impl<D: DockerInspectContainer> Client<D> {
 
 pub async fn get_dind_host_ip() -> Option<String> {
     let docker = Docker::connect_with_socket_defaults().unwrap();
-    // "docker" is the default service name in GitHub Actions
     let inspect = docker.inspect_container("runner", None::<InspectContainerOptions>).await.unwrap();
     println!("Inspect: {:?}", inspect);
     let network_settings = inspect.network_settings?;
