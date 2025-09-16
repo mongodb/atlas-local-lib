@@ -141,7 +141,7 @@ jobs:
           image: docker:dind
           ports:
             - 2375:2375
-          options: --privileged --network-alias docker --volume e2e-docker-certs:/certs
+          options: --privileged --network-alias docker 
 
       steps:
         - name: Checkout
@@ -155,6 +155,7 @@ jobs:
           run: |
             # Point the docker client to the dind service daemon
             echo "DOCKER_HOST=tcp://docker:2375" >> $GITHUB_ENV
+            echo "DOCKER_TLS_VERIFY=0" >> $GITHUB_ENV
         - name: Wait for Docker daemon
           run: |
             for i in `seq 1 10`; do
