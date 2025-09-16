@@ -135,16 +135,12 @@ jobs:
       runs-on: ubuntu-latest
       container:
         image: ubuntu:latest
-        options: --name e2e-runner
-        volumes:
-          - docker-certs:/certs
-
       services:
         docker:
           image: docker:dind-rootless
           options: --privileged --network-alias docker
-          volumes:
-            - docker-certs:/certs
+          ports:
+            - 2375:2375
 
       steps:
         - name: Checkout
@@ -154,20 +150,11 @@ jobs:
           run: |
             apt-get update
             apt-get install -y curl gcc docker.io
-        - name: Configure Docker client
-          run: |
-            # Point the docker client to the dind service daemon
-            echo "DOCKER_HOST=tcp://docker:2375" >> $GITHUB_ENV
-            echo "DOCKER_TLS_VERIFY=0" >> $GITHUB_ENV
 
-        - name: Wait for Docker daemon
+        - name: Check Docker is running
           run: |
-            for i in `seq 1 10`; do
-              docker info && break
-              echo "Waiting for Docker daemon to be ready..."
-              sleep 2
-            done
-        
+            docker info
+            
         - name: Install Rust toolchain
           uses: actions-rust-lang/setup-rust-toolchain@v1
             
