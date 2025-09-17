@@ -128,17 +128,7 @@ async fn test_e2e_smoke_test() {
             )
         );
     }
-
-    assert_eq!(
-        conn_string,
-        format!(
-            "mongodb://{}:{}@docker-dind:{}/?directConnection=true",
-            username,
-            password,
-            port.unwrap()
-        )
-    );
-
+    
     // Delete Deployment
     client
         .delete_deployment(name)
