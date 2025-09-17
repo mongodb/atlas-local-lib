@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use atlas_local::{
     Client,
-    models::{BindingType, CreateDeploymentOptions, MongoDBPortBinding},
+    models::CreateDeploymentOptions,
 };
 use bollard::Docker;
 

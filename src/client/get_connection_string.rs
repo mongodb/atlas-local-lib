@@ -209,7 +209,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            "mongodb://testuser:testpass@127.0.0.1:27017/?directConnection=true"
+            "mongodb://testuser:testpass@docker-dind:27017/?directConnection=true"
         );
     }
 
@@ -242,7 +242,7 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(
             result.unwrap(),
-            "mongodb://127.0.0.1:27017/?directConnection=true"
+            "mongodb://docker-dind:27017/?directConnection=true"
         );
     }
 

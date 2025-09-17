@@ -2,12 +2,12 @@
 use atlas_local::{
     Client,
     models::{
-        BindingType, CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding,
+        CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding,
     },
 };
 use bollard::{
     Docker,
-    query_parameters::{InspectContainerOptions, RemoveContainerOptionsBuilder},
+    query_parameters::RemoveContainerOptionsBuilder,
 };
 use tokio::runtime::Handle;
 
