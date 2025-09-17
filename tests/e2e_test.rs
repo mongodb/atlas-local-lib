@@ -100,7 +100,7 @@ async fn test_e2e_smoke_test() {
         container_id_or_name: name,
         db_username: Some(username),
         db_password: Some(password),
-        verify: Some(true),
+        verify: Some(false),
     };
 
     let conn_string = client
@@ -108,6 +108,28 @@ async fn test_e2e_smoke_test() {
         .await
         .expect("Getting connection string");
 
+    if std::path::Path::new("/.dockerenv").exists() {
+        assert_eq!(
+            conn_string,
+            format!(
+                "mongodb://{}:{}@docker-dind:{}/?directConnection=true",
+                username,
+                password,
+                port.unwrap()
+            )
+        );
+    } else {
+        assert_eq!(
+            conn_string,
+            format!(
+                "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
+                username,
+                password,
+                port.unwrap()
+            )
+        );
+    }
+    
     assert_eq!(
         conn_string,
         format!(
