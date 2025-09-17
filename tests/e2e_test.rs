@@ -2,7 +2,7 @@
 use atlas_local::{
     Client,
     models::{
-        CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding,
+        BindingType,CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding,
     },
 };
 use bollard::{
@@ -73,6 +73,7 @@ async fn test_e2e_smoke_test() {
         name: Some(name.to_string()),
         mongodb_initdb_root_username: Some(username.to_string()),
         mongodb_initdb_root_password: Some(password.to_string()),
+        mongodb_port_binding: Some(MongoDBPortBinding::new(Some(50000), BindingType::AnyInterface)),
         ..Default::default()
     };
     client
