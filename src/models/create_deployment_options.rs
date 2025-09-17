@@ -189,19 +189,6 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             LOCAL_DEPLOYMENT_LABEL_KEY.to_string() => LOCAL_DEPLOYMENT_LABEL_VALUE.to_string(),
         });
 
-        // let endpoints_config = hashmap! {
-        //     "atlas-local-network".to_string() => // ⚠️ The name of the network you want to connect to
-        //     bollard::secret::EndpointSettings {
-        //         // Use network aliases for DNS resolution
-        //         aliases: Some(vec![deployment_options.name.clone().unwrap_or_default()]),
-        //         ..Default::default()
-        //     },
-        // };
-
-        // let networking_config = bollard::secret::NetworkingConfig {
-        //     endpoints_config: Some(endpoints_config),
-        // };
-
         ContainerCreateBody {
             image,
             labels,
@@ -211,7 +198,6 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
                 binds: volume_bindings_map,
                 ..Default::default()
             }),
-            // networking_config: Some(networking_config),
             ..Default::default()
         }
     }
