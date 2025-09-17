@@ -54,7 +54,7 @@ impl Drop for TestContainerCleaner {
 async fn test_e2e_smoke_test() {
     let mut container_cleaner = TestContainerCleaner::new();
 
-    let docker = Docker::connect_with_socket_defaults().unwrap();
+    let docker = Docker::connect_with_defaults().unwrap();
     let client = Client::new(docker.clone());
 
     // Count number of active deployments
