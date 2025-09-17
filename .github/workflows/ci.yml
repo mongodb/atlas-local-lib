@@ -148,9 +148,6 @@ jobs:
         - name: Configure Docker client
           run: |
             echo "DOCKER_HOST=tcp://docker-dind:2375" >> $GITHUB_ENV
-
-        - name: Create custom network
-          run: docker network create atlas-local-network
             
         - name: Install Rust toolchain
           uses: actions-rust-lang/setup-rust-toolchain@v1
