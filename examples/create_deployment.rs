@@ -1,5 +1,8 @@
 use anyhow::{Context, Result};
-use atlas_local::{models::{BindingType, CreateDeploymentOptions, MongoDBPortBinding}, Client};
+use atlas_local::{
+    Client,
+    models::{BindingType, CreateDeploymentOptions, MongoDBPortBinding},
+};
 use bollard::Docker;
 
 #[tokio::main]
@@ -9,10 +12,6 @@ async fn main() -> Result<()> {
 
     let deployment1 = CreateDeploymentOptions {
         name: Some("local1234".to_string()),
-        mongodb_port_binding: Some(MongoDBPortBinding {
-            port: Some(27017),
-            binding_type: BindingType::AnyInterface,
-        }),
         ..Default::default()
     };
     let deployment = client

@@ -3,7 +3,6 @@ use crate::{
     docker::DockerInspectContainer,
     models::{BindingType, Deployment, GetConnectionStringOptions, MongoDBPortBinding},
 };
-use bollard::{query_parameters::InspectContainerOptions, Docker};
 use mongodb::{Client as MongoClient, options::ClientOptions};
 
 use super::GetDeploymentError;
@@ -32,11 +31,14 @@ impl<D: DockerInspectContainer> Client<D> {
             Some(MongoDBPortBinding { port, .. }) => Some(*port),
             _ => None,
         };
-        let port = port.flatten().ok_or(GetConnectionStringError::MissingPortBinding)?;
+        let port = port
+            .flatten()
+            .ok_or(GetConnectionStringError::MissingPortBinding)?;
 
         let hostname = get_hostname(&deployment).await?;
         // Construct the connection string
-        let connection_string = format_connection_string(&hostname,req.db_username, req.db_password, port);
+        let connection_string =
+            format_connection_string(&hostname, req.db_username, req.db_password, port);
         print!("Connection String: {}", connection_string);
 
         // Optionally, verify the connection string
@@ -55,7 +57,10 @@ async fn get_hostname(deployment: &Deployment) -> Result<String, GetConnectionSt
         let hostname = "docker-dind".to_string();
         return Ok(hostname);
     }
-    let port_binding = deployment.port_bindings.clone().ok_or(GetConnectionStringError::MissingPortBinding)?;
+    let port_binding = deployment
+        .port_bindings
+        .clone()
+        .ok_or(GetConnectionStringError::MissingPortBinding)?;
     match port_binding.binding_type {
         BindingType::Loopback => Ok("127.0.0.1".to_string()),
         BindingType::AnyInterface => Ok("0.0.0.0".to_string()),
@@ -64,7 +69,12 @@ async fn get_hostname(deployment: &Deployment) -> Result<String, GetConnectionSt
 }
 
 // format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
-fn format_connection_string(hostname: &str, username: Option<&str>, password: Option<&str>, port: u16) -> String {
+fn format_connection_string(
+    hostname: &str,
+    username: Option<&str>,
+    password: Option<&str>,
+    port: u16,
+) -> String {
     let auth_string = match (username, password) {
         (Some(u), Some(p)) if !u.is_empty() && !p.is_empty() => {
             format!("{u}:{p}@")

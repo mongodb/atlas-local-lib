@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use atlas_local::{Client, models::GetConnectionStringOptions};
-use bollard::{Docker};
+use bollard::Docker;
 
 #[tokio::main]
 async fn main() -> Result<()> {

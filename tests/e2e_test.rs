@@ -5,7 +5,10 @@ use atlas_local::{
         BindingType, CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding,
     },
 };
-use bollard::{query_parameters::{InspectContainerOptions, RemoveContainerOptionsBuilder}, Docker};
+use bollard::{
+    Docker,
+    query_parameters::{InspectContainerOptions, RemoveContainerOptionsBuilder},
+};
 use tokio::runtime::Handle;
 
 pub struct TestContainerCleaner {
@@ -70,10 +73,6 @@ async fn test_e2e_smoke_test() {
         name: Some(name.to_string()),
         mongodb_initdb_root_username: Some(username.to_string()),
         mongodb_initdb_root_password: Some(password.to_string()),
-        mongodb_port_binding: Some(MongoDBPortBinding {
-            port: Some(27017),
-            binding_type: BindingType::AnyInterface,
-        }),
         ..Default::default()
     };
     client
@@ -95,11 +94,6 @@ async fn test_e2e_smoke_test() {
         _ => panic!("No port binding found"),
     };
 
-    // tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-    let inspect_response = docker.inspect_container(&name, None::<InspectContainerOptions>).await.unwrap();
-    println!("{:#?}", inspect_response);
-
-
     // Get Connection String
     let get_conn_string_req = GetConnectionStringOptions {
         container_id_or_name: name,
@@ -112,11 +106,14 @@ async fn test_e2e_smoke_test() {
         .get_connection_string(get_conn_string_req)
         .await
         .expect("Getting connection string");
+
     assert_eq!(
         conn_string,
         format!(
-            "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
-            username, password, port.unwrap()
+            "mongodb://{}:{}@docker-dind:{}/?directConnection=true",
+            username,
+            password,
+            port.unwrap()
         )
     );
 
@@ -133,5 +130,4 @@ async fn test_e2e_smoke_test() {
         .expect("Listing deployments")
         .len();
     assert_eq!(start_deployment_count, end_deployment_count);
-
 }
