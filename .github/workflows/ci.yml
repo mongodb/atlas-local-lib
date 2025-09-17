@@ -198,7 +198,26 @@ jobs:
           docker exec runner sh -c "\
             . \$HOME/.cargo/env && \
             cd /app && \
-            cargo test --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests"
+            cargo llvm-cov --test e2e_test --features e2e-tests --lcov --output-path=e2e-tests.lcov"
+
+      - name: Copy coverage file from container
+        run: |
+          docker cp runner:/app/e2e-tests.lcov ./e2e-tests.lcov
+          
+      - name: Fix file paths in coverage file
+        run: |
+          sed -i 's|SF:/app/|SF:|g' e2e-tests.lcov
+      
+      - name: Upload E2E coverage report
+        env:
+          COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        uses: coverallsapp/github-action@v2.3.6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: e2e-tests.lcov
+          parallel: true
+          flag-name: ubuntu-latest-e2e-tests
+          debug: true
 
   coverage:
     name: Report Coverage
