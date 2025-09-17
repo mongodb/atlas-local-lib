@@ -4,7 +4,7 @@ use bollard::Docker;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let docker = Docker::connect_with_socket_defaults().context("connecting to docker")?;
+    let docker = Docker::connect_with_defaults().context("connecting to docker")?;
     let client = Client::new(docker);
 
     let deployment1 = CreateDeploymentOptions {

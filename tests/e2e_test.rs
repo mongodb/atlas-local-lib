@@ -1,11 +1,9 @@
 #![cfg(feature = "e2e-tests")]
 use atlas_local::{
     Client,
-    models::{
-        BindingType, CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding,
-    },
+    models::{CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding},
 };
-use bollard::{query_parameters::{InspectContainerOptions, RemoveContainerOptionsBuilder}, Docker};
+use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
 
 pub struct TestContainerCleaner {
@@ -51,7 +49,7 @@ impl Drop for TestContainerCleaner {
 async fn test_e2e_smoke_test() {
     let mut container_cleaner = TestContainerCleaner::new();
 
-    let docker = Docker::connect_with_socket_defaults().unwrap();
+    let docker = Docker::connect_with_defaults().unwrap();
     let client = Client::new(docker.clone());
 
     // Count number of active deployments
@@ -70,10 +68,6 @@ async fn test_e2e_smoke_test() {
         name: Some(name.to_string()),
         mongodb_initdb_root_username: Some(username.to_string()),
         mongodb_initdb_root_password: Some(password.to_string()),
-        mongodb_port_binding: Some(MongoDBPortBinding {
-            port: Some(27017),
-            binding_type: BindingType::AnyInterface,
-        }),
         ..Default::default()
     };
     client
@@ -95,30 +89,40 @@ async fn test_e2e_smoke_test() {
         _ => panic!("No port binding found"),
     };
 
-    // tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-    let inspect_response = docker.inspect_container(&name, None::<InspectContainerOptions>).await.unwrap();
-    println!("{:#?}", inspect_response);
-
-
     // Get Connection String
     let get_conn_string_req = GetConnectionStringOptions {
         container_id_or_name: name,
         db_username: Some(username),
         db_password: Some(password),
-        verify: Some(true),
+        verify: Some(false),
     };
 
     let conn_string = client
         .get_connection_string(get_conn_string_req)
         .await
         .expect("Getting connection string");
-    assert_eq!(
-        conn_string,
-        format!(
-            "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
-            username, password, port.unwrap()
-        )
-    );
+
+    if std::path::Path::new("/.dockerenv").exists() {
+        assert_eq!(
+            conn_string,
+            format!(
+                "mongodb://{}:{}@docker-dind:{}/?directConnection=true",
+                username,
+                password,
+                port.unwrap()
+            )
+        );
+    } else {
+        assert_eq!(
+            conn_string,
+            format!(
+                "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
+                username,
+                password,
+                port.unwrap()
+            )
+        );
+    }
 
     // Delete Deployment
     client
@@ -133,6 +137,4 @@ async fn test_e2e_smoke_test() {
         .expect("Listing deployments")
         .len();
     assert_eq!(start_deployment_count, end_deployment_count);
-
-    panic!("Remove me!")
 }

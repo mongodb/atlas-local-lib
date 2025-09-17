@@ -1,9 +1,8 @@
 use crate::{
     client::Client,
-    docker::{DockerInspectContainer},
-    models::{GetConnectionStringOptions, MongoDBPortBinding},
+    docker::DockerInspectContainer,
+    models::{BindingType, Deployment, GetConnectionStringOptions, MongoDBPortBinding},
 };
-use bollard::{query_parameters::InspectContainerOptions, Docker};
 use mongodb::{Client as MongoClient, options::ClientOptions};
 
 use super::GetDeploymentError;
@@ -32,11 +31,14 @@ impl<D: DockerInspectContainer> Client<D> {
             Some(MongoDBPortBinding { port, .. }) => Some(*port),
             _ => None,
         };
-        let port = port.flatten().ok_or(GetConnectionStringError::MissingPortBinding)?;
+        let port = port
+            .flatten()
+            .ok_or(GetConnectionStringError::MissingPortBinding)?;
 
-        let hostname = get_hostname().await.map_err(|_| GetConnectionStringError::MissingPortBinding)?;
+        let hostname = get_hostname(&deployment).await?;
         // Construct the connection string
-        let connection_string = format_connection_string(&hostname,req.db_username, req.db_password, port);
+        let connection_string =
+            format_connection_string(&hostname, req.db_username, req.db_password, port);
         print!("Connection String: {}", connection_string);
 
         // Optionally, verify the connection string
@@ -50,36 +52,29 @@ impl<D: DockerInspectContainer> Client<D> {
     }
 }
 
-pub async fn get_dind_host_ip() -> Option<String> {
-    let docker = Docker::connect_with_socket_defaults().ok()?;
-    // "docker" is the default service name in GitHub Actions
-    let inspect = docker.inspect_container("docker", None::<InspectContainerOptions>).await.ok()?;
-    let network_settings = inspect.network_settings?;
-    let networks = network_settings.networks?;
-    // Get the first network's IPAddress, print and return it
-    if let Some(ip) = networks.values().next()?.ip_address.clone() {
-        return Some(ip);
-    }
-    None
-}
-
-async fn get_hostname() -> std::io::Result<String> {
+async fn get_hostname(deployment: &Deployment) -> Result<String, GetConnectionStringError> {
     if std::path::Path::new("/.dockerenv").exists() {
-        print!("In docker, searching for Docker socket...");
-        if std::path::Path::new("/var/run/docker.sock").exists() {
-            print!("Detected Docker socket, attempting to get host IP from 'docker' container...");
-            if let Some(ip) = get_dind_host_ip().await {
-                print!("Found Docker host IP: {}", ip);
-                return Ok(ip);
-            }
-        }
+        let hostname = "docker-dind".to_string();
+        return Ok(hostname);
     }
-    print!("Could not find Docker host IP, defaulting to 127.0.0.1");
-    Ok("127.0.0.1".to_string())
+    let port_binding = deployment
+        .port_bindings
+        .clone()
+        .ok_or(GetConnectionStringError::MissingPortBinding)?;
+    match port_binding.binding_type {
+        BindingType::Loopback => Ok("127.0.0.1".to_string()),
+        BindingType::AnyInterface => Ok("0.0.0.0".to_string()),
+        BindingType::Specific(ip) => Ok(ip.to_string()),
+    }
 }
 
 // format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
-fn format_connection_string(hostname: &str, username: Option<&str>, password: Option<&str>, port: u16) -> String {
+fn format_connection_string(
+    hostname: &str,
+    username: Option<&str>,
+    password: Option<&str>,
+    port: u16,
+) -> String {
     let auth_string = match (username, password) {
         (Some(u), Some(p)) if !u.is_empty() && !p.is_empty() => {
             format!("{u}:{p}@")
@@ -212,10 +207,17 @@ mod tests {
 
         // Assert
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            "mongodb://testuser:testpass@127.0.0.1:27017/?directConnection=true"
-        );
+        if std::path::Path::new("/.dockerenv").exists() {
+            assert_eq!(
+                result.unwrap(),
+                "mongodb://testuser:testpass@docker-dind:27017/?directConnection=true"
+            );
+        } else {
+            assert_eq!(
+                result.unwrap(),
+                "mongodb://testuser:testpass@127.0.0.1:27017/?directConnection=true"
+            );
+        }
     }
 
     #[tokio::test]
@@ -245,10 +247,17 @@ mod tests {
 
         // Assert
         assert!(result.is_ok());
-        assert_eq!(
-            result.unwrap(),
-            "mongodb://127.0.0.1:27017/?directConnection=true"
-        );
+        if std::path::Path::new("/.dockerenv").exists() {
+            assert_eq!(
+                result.unwrap(),
+                "mongodb://docker-dind:27017/?directConnection=true"
+            );
+        } else {
+            assert_eq!(
+                result.unwrap(),
+                "mongodb://127.0.0.1:27017/?directConnection=true"
+            );
+        }
     }
 
     #[tokio::test]

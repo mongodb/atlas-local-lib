@@ -68,14 +68,24 @@ impl From<&CreateDeploymentOptions> for CreateContainerOptions {
 
 impl From<&CreateDeploymentOptions> for ContainerCreateBody {
     fn from(deployment_options: &CreateDeploymentOptions) -> Self {
-        // Get the port bindings if available, otherwise default to binding a random avaiable port on 127.0.0.1
         let port_binding = deployment_options
             .mongodb_port_binding
             .as_ref()
             .map(PortBinding::from)
-            .unwrap_or(PortBinding {
-                host_ip: Some("127.0.0.1".to_string()),
-                host_port: None,
+            .unwrap_or_else(|| {
+                if std::path::Path::new("/.dockerenv").exists() {
+                    // Default to 0.0.0.0 in Docker environment
+                    PortBinding {
+                        host_ip: Some("0.0.0.0".to_string()),
+                        host_port: None,
+                    }
+                } else {
+                    // Default to Localhost in local environment
+                    PortBinding {
+                        host_ip: Some("127.0.0.1".to_string()),
+                        host_port: None,
+                    }
+                }
             });
 
         let port_bindings_map = Some(hashmap! {
@@ -319,7 +329,13 @@ mod tests {
             .unwrap()
             .first()
             .unwrap();
-        assert_eq!(port_binding.host_ip, Some("127.0.0.1".to_string()));
+
+        // Host IP is set to 0.0.0.0 in a docker environment and 127.0.0.1 otherwise
+        if std::path::Path::new("/.dockerenv").exists() {
+            assert_eq!(port_binding.host_ip, Some("0.0.0.0".to_string()));
+        } else {
+            assert_eq!(port_binding.host_ip, Some("127.0.0.1".to_string()));
+        }
         assert!(port_binding.host_port.is_none());
 
         assert_eq!(
