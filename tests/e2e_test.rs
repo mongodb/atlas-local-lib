@@ -1,14 +1,9 @@
 #![cfg(feature = "e2e-tests")]
 use atlas_local::{
     Client,
-    models::{
-        CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding,
-    },
+    models::{CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding},
 };
-use bollard::{
-    Docker,
-    query_parameters::RemoveContainerOptionsBuilder,
-};
+use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
 
 pub struct TestContainerCleaner {
@@ -128,7 +123,7 @@ async fn test_e2e_smoke_test() {
             )
         );
     }
-    
+
     // Delete Deployment
     client
         .delete_deployment(name)

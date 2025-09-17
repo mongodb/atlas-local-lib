@@ -343,7 +343,7 @@ mod tests {
             .unwrap()
             .first()
             .unwrap();
-        
+
         // Host IP is set to 0.0.0.0 in a docker environment and 127.0.0.1 otherwise
         if std::path::Path::new("/.dockerenv").exists() {
             assert_eq!(port_binding.host_ip, Some("0.0.0.0".to_string()));
