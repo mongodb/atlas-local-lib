@@ -94,7 +94,8 @@ async fn test_e2e_smoke_test() {
         container_id_or_name: name.to_string(),
         db_username: Some(username.to_string()),
         db_password: Some(password.to_string()),
-        verify: Some(false),
+        verify: Some(true),
+        docker_hostname: Some("docker-dind".to_string()),
     };
 
     let conn_string = client
@@ -102,15 +103,27 @@ async fn test_e2e_smoke_test() {
         .await
         .expect("Getting connection string");
 
-    assert_eq!(
-        conn_string,
-        format!(
-            "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
-            username,
-            password,
-            port.unwrap()
-        )
-    );
+    if std::path::Path::new("/.dockerenv").exists() {
+        assert_eq!(
+            conn_string,
+            format!(
+                "mongodb://{}:{}@docker-dind:{}/?directConnection=true",
+                username,
+                password,
+                port.unwrap()
+            )
+        );
+    } else {
+        assert_eq!(
+            conn_string,
+            format!(
+                "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
+                username,
+                password,
+                port.unwrap()
+            )
+        );
+    }
 
     // Delete Deployment
     client
