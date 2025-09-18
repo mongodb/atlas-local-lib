@@ -43,7 +43,6 @@ impl<D: DockerInspectContainer> Client<D> {
         // Construct the connection string
         let connection_string =
             format_connection_string(&hostname, req.db_username, req.db_password, port);
-        print!("Connection String: {}", connection_string);
 
         // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
