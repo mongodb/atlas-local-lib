@@ -1,8 +1,11 @@
 use crate::{
     client::Client,
     docker::DockerInspectContainer,
-    models::{BindingType, Deployment, GetConnectionStringOptions, MongoDBPortBinding},
+    models::{
+        GetConnectionStringOptions, MongoDBPortBinding,
+    },
 };
+use bollard::secret::PortBinding;
 use mongodb::{Client as MongoClient, options::ClientOptions};
 
 use super::GetDeploymentError;
@@ -15,6 +18,8 @@ pub enum GetConnectionStringError {
     MissingPortBinding,
     #[error("Failed to connect to MongoDB: {0}")]
     MongoConnect(#[from] mongodb::error::Error),
+    #[error("Missing docker in docker hostname")]
+    MissingDockerHostname,
 }
 
 impl<D: DockerInspectContainer> Client<D> {
@@ -35,7 +40,8 @@ impl<D: DockerInspectContainer> Client<D> {
             .flatten()
             .ok_or(GetConnectionStringError::MissingPortBinding)?;
 
-        let hostname = get_hostname(&deployment).await?;
+        let hostname = get_hostname(&deployment.port_bindings, req.docker_hostname).await?;
+
         // Construct the connection string
         let connection_string =
             format_connection_string(&hostname, req.db_username, req.db_password, port);
@@ -52,20 +58,24 @@ impl<D: DockerInspectContainer> Client<D> {
     }
 }
 
-async fn get_hostname(deployment: &Deployment) -> Result<String, GetConnectionStringError> {
+async fn get_hostname(
+    port_bindings: &Option<MongoDBPortBinding>,
+    docker_hostname: Option<&str>,
+) -> Result<String, GetConnectionStringError> {
+    // If in Docker environment, return the provided hostname
     if std::path::Path::new("/.dockerenv").exists() {
-        let hostname = "docker-dind".to_string();
-        return Ok(hostname);
+        return Ok(docker_hostname
+            .ok_or(GetConnectionStringError::MissingDockerHostname)?
+            .to_string());
     }
-    let port_binding = deployment
-        .port_bindings
-        .clone()
-        .ok_or(GetConnectionStringError::MissingPortBinding)?;
-    match port_binding.binding_type {
-        BindingType::Loopback => Ok("127.0.0.1".to_string()),
-        BindingType::AnyInterface => Ok("0.0.0.0".to_string()),
-        BindingType::Specific(ip) => Ok(ip.to_string()),
-    }
+
+    PortBinding::from(
+        port_bindings
+            .as_ref()
+            .ok_or(GetConnectionStringError::MissingPortBinding)?,
+    )
+    .host_ip
+    .ok_or(GetConnectionStringError::MissingPortBinding)
 }
 
 // format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
@@ -200,6 +210,7 @@ mod tests {
             db_username: Some("testuser"),
             db_password: Some("testpass"),
             verify: None,
+            docker_hostname: Some("docker-dind"),
         };
 
         // Act
@@ -240,6 +251,7 @@ mod tests {
             db_username: None,
             db_password: None,
             verify: None,
+            docker_hostname: Some("docker-dind"),
         };
 
         // Act
@@ -285,6 +297,7 @@ mod tests {
             db_username: None,
             db_password: None,
             verify: None,
+            docker_hostname: None,
         };
 
         // Act
@@ -340,6 +353,7 @@ mod tests {
             db_username: None,
             db_password: None,
             verify: None,
+            docker_hostname: None,
         };
 
         // Act
@@ -350,6 +364,44 @@ mod tests {
         assert!(matches!(
             result.unwrap_err(),
             GetConnectionStringError::MissingPortBinding
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_connection_string_missing_docker_hostname() {
+        // Skip if not in docker environment
+        if !std::path::Path::new("/.dockerenv").exists() {
+            return;
+        }
+
+        let mut mock_docker = MockDocker::new();
+
+        mock_docker
+            .expect_inspect_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<InspectContainerOptions>),
+            )
+            .times(1)
+            .returning(move |_, _| Ok(create_container_inspect_response_no_auth(27017)));
+
+        let client = Client::new(mock_docker);
+        let req = GetConnectionStringOptions {
+            container_id_or_name: "test-deployment",
+            db_username: None,
+            db_password: None,
+            verify: None,
+            docker_hostname: None,
+        };
+
+        // Act
+        let result = client.get_connection_string(req).await;
+
+        // Assert
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            GetConnectionStringError::MissingDockerHostname
         ));
     }
 }

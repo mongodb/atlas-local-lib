@@ -95,6 +95,7 @@ async fn test_e2e_smoke_test() {
         db_username: Some(username),
         db_password: Some(password),
         verify: Some(true),
+        docker_hostname: Some("docker-dind"),
     };
 
     let conn_string = client
