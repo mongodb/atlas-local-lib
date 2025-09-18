@@ -91,11 +91,11 @@ async fn test_e2e_smoke_test() {
 
     // Get Connection String
     let get_conn_string_req = GetConnectionStringOptions {
-        container_id_or_name: name,
-        db_username: Some(username),
-        db_password: Some(password),
+        container_id_or_name: name.to_string(),
+        db_username: Some(username.to_string()),
+        db_password: Some(password.to_string()),
         verify: Some(true),
-        docker_hostname: Some("docker-dind"),
+        docker_hostname: Some("docker-dind".to_string()),
     };
 
     let conn_string = client

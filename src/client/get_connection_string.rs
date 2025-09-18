@@ -22,12 +22,12 @@ pub enum GetConnectionStringError {
 
 impl<D: DockerInspectContainer> Client<D> {
     // Gets a local Atlas deployment's connection string.
-    pub async fn get_connection_string<'a>(
+    pub async fn get_connection_string(
         &self,
-        req: GetConnectionStringOptions<'a>,
+        req: GetConnectionStringOptions,
     ) -> Result<String, GetConnectionStringError> {
         // Get deployment
-        let deployment = self.get_deployment(req.container_id_or_name).await?;
+        let deployment = self.get_deployment(&req.container_id_or_name).await?;
 
         // Extract port binding
         let port = match &deployment.port_bindings {
@@ -42,7 +42,7 @@ impl<D: DockerInspectContainer> Client<D> {
 
         // Construct the connection string
         let connection_string =
-            format_connection_string(&hostname, req.db_username, req.db_password, port);
+            format_connection_string(hostname, req.db_username, req.db_password, port);
 
         // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
@@ -58,13 +58,12 @@ impl<D: DockerInspectContainer> Client<D> {
 // get_hostname returns the hostname to use in the connection string. If it is in a Docker environment, it uses the provided hostname. Otherwise, it uses the host IP from the port binding.
 async fn get_hostname(
     port_bindings: &Option<MongoDBPortBinding>,
-    docker_hostname: Option<&str>,
+    docker_hostname: Option<String>,
 ) -> Result<String, GetConnectionStringError> {
+    // Uses the existence of /.dockerenv to test if we are in a Docker environment.
     // TODO: MCP-217
     if std::path::Path::new("/.dockerenv").exists() {
-        return Ok(docker_hostname
-            .ok_or(GetConnectionStringError::MissingDockerHostname)?
-            .to_string());
+        return docker_hostname.ok_or(GetConnectionStringError::MissingDockerHostname);
     }
 
     PortBinding::from(
@@ -78,9 +77,9 @@ async fn get_hostname(
 
 // format_connection_string creates a MongoDB connection string with format depending on presence of username/password.
 fn format_connection_string(
-    hostname: &str,
-    username: Option<&str>,
-    password: Option<&str>,
+    hostname: String,
+    username: Option<String>,
+    password: Option<String>,
     port: u16,
 ) -> String {
     let auth_string = match (username, password) {
@@ -204,11 +203,11 @@ mod tests {
 
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
-            container_id_or_name: "test-deployment",
-            db_username: Some("testuser"),
-            db_password: Some("testpass"),
+            container_id_or_name: "test-deployment".to_string(),
+            db_username: Some("testuser".to_string()),
+            db_password: Some("testpass".to_string()),
             verify: None,
-            docker_hostname: Some("docker-dind"),
+            docker_hostname: Some("docker-dind".to_string()),
         };
 
         // Act
@@ -245,11 +244,11 @@ mod tests {
 
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
-            container_id_or_name: "test-deployment",
+            container_id_or_name: "test-deployment".to_string(),
             db_username: None,
             db_password: None,
             verify: None,
-            docker_hostname: Some("docker-dind"),
+            docker_hostname: Some("docker-dind".to_string()),
         };
 
         // Act
@@ -291,7 +290,7 @@ mod tests {
 
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
-            container_id_or_name: "nonexistent-deployment",
+            container_id_or_name: "nonexistent-deployment".to_string(),
             db_username: None,
             db_password: None,
             verify: None,
@@ -347,7 +346,7 @@ mod tests {
 
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
-            container_id_or_name: "test-deployment",
+            container_id_or_name: "test-deployment".to_string(),
             db_username: None,
             db_password: None,
             verify: None,
@@ -385,7 +384,7 @@ mod tests {
 
         let client = Client::new(mock_docker);
         let req = GetConnectionStringOptions {
-            container_id_or_name: "test-deployment",
+            container_id_or_name: "test-deployment".to_string(),
             db_username: None,
             db_password: None,
             verify: None,

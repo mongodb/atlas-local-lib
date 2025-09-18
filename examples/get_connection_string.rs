@@ -14,21 +14,15 @@ async fn main() -> Result<()> {
 
     println!("DEPLOYMENT \t CONNECTION STRING");
     for deployment in deployments {
-        let username = &deployment
-            .mongodb_initdb_root_username
-            .clone()
-            .unwrap_or_default();
-        let password = &deployment
-            .mongodb_initdb_root_password
-            .clone()
-            .unwrap_or_default();
+        let username = deployment.mongodb_initdb_root_username.unwrap_or_default();
+        let password = deployment.mongodb_initdb_root_password.unwrap_or_default();
 
         let req = GetConnectionStringOptions {
-            container_id_or_name: &deployment.container_id,
+            container_id_or_name: deployment.container_id,
             db_username: Some(username),
             db_password: Some(password),
             verify: Some(true),
-            docker_hostname: Some("docker-dind"),
+            docker_hostname: Some("docker-dind".to_string()),
         };
         let conn_str = client
             .get_connection_string(req)
