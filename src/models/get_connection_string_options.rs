@@ -4,5 +4,4 @@ pub struct GetConnectionStringOptions {
     pub db_username: Option<String>,
     pub db_password: Option<String>,
     pub verify: Option<bool>,
-    pub docker_hostname: Option<String>,
 }

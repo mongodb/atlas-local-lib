@@ -22,7 +22,6 @@ async fn main() -> Result<()> {
             db_username: Some(username),
             db_password: Some(password),
             verify: Some(true),
-            docker_hostname: Some("docker-dind".to_string()),
         };
         let conn_str = client
             .get_connection_string(req)
