@@ -73,7 +73,7 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             .mongodb_port_binding
             .as_ref()
             .map(PortBinding::from)
-            .unwrap_or(PortBinding {
+            .unwrap_or_else(|| PortBinding {
                 host_ip: Some("127.0.0.1".to_string()),
                 host_port: None,
             });
@@ -319,6 +319,7 @@ mod tests {
             .unwrap()
             .first()
             .unwrap();
+
         assert_eq!(port_binding.host_ip, Some("127.0.0.1".to_string()));
         assert!(port_binding.host_port.is_none());
 

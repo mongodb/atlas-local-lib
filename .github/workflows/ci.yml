@@ -163,56 +163,56 @@ jobs:
       run: cargo check --verbose
 
   e2e-tests:
-      runs-on: ubuntu-latest
-      services:
-        docker:
-          image: docker:dind
-          options: --privileged
-          ports:
-            - 2375:2375
-      container:
-        image: ubuntu:latest
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:dind
+        options: --privileged
+        ports:
+          - 2375:2375
+    container:
+      image: ubuntu:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        - name: Install dependencies
-          run: |
-            apt-get update
-            apt-get install -y curl gcc
-        - name: Install Rust toolchain
-          uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y curl gcc
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
 
-        - name: Cache cargo-llvm-cov
-          uses: actions/cache@v4
-          with:
-            path: |
-              ~/.cargo/bin
-              ~/.rustup/toolchains
-            key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
-            restore-keys: |
-              ${{ runner.os }}-cargo-llvm-cov-
+      - name: Cache cargo-llvm-cov
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.rustup/toolchains
+          key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-llvm-cov-
 
-        - name: Install cargo-llvm-cov
-          shell: bash
-          run: |
-            if ! command -v cargo-llvm-cov &> /dev/null; then
-              cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
-            fi
+      - name: Install cargo-llvm-cov
+        shell: bash
+        run: |
+          if ! command -v cargo-llvm-cov &> /dev/null; then
+            cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
+          fi
 
-        - name: Run E2E Tests
-          run: cargo test --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests
+      - name: Run E2E Tests
+        run: cargo test --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests
 
-        - name: Generate coverage report
-          run: cargo llvm-cov --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests --lcov --output-path=e2e-tests.lcov
+      - name: Generate coverage report
+        run: cargo llvm-cov --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests --lcov --output-path=e2e-tests.lcov
 
-        - name: Upload coverage report
-          uses: coverallsapp/github-action@v2.3.6
-          with:
-            github-token: ${{ secrets.GITHUB_TOKEN }}
-            path-to-lcov: e2e-tests.lcov
-            parallel: true
-            flag-name: e2e-tests
+      - name: Upload coverage report
+        uses: coverallsapp/github-action@v2.3.6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: e2e-tests.lcov
+          parallel: true
+          flag-name: ubuntu-latest-e2e-tests
 
   coverage:
     name: Report Coverage

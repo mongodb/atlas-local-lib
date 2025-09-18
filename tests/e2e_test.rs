@@ -1,5 +1,8 @@
 #![cfg(feature = "e2e-tests")]
-use atlas_local::{Client, models::CreateDeploymentOptions};
+use atlas_local::{
+    Client,
+    models::{CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding},
+};
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
 
@@ -46,7 +49,7 @@ impl Drop for TestContainerCleaner {
 async fn test_e2e_smoke_test() {
     let mut container_cleaner = TestContainerCleaner::new();
 
-    let docker = Docker::connect_with_socket_defaults().unwrap();
+    let docker = Docker::connect_with_defaults().unwrap();
     let client = Client::new(docker);
 
     // Count number of active deployments
@@ -58,9 +61,13 @@ async fn test_e2e_smoke_test() {
 
     // Create a deployment
     let name = "test_deployment_name";
+    let username = "testuser";
+    let password = "testpassword";
     container_cleaner.add_container(name);
     let deployment1 = CreateDeploymentOptions {
         name: Some(name.to_string()),
+        mongodb_initdb_root_username: Some(username.to_string()),
+        mongodb_initdb_root_password: Some(password.to_string()),
         ..Default::default()
     };
     client
@@ -75,6 +82,35 @@ async fn test_e2e_smoke_test() {
         .expect("Listing deployments");
     assert_eq!(deployments.len() - start_deployment_count, 1);
     assert_eq!(deployments.first().unwrap().name.as_deref(), Some(name));
+
+    // Get port of created deployment to verify connection string
+    let port = match &deployments.first().unwrap().port_bindings {
+        Some(MongoDBPortBinding { port, .. }) => *port,
+        _ => panic!("No port binding found"),
+    };
+
+    // Get Connection String
+    let get_conn_string_req = GetConnectionStringOptions {
+        container_id_or_name: name.to_string(),
+        db_username: Some(username.to_string()),
+        db_password: Some(password.to_string()),
+        verify: Some(false),
+    };
+
+    let conn_string = client
+        .get_connection_string(get_conn_string_req)
+        .await
+        .expect("Getting connection string");
+
+    assert_eq!(
+        conn_string,
+        format!(
+            "mongodb://{}:{}@127.0.0.1:{}/?directConnection=true",
+            username,
+            password,
+            port.unwrap()
+        )
+    );
 
     // Delete Deployment
     client
