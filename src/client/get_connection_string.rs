@@ -1,9 +1,7 @@
 use crate::{
     client::Client,
     docker::DockerInspectContainer,
-    models::{
-        GetConnectionStringOptions, MongoDBPortBinding,
-    },
+    models::{GetConnectionStringOptions, MongoDBPortBinding},
 };
 use bollard::secret::PortBinding;
 use mongodb::{Client as MongoClient, options::ClientOptions};
@@ -58,11 +56,11 @@ impl<D: DockerInspectContainer> Client<D> {
     }
 }
 
+// get_hostname returns the hostname to use in the connection string. It it is in Docker environment, it uses the provided hostname. Otherwise, it uses the host IP from the port binding.
 async fn get_hostname(
     port_bindings: &Option<MongoDBPortBinding>,
     docker_hostname: Option<&str>,
 ) -> Result<String, GetConnectionStringError> {
-    // If in Docker environment, return the provided hostname
     if std::path::Path::new("/.dockerenv").exists() {
         return Ok(docker_hostname
             .ok_or(GetConnectionStringError::MissingDockerHostname)?
