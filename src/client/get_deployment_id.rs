@@ -1,7 +1,12 @@
 use mongodb::{bson::Document, error::Error};
 
 use crate::{
-    docker::DockerInspectContainer, models::GetConnectionStringOptions, mongodb::{MongoDbAdapter, MongoDbClient, MongoDbCollection, MongoDbConnection, MongoDbDatabase}, Client
+    Client,
+    docker::DockerInspectContainer,
+    models::GetConnectionStringOptions,
+    mongodb::{
+        MongoDbAdapter, MongoDbClient, MongoDbCollection, MongoDbConnection, MongoDbDatabase,
+    },
 };
 
 #[derive(Debug, thiserror::Error)]

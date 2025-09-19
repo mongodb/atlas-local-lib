@@ -137,7 +137,7 @@ mod tests {
             async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
         }
     }
-    
+
     mock! {
         MongoConnection {}
 

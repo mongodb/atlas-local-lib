@@ -2,7 +2,10 @@ use mongodb::{Client, Collection, bson::Document, error::Error};
 use std::future::Future;
 
 pub trait MongoDbClient {
-    fn with_uri_str(&self, uri: &str) -> impl Future<Output = Result<impl MongoDbConnection, Error>>;
+    fn with_uri_str(
+        &self,
+        uri: &str,
+    ) -> impl Future<Output = Result<impl MongoDbConnection, Error>>;
     fn list_database_names(
         &self,
         connection_string: &str,
