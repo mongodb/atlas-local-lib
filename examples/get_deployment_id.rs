@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use atlas_local::{models::CreateDeploymentOptions, Client};
+use atlas_local::{Client, models::CreateDeploymentOptions};
 use bollard::Docker;
 
 #[tokio::main]

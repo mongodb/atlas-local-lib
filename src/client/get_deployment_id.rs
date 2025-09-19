@@ -1,6 +1,11 @@
-use crate::{docker::DockerInspectContainer, models::GetConnectionStringOptions};
-use mongodb::{bson::Document, error::Error, Collection};
-use serde::Deserialize;
+use mongodb::{bson::Document, error::Error};
+
+use crate::{
+    Client,
+    docker::DockerInspectContainer,
+    models::GetConnectionStringOptions,
+    mongodb::{MongoClient, MongoDbClient, MongoDbCollection, MongoDbDatabase},
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum GetDeploymentIdError {
@@ -10,42 +15,242 @@ pub enum GetDeploymentIdError {
     MongoConnect(#[from] Error),
     #[error("No atlascli document found")]
     NoAtlasCliDoc,
+    #[error("No UUID found in atlascli document")]
+    NoUUID,
 }
 
-impl<D: DockerInspectContainer> super::Client<D> {
+impl<D: DockerInspectContainer> Client<D> {
     /// Gets the Atlas deployment ID for a local Atlas deployment.
-    pub async fn get_deployment_id(&self, cluster_id_or_name: &str) -> Result<String, GetDeploymentIdError> {
+    pub async fn get_deployment_id(
+        &self,
+        cluster_id_or_name: &str,
+    ) -> Result<String, GetDeploymentIdError> {
+        self.get_deployment_id_with_client(cluster_id_or_name, &MongoClient)
+            .await
+    }
+
+    async fn get_deployment_id_with_client<M: MongoDbClient>(
+        &self,
+        cluster_id_or_name: &str,
+        mongo_client: &M,
+    ) -> Result<String, GetDeploymentIdError> {
         let get_connection_string_options = GetConnectionStringOptions {
             container_id_or_name: cluster_id_or_name.to_string(),
             db_username: None,
             db_password: None,
             verify: Some(false),
         };
-        let connection_string = self.get_connection_string(get_connection_string_options).await?;
-        println!("Connection String: {}", connection_string);
-        let client = mongodb::Client::with_uri_str(connection_string).await?;
-        let db = client.database("admin");
-        let collection: Collection<Document> = db.collection("atlascli");
-        let doc = collection.find_one(Document::new()).await?;
-        match doc {
-            Some(atlas_doc) => {
-                if let Ok(uuid) = atlas_doc.get_str("uuid") {
-                    Ok(uuid.to_string())
-                } else {
-                    Err(GetDeploymentIdError::NoAtlasCliDoc)
-                }
-            },
-            None => Err(GetDeploymentIdError::NoAtlasCliDoc),
-        }
+        let connection_string = self
+            .get_connection_string(get_connection_string_options)
+            .await?;
+
+        let database = mongo_client.with_uri_str(&connection_string).await?;
+        let admin_db = database.database("admin");
+        let collection = admin_db.collection("atlascli");
+
+        let atlas_doc = collection
+            .find_one(Document::new())
+            .await?
+            .ok_or(GetDeploymentIdError::NoAtlasCliDoc)?;
+
+        atlas_doc
+            .get_str("uuid")
+            .map(|s| s.to_string())
+            .map_err(|_| GetDeploymentIdError::NoUUID)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::create_container_inspect_response_with_auth;
+    use bollard::{
+        errors::Error as BollardError, query_parameters::InspectContainerOptions,
+        secret::ContainerInspectResponse,
+    };
+    use mockall::{mock, predicate::eq};
+    use mongodb::bson::Document;
+    use mongodb::error::{Error, ErrorKind};
 
-    #[test]
-    fn test_get_deployment_id() {
-        todo!();
+    mock! {
+        Docker {}
+
+        impl DockerInspectContainer for Docker {
+            async fn inspect_container(
+                &self,
+                container_id: &str,
+                options: Option<InspectContainerOptions>,
+            ) -> Result<ContainerInspectResponse, BollardError>;
+        }
+    }
+
+    mock! {
+        MongoClient {}
+
+        #[allow(refining_impl_trait)]
+        impl MongoDbClient for MongoClient {
+            async fn with_uri_str(&self, uri: &str) -> Result<MockMongoDatabase, Error>;
+        }
+    }
+
+    mock! {
+        MongoDatabase {}
+
+        #[allow(refining_impl_trait)]
+        impl MongoDbDatabase for MongoDatabase {
+            fn collection(&self, name: &str) -> MockMongoCollection;
+            fn database(&self, name: &str) -> MockMongoDatabase;
+        }
+    }
+
+    mock! {
+        MongoCollection {}
+
+        impl MongoDbCollection for MongoCollection {
+            async fn find_one(&self, filter: Document) -> Result<Option<Document>, Error>;
+        }
+    }
+
+    fn create_mock_collection_with_doc(doc: Option<Document>) -> MockMongoCollection {
+        let mut mock_collection = MockMongoCollection::new();
+        mock_collection
+            .expect_find_one()
+            .with(eq(Document::new()))
+            .returning(move |_| Ok(doc.clone()));
+        mock_collection
+    }
+
+    fn create_mock_admin_db(doc: Option<Document>) -> MockMongoDatabase {
+        let mut admin_db = MockMongoDatabase::new();
+        admin_db
+            .expect_collection()
+            .with(eq("atlascli"))
+            .returning(move |_| create_mock_collection_with_doc(doc.clone()));
+        admin_db
+    }
+
+    fn setup_mongo_client_mock(mock_mongo_client: &mut MockMongoClient, doc: Option<Document>) {
+        mock_mongo_client
+            .expect_with_uri_str()
+            .with(eq("mongodb://127.0.0.1:27017/?directConnection=true"))
+            .returning(move |_| {
+                let mut mock_db = MockMongoDatabase::new();
+                let doc_clone = doc.clone();
+                mock_db
+                    .expect_database()
+                    .with(eq("admin"))
+                    .returning(move |_| create_mock_admin_db(doc_clone.clone()));
+                Ok(mock_db)
+            });
+    }
+
+    #[tokio::test]
+    async fn test_get_deployment_id_mongo_connection_error() {
+        let mut mock_docker = MockDocker::new();
+        let mut mock_mongo_client = MockMongoClient::new();
+
+        // Mock successful connection string retrieval
+        mock_docker
+            .expect_inspect_container()
+            .returning(|_, _| Ok(create_container_inspect_response_with_auth(27017)));
+
+        mock_mongo_client
+            .expect_with_uri_str()
+            .with(eq("mongodb://127.0.0.1:27017/?directConnection=true"))
+            .returning(|_| {
+                Err(Error::from(ErrorKind::Io(
+                    std::io::Error::new(
+                        std::io::ErrorKind::ConnectionRefused,
+                        "Connection refused",
+                    )
+                    .into(),
+                )))
+            });
+
+        let client = Client::new(mock_docker);
+
+        let result = client
+            .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            GetDeploymentIdError::MongoConnect(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_deployment_id_no_atlascli_doc() {
+        let mut mock_docker = MockDocker::new();
+        let mut mock_mongo_client = MockMongoClient::new();
+
+        // Mock successful connection string retrieval
+        mock_docker
+            .expect_inspect_container()
+            .returning(|_, _| Ok(create_container_inspect_response_with_auth(27017)));
+
+        // Mock successful connection to MongoDB, but no atlascli doc
+        setup_mongo_client_mock(&mut mock_mongo_client, None);
+
+        let client = Client::new(mock_docker);
+
+        let result = client
+            .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            GetDeploymentIdError::NoAtlasCliDoc
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_deployment_id_no_uuid() {
+        let mut mock_docker = MockDocker::new();
+        let mut mock_mongo_client = MockMongoClient::new();
+
+        // Mock successful connection string retrieval
+        mock_docker
+            .expect_inspect_container()
+            .returning(|_, _| Ok(create_container_inspect_response_with_auth(27017)));
+
+        // Mock successful connection to MongoDB, but no UUID in atlascli doc
+        setup_mongo_client_mock(&mut mock_mongo_client, Some(Document::new()));
+
+        let client = Client::new(mock_docker);
+
+        let result = client
+            .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), GetDeploymentIdError::NoUUID));
+    }
+
+    #[tokio::test]
+    async fn test_get_deployment_id_success() {
+        let mut mock_docker = MockDocker::new();
+        let mut mock_mongo_client = MockMongoClient::new();
+
+        // Mock successful connection string retrieval
+        mock_docker
+            .expect_inspect_container()
+            .returning(|_, _| Ok(create_container_inspect_response_with_auth(27017)));
+
+        // Mock successful connection to MongoDB, and successful retrieval of UUID
+        let mut doc = Document::new();
+        doc.insert("uuid", "test-uuid");
+        setup_mongo_client_mock(&mut mock_mongo_client, Some(doc));
+
+        let client = Client::new(mock_docker);
+
+        let result = client
+            .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "test-uuid");
     }
 }
