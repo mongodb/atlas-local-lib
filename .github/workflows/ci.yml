@@ -164,49 +164,56 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
-    services:
-      docker:
-        image: docker:dind
-        options: --privileged
-        ports:
-          - 2375:2375
-    container:
-      image: ubuntu:latest
+    
     steps:
-      - name: Checkout
+      - name: Create network and run services
+        run: |
+          docker network create atlas-local-network
+          docker run --privileged --name docker-dind -d \
+          --network atlas-local-network \
+          -p 2375:2375 \
+          -P \
+          docker:dind \
+          dockerd --host=tcp://0.0.0.0:2375
+          
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Run runner container with mounted code
         run: |
-          apt-get update
-          apt-get install -y curl gcc
+          docker run -d --name runner \
+          --network atlas-local-network \
+          -e DOCKER_HOST=tcp://docker-dind:2375 \
+          -v ${{ github.workspace }}:/app \
+          ubuntu:latest tail -f /dev/null
+          
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Cache cargo-llvm-cov
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin
-            ~/.rustup/toolchains
-          key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-llvm-cov-
+        run: |
+          docker exec runner apt-get update
+          docker exec runner apt-get install -y curl gcc build-essential
+          docker exec runner sh -c 'curl https://sh.rustup.rs -sSf | sh -s -- -y'
 
       - name: Install cargo-llvm-cov
-        shell: bash
         run: |
-          if ! command -v cargo-llvm-cov &> /dev/null; then
-            cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
-          fi
+          docker exec runner sh -c "\
+            . \$HOME/.cargo/env && \
+            cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov"
 
-      - name: Run E2E Tests
-        run: cargo test --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests
+      - name: Run E2E Tests with coverage
+        run: |
+          docker exec runner sh -c "\
+            . \$HOME/.cargo/env && \
+            cd /app && \
+            cargo llvm-cov --test e2e_test --features e2e-tests --lcov --output-path=e2e-tests.lcov"
 
-      - name: Generate coverage report
-        run: cargo llvm-cov --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests --lcov --output-path=e2e-tests.lcov
-
-      - name: Upload coverage report
+      - name: Copy coverage file from container and fix file paths
+        run: |
+          docker cp runner:/app/e2e-tests.lcov ./e2e-tests.lcov
+          sed -i 's|SF:/app/|SF:|g' e2e-tests.lcov
+      
+      - name: Upload E2E coverage report
+        env:
+          COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         uses: coverallsapp/github-action@v2.3.6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
