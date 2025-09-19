@@ -1,4 +1,7 @@
 # MongoDB Atlas Local Library
+[![CI](https://github.com/mongodb/atlas-local-lib/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/mongodb/atlas-local-lib/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/mongodb/atlas-local-lib/badge.svg?branch=main)](https://coveralls.io/github/mongodb/atlas-local-lib?branch=main)
+[![Security Audit](https://github.com/mongodb/atlas-local-lib/actions/workflows/security-audit.yml/badge.svg)](https://github.com/mongodb/atlas-local-lib/actions/workflows/security-audit.yml)
 
 A Rust library for managing MongoDB Atlas Local deployments using Docker. This library provides a high-level interface to interact with MongoDB Atlas Local deployments, making it easy to develop and test applications against a local MongoDB Atlas environment.
 
