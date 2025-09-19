@@ -101,7 +101,7 @@ async fn verify_connection_string<M: MongoDbClient>(
 mod tests {
     use super::*;
     use crate::{
-        mongodb::{MongoDbCollection, MongoDbDatabase},
+        mongodb::{MongoDbCollection, MongoDbConnection, MongoDbDatabase},
         test_utils::{
             create_container_inspect_response_no_auth, create_container_inspect_response_with_auth,
         },
@@ -133,8 +133,17 @@ mod tests {
 
         #[allow(refining_impl_trait)]
         impl MongoDbClient for MongoAdapter {
-            async fn with_uri_str(&self, uri: &str) -> Result<MockMongoDatabase, mongodb::error::Error>;
+            async fn with_uri_str(&self, uri: &str) -> Result<MockMongoConnection, mongodb::error::Error>;
             async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
+        }
+    }
+    
+    mock! {
+        MongoConnection {}
+
+        #[allow(refining_impl_trait)]
+        impl MongoDbConnection for MongoConnection {
+            fn database(&self, name: &str) -> MockMongoDatabase;
         }
     }
 
@@ -144,7 +153,6 @@ mod tests {
         #[allow(refining_impl_trait)]
         impl MongoDbDatabase for MongoDatabase {
             fn collection(&self, name: &str) -> MockMongoCollection;
-            fn database(&self, name: &str) -> MockMongoDatabase;
         }
     }
 
@@ -338,8 +346,8 @@ mod tests {
             ))
             .times(1)
             .returning(|_| {
-                let mock_db = MockMongoDatabase::new();
-                Ok(mock_db)
+                let mock_connection = MockMongoConnection::new();
+                Ok(mock_connection)
             });
 
         let req = GetConnectionStringOptions {

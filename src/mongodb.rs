@@ -2,16 +2,19 @@ use mongodb::{Client, Collection, bson::Document, error::Error};
 use std::future::Future;
 
 pub trait MongoDbClient {
-    fn with_uri_str(&self, uri: &str) -> impl Future<Output = Result<impl MongoDbDatabase, Error>>;
+    fn with_uri_str(&self, uri: &str) -> impl Future<Output = Result<impl MongoDbConnection, Error>>;
     fn list_database_names(
         &self,
         connection_string: &str,
     ) -> impl Future<Output = Result<Vec<String>, Error>>;
 }
 
+pub trait MongoDbConnection {
+    fn database(&self, name: &str) -> impl MongoDbDatabase;
+}
+
 pub trait MongoDbDatabase {
     fn collection(&self, name: &str) -> impl MongoDbCollection;
-    fn database(&self, name: &str) -> impl MongoDbDatabase;
 }
 
 pub trait MongoDbCollection {
@@ -25,12 +28,9 @@ pub trait MongoDbCollection {
 pub struct MongoDbAdapter;
 
 impl MongoDbClient for MongoDbAdapter {
-    async fn with_uri_str(&self, uri: &str) -> Result<impl MongoDbDatabase, Error> {
+    async fn with_uri_str(&self, uri: &str) -> Result<impl MongoDbConnection, Error> {
         let client = Client::with_uri_str(uri).await?;
-        Ok(MongoDatabase {
-            client,
-            db_name: "admin".to_string(),
-        })
+        Ok(MongoClientWrapper { client })
     }
 
     async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error> {
@@ -40,22 +40,26 @@ impl MongoDbClient for MongoDbAdapter {
     }
 }
 
-pub struct MongoDatabase {
+pub struct MongoClientWrapper {
     client: Client,
-    db_name: String,
 }
 
-impl MongoDbDatabase for MongoDatabase {
-    fn collection(&self, name: &str) -> impl MongoDbCollection {
-        let collection = self.client.database(&self.db_name).collection(name);
-        MongoCollection { collection }
-    }
-
+impl MongoDbConnection for MongoClientWrapper {
     fn database(&self, name: &str) -> impl MongoDbDatabase {
-        MongoDatabase {
-            client: self.client.clone(),
-            db_name: name.to_string(),
+        MongoDatabaseWrapper {
+            database: self.client.database(name),
         }
+    }
+}
+
+pub struct MongoDatabaseWrapper {
+    database: mongodb::Database,
+}
+
+impl MongoDbDatabase for MongoDatabaseWrapper {
+    fn collection(&self, name: &str) -> impl MongoDbCollection {
+        let collection = self.database.collection(name);
+        MongoCollection { collection }
     }
 }
 

@@ -1,10 +1,7 @@
 use mongodb::{bson::Document, error::Error};
 
 use crate::{
-    Client,
-    docker::DockerInspectContainer,
-    models::GetConnectionStringOptions,
-    mongodb::{MongoDbAdapter, MongoDbClient, MongoDbCollection, MongoDbDatabase},
+    docker::DockerInspectContainer, models::GetConnectionStringOptions, mongodb::{MongoDbAdapter, MongoDbClient, MongoDbCollection, MongoDbConnection, MongoDbDatabase}, Client
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -44,8 +41,8 @@ impl<D: DockerInspectContainer> Client<D> {
             .get_connection_string(get_connection_string_options)
             .await?;
 
-        let database = mongo_client.with_uri_str(&connection_string).await?;
-        let admin_db = database.database("admin");
+        let client = mongo_client.with_uri_str(&connection_string).await?;
+        let admin_db = client.database("admin");
         let collection = admin_db.collection("atlascli");
 
         let atlas_doc = collection
@@ -63,6 +60,7 @@ impl<D: DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mongodb::MongoDbConnection;
     use crate::test_utils::create_container_inspect_response_with_auth;
     use bollard::{
         errors::Error as BollardError, query_parameters::InspectContainerOptions,
@@ -89,8 +87,17 @@ mod tests {
 
         #[allow(refining_impl_trait)]
         impl MongoDbClient for MongoAdapter {
-            async fn with_uri_str(&self, uri: &str) -> Result<MockMongoDatabase, Error>;
+            async fn with_uri_str(&self, uri: &str) -> Result<MockMongoConnection, Error>;
             async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error>;
+        }
+    }
+
+    mock! {
+        MongoConnection {}
+
+        #[allow(refining_impl_trait)]
+        impl MongoDbConnection for MongoConnection {
+            fn database(&self, name: &str) -> MockMongoDatabase;
         }
     }
 
@@ -100,7 +107,6 @@ mod tests {
         #[allow(refining_impl_trait)]
         impl MongoDbDatabase for MongoDatabase {
             fn collection(&self, name: &str) -> MockMongoCollection;
-            fn database(&self, name: &str) -> MockMongoDatabase;
         }
     }
 
@@ -130,19 +136,20 @@ mod tests {
         admin_db
     }
 
-    fn setup_mongo_client_mock(mock_mongo_client: &mut MockMongoAdapter, doc: Option<Document>) {
+    fn create_mock_connection_with_admin_db(doc: Option<Document>) -> MockMongoConnection {
+        let mut mock_connection = MockMongoConnection::new();
+        mock_connection
+            .expect_database()
+            .with(eq("admin"))
+            .returning(move |_| create_mock_admin_db(doc.clone()));
+        mock_connection
+    }
+
+    fn create_mongo_client_mock(mock_mongo_client: &mut MockMongoAdapter, doc: Option<Document>) {
         mock_mongo_client
             .expect_with_uri_str()
             .with(eq("mongodb://127.0.0.1:27017/?directConnection=true"))
-            .returning(move |_| {
-                let mut mock_db = MockMongoDatabase::new();
-                let doc_clone = doc.clone();
-                mock_db
-                    .expect_database()
-                    .with(eq("admin"))
-                    .returning(move |_| create_mock_admin_db(doc_clone.clone()));
-                Ok(mock_db)
-            });
+            .returning(move |_| Ok(create_mock_connection_with_admin_db(doc.clone())));
     }
 
     #[tokio::test]
@@ -196,7 +203,7 @@ mod tests {
             .returning(|_, _| Ok(create_container_inspect_response_with_auth(27017)));
 
         // Mock successful connection to MongoDB, but no atlascli doc
-        setup_mongo_client_mock(&mut mock_mongo_client, None);
+        create_mongo_client_mock(&mut mock_mongo_client, None);
 
         let client = Client::new(mock_docker);
 
@@ -225,7 +232,7 @@ mod tests {
             .returning(|_, _| Ok(create_container_inspect_response_with_auth(27017)));
 
         // Mock successful connection to MongoDB, but no UUID in atlascli doc
-        setup_mongo_client_mock(&mut mock_mongo_client, Some(Document::new()));
+        create_mongo_client_mock(&mut mock_mongo_client, Some(Document::new()));
 
         let client = Client::new(mock_docker);
 
@@ -253,7 +260,7 @@ mod tests {
         // Mock successful connection to MongoDB, and successful retrieval of UUID
         let mut doc = Document::new();
         doc.insert("uuid", "test-uuid");
-        setup_mongo_client_mock(&mut mock_mongo_client, Some(doc));
+        create_mongo_client_mock(&mut mock_mongo_client, Some(doc));
 
         let client = Client::new(mock_docker);
 
