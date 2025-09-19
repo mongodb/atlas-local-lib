@@ -3,6 +3,10 @@ use std::future::Future;
 
 pub trait MongoDbClient {
     fn with_uri_str(&self, uri: &str) -> impl Future<Output = Result<impl MongoDbDatabase, Error>>;
+    fn list_database_names(
+        &self,
+        connection_string: &str,
+    ) -> impl Future<Output = Result<Vec<String>, Error>>;
 }
 
 pub trait MongoDbDatabase {
@@ -27,6 +31,12 @@ impl MongoDbClient for MongoClient {
             client,
             db_name: "admin".to_string(),
         })
+    }
+
+    async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error> {
+        let client_options = mongodb::options::ClientOptions::parse(connection_string).await?;
+        let mongo_client = Client::with_options(client_options)?;
+        mongo_client.list_database_names().await
     }
 }
 

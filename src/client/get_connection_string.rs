@@ -2,9 +2,9 @@ use crate::{
     client::Client,
     docker::DockerInspectContainer,
     models::{GetConnectionStringOptions, MongoDBPortBinding},
+    mongodb::{MongoClient, MongoDbClient},
 };
 use bollard::secret::PortBinding;
-use mongodb::{Client as MongoClient, options::ClientOptions};
 
 use super::GetDeploymentError;
 
@@ -23,6 +23,16 @@ impl<D: DockerInspectContainer> Client<D> {
     pub async fn get_connection_string(
         &self,
         req: GetConnectionStringOptions,
+    ) -> Result<String, GetConnectionStringError> {
+        self.get_connection_string_with_client(req, &MongoClient)
+            .await
+    }
+
+    // Internal method that accepts a MongoDB client for testing
+    async fn get_connection_string_with_client<M: MongoDbClient>(
+        &self,
+        req: GetConnectionStringOptions,
+        mongo_client: &M,
     ) -> Result<String, GetConnectionStringError> {
         // Get deployment
         let deployment = self.get_deployment(&req.container_id_or_name).await?;
@@ -51,7 +61,7 @@ impl<D: DockerInspectContainer> Client<D> {
 
         // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
-            verify_connection_string(&connection_string)
+            verify_connection_string(&connection_string, mongo_client)
                 .await
                 .map_err(GetConnectionStringError::MongoConnect)?;
         }
@@ -78,18 +88,23 @@ fn format_connection_string(
 }
 
 // verify_connection_string verifies the provided connection string by attempting to connect to MongoDB and running a simple command.
-async fn verify_connection_string(connection_string: &str) -> Result<(), mongodb::error::Error> {
-    let client_options = ClientOptions::parse(connection_string).await?;
-    let mongo_client = MongoClient::with_options(client_options)?;
-    mongo_client.list_database_names().await?;
+async fn verify_connection_string<M: MongoDbClient>(
+    connection_string: &str,
+    mongo_client: &M,
+) -> Result<(), mongodb::error::Error> {
+    let _database = mongo_client.with_uri_str(connection_string).await?;
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{
-        create_container_inspect_response_no_auth, create_container_inspect_response_with_auth,
+    use crate::{
+        mongodb::{MongoDbCollection, MongoDbDatabase},
+        test_utils::{
+            create_container_inspect_response_no_auth, create_container_inspect_response_with_auth,
+        },
     };
     use bollard::{
         errors::Error as BollardError,
@@ -100,7 +115,7 @@ mod tests {
     };
     use maplit::hashmap;
     use mockall::mock;
-
+    use mongodb::bson::Document;
     mock! {
         Docker {}
 
@@ -110,6 +125,34 @@ mod tests {
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
             ) -> Result<ContainerInspectResponse, BollardError>;
+        }
+    }
+
+    mock! {
+        MongoClient {}
+
+        #[allow(refining_impl_trait)]
+        impl MongoDbClient for MongoClient {
+            async fn with_uri_str(&self, uri: &str) -> Result<MockMongoDatabase, mongodb::error::Error>;
+            async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
+        }
+    }
+
+    mock! {
+        MongoDatabase {}
+
+        #[allow(refining_impl_trait)]
+        impl MongoDbDatabase for MongoDatabase {
+            fn collection(&self, name: &str) -> MockMongoCollection;
+            fn database(&self, name: &str) -> MockMongoDatabase;
+        }
+    }
+
+    mock! {
+        MongoCollection {}
+
+        impl MongoDbCollection for MongoCollection {
+            async fn find_one(&self, filter: Document) -> Result<Option<Document>, mongodb::error::Error>;
         }
     }
 
@@ -270,5 +313,52 @@ mod tests {
             result.unwrap_err(),
             GetConnectionStringError::MissingPortBinding
         ));
+    }
+
+    #[tokio::test]
+    async fn test_get_connection_string_verify_success() {
+        // Arrange
+        let mut mock_docker = MockDocker::new();
+        mock_docker
+            .expect_inspect_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<InspectContainerOptions>),
+            )
+            .times(1)
+            .returning(move |_, _| Ok(create_container_inspect_response_with_auth(27017)));
+
+        let client = Client::new(mock_docker);
+
+        let mut mock_mongo_client = MockMongoClient::new();
+        mock_mongo_client
+            .expect_with_uri_str()
+            .with(mockall::predicate::eq(
+                "mongodb://testuser:testpass@127.0.0.1:27017/?directConnection=true",
+            ))
+            .times(1)
+            .returning(|_| {
+                let mock_db = MockMongoDatabase::new();
+                Ok(mock_db)
+            });
+
+        let req = GetConnectionStringOptions {
+            container_id_or_name: "test-deployment".to_string(),
+            db_username: Some("testuser".to_string()),
+            db_password: Some("testpass".to_string()),
+            verify: Some(true),
+        };
+
+        // Act
+        let result = client
+            .get_connection_string_with_client(req, &mock_mongo_client)
+            .await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(
+            result.unwrap(),
+            "mongodb://testuser:testpass@127.0.0.1:27017/?directConnection=true"
+        );
     }
 }

@@ -90,6 +90,7 @@ mod tests {
         #[allow(refining_impl_trait)]
         impl MongoDbClient for MongoClient {
             async fn with_uri_str(&self, uri: &str) -> Result<MockMongoDatabase, Error>;
+            async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error>;
         }
     }
 
