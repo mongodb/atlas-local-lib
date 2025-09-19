@@ -7,5 +7,5 @@ pub mod models;
 // Re-export the main types for convenience
 pub use client::{
     Client, CreateDeploymentError, DeleteDeploymentError, GetConnectionStringError,
-    GetDeploymentError, PullImageError,
+    GetDeploymentError, GetDeploymentIdError, PullImageError,
 };
