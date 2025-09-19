@@ -22,9 +22,9 @@ pub trait MongoDbCollection {
 }
 
 // Real implementations using MongoDB client
-pub struct MongoClient;
+pub struct MongoDbAdapter;
 
-impl MongoDbClient for MongoClient {
+impl MongoDbClient for MongoDbAdapter {
     async fn with_uri_str(&self, uri: &str) -> Result<impl MongoDbDatabase, Error> {
         let client = Client::with_uri_str(uri).await?;
         Ok(MongoDatabase {

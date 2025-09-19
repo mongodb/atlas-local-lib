@@ -4,7 +4,7 @@ use crate::{
     Client,
     docker::DockerInspectContainer,
     models::GetConnectionStringOptions,
-    mongodb::{MongoClient, MongoDbClient, MongoDbCollection, MongoDbDatabase},
+    mongodb::{MongoDbAdapter, MongoDbClient, MongoDbCollection, MongoDbDatabase},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -25,7 +25,7 @@ impl<D: DockerInspectContainer> Client<D> {
         &self,
         cluster_id_or_name: &str,
     ) -> Result<String, GetDeploymentIdError> {
-        self.get_deployment_id_with_client(cluster_id_or_name, &MongoClient)
+        self.get_deployment_id_with_client(cluster_id_or_name, &MongoDbAdapter)
             .await
     }
 
@@ -85,10 +85,10 @@ mod tests {
     }
 
     mock! {
-        MongoClient {}
+        MongoAdapter {}
 
         #[allow(refining_impl_trait)]
-        impl MongoDbClient for MongoClient {
+        impl MongoDbClient for MongoAdapter {
             async fn with_uri_str(&self, uri: &str) -> Result<MockMongoDatabase, Error>;
             async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error>;
         }
@@ -130,7 +130,7 @@ mod tests {
         admin_db
     }
 
-    fn setup_mongo_client_mock(mock_mongo_client: &mut MockMongoClient, doc: Option<Document>) {
+    fn setup_mongo_client_mock(mock_mongo_client: &mut MockMongoAdapter, doc: Option<Document>) {
         mock_mongo_client
             .expect_with_uri_str()
             .with(eq("mongodb://127.0.0.1:27017/?directConnection=true"))
@@ -147,8 +147,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_deployment_id_mongo_connection_error() {
+        // Arrange
         let mut mock_docker = MockDocker::new();
-        let mut mock_mongo_client = MockMongoClient::new();
+        let mut mock_mongo_client = MockMongoAdapter::new();
 
         // Mock successful connection string retrieval
         mock_docker
@@ -170,10 +171,12 @@ mod tests {
 
         let client = Client::new(mock_docker);
 
+        // Act
         let result = client
             .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
             .await;
 
+        // Assert
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -183,8 +186,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_deployment_id_no_atlascli_doc() {
+        // Arrange
         let mut mock_docker = MockDocker::new();
-        let mut mock_mongo_client = MockMongoClient::new();
+        let mut mock_mongo_client = MockMongoAdapter::new();
 
         // Mock successful connection string retrieval
         mock_docker
@@ -196,10 +200,12 @@ mod tests {
 
         let client = Client::new(mock_docker);
 
+        // Act
         let result = client
             .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
             .await;
 
+        // Assert
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -209,8 +215,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_deployment_id_no_uuid() {
+        // Arrange
         let mut mock_docker = MockDocker::new();
-        let mut mock_mongo_client = MockMongoClient::new();
+        let mut mock_mongo_client = MockMongoAdapter::new();
 
         // Mock successful connection string retrieval
         mock_docker
@@ -222,18 +229,21 @@ mod tests {
 
         let client = Client::new(mock_docker);
 
+        // Act
         let result = client
             .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
             .await;
 
+        // Assert
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), GetDeploymentIdError::NoUUID));
     }
 
     #[tokio::test]
     async fn test_get_deployment_id_success() {
+        // Arrange
         let mut mock_docker = MockDocker::new();
-        let mut mock_mongo_client = MockMongoClient::new();
+        let mut mock_mongo_client = MockMongoAdapter::new();
 
         // Mock successful connection string retrieval
         mock_docker
@@ -247,10 +257,12 @@ mod tests {
 
         let client = Client::new(mock_docker);
 
+        // Act
         let result = client
             .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
             .await;
 
+        // Assert
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "test-uuid");
     }

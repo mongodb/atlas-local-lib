@@ -2,7 +2,7 @@ use crate::{
     client::Client,
     docker::DockerInspectContainer,
     models::{GetConnectionStringOptions, MongoDBPortBinding},
-    mongodb::{MongoClient, MongoDbClient},
+    mongodb::{MongoDbAdapter, MongoDbClient},
 };
 use bollard::secret::PortBinding;
 
@@ -24,7 +24,7 @@ impl<D: DockerInspectContainer> Client<D> {
         &self,
         req: GetConnectionStringOptions,
     ) -> Result<String, GetConnectionStringError> {
-        self.get_connection_string_with_client(req, &MongoClient)
+        self.get_connection_string_with_client(req, &MongoDbAdapter)
             .await
     }
 
@@ -129,10 +129,10 @@ mod tests {
     }
 
     mock! {
-        MongoClient {}
+        MongoAdapter {}
 
         #[allow(refining_impl_trait)]
-        impl MongoDbClient for MongoClient {
+        impl MongoDbClient for MongoAdapter {
             async fn with_uri_str(&self, uri: &str) -> Result<MockMongoDatabase, mongodb::error::Error>;
             async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
         }
@@ -330,7 +330,7 @@ mod tests {
 
         let client = Client::new(mock_docker);
 
-        let mut mock_mongo_client = MockMongoClient::new();
+        let mut mock_mongo_client = MockMongoAdapter::new();
         mock_mongo_client
             .expect_with_uri_str()
             .with(mockall::predicate::eq(
