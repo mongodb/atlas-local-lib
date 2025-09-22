@@ -1,4 +1,4 @@
-use crate::mongodb::{MongoDbAdapter, MongoDbClient};
+use crate::mongodb::{MongoClientFactory, MongoDbAdapter};
 use bollard::Docker;
 
 mod create_deployment;
@@ -28,7 +28,7 @@ pub use pull_image::PullImageError;
 /// a new client instance.
 pub struct Client<D = Docker> {
     docker: D,
-    mongo_client_factory: Box<dyn MongoDbClient + Send + Sync>,
+    mongo_client_factory: Box<dyn MongoClientFactory>,
 }
 
 impl<D> Client<D> {
@@ -48,7 +48,7 @@ impl<D> Client<D> {
     pub fn new(docker: D) -> Client<D> {
         Client {
             docker,
-            mongo_client_factory: Box::new(MongoDbAdapter {}),
+            mongo_client_factory: Box::new(MongoDbAdapter),
         }
     }
 
@@ -67,7 +67,7 @@ impl<D> Client<D> {
     /// A new `Client` instance with the specified implementations.
     pub fn with_mongo_client_factory(
         docker: D,
-        mongo_client_factory: Box<dyn MongoDbClient>,
+        mongo_client_factory: Box<dyn MongoClientFactory>,
     ) -> Client<D> {
         Client {
             docker,

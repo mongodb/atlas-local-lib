@@ -1,81 +1,57 @@
-use mongodb::{Client, Collection, bson::Document, error::Error};
-use std::future::Future;
-use std::pin::Pin;
+use crate::client::GetDeploymentIdError;
+use async_trait::async_trait;
+use mongodb::{Client, bson::Document, error::Error};
 
-pub type WithUriStrFuture =
-    Pin<Box<dyn Future<Output = Result<Box<dyn MongoDbConnection>, Error>> + Send>>;
-pub type ListDatabaseNamesFuture = Pin<Box<dyn Future<Output = Result<Vec<String>, Error>> + Send>>;
-pub type FindOneFuture = Pin<Box<dyn Future<Output = Result<Option<Document>, Error>> + Send>>;
-
-pub trait MongoDbClient: Send + Sync {
-    fn with_uri_str(&self, uri: &str) -> WithUriStrFuture;
-    fn list_database_names(&self, connection_string: &str) -> ListDatabaseNamesFuture;
+#[async_trait]
+pub trait ListDatabases {
+    async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error>;
 }
 
-pub trait MongoDbConnection: Send + Sync {
-    fn database(&self, name: &str) -> Box<dyn MongoDbDatabase>;
+#[async_trait]
+pub trait GetDeploymentId {
+    async fn get_deployment_id(
+        &self,
+        connection_string: &str,
+    ) -> Result<String, GetDeploymentIdError>;
 }
 
-pub trait MongoDbDatabase: Send + Sync {
-    fn collection(&self, name: &str) -> Box<dyn MongoDbCollection>;
-}
-
-pub trait MongoDbCollection: Send + Sync {
-    fn find_one(&self, filter: Document) -> FindOneFuture;
-}
+pub trait MongoClientFactory: GetDeploymentId + ListDatabases {}
 
 // Real implementations using MongoDB client
 pub struct MongoDbAdapter;
 
-impl MongoDbClient for MongoDbAdapter {
-    fn with_uri_str(&self, uri: &str) -> WithUriStrFuture {
-        let uri = uri.to_string();
-        Box::pin(async move {
-            let client = Client::with_uri_str(&uri).await?;
-            Ok(Box::new(MongoDbClientWrapper { client }) as Box<dyn MongoDbConnection>)
-        })
-    }
-
-    fn list_database_names(&self, connection_string: &str) -> ListDatabaseNamesFuture {
-        let connection_string = connection_string.to_string();
-        Box::pin(async move {
-            let client_options = mongodb::options::ClientOptions::parse(&connection_string).await?;
-            let mongo_client = Client::with_options(client_options)?;
-            mongo_client.list_database_names().await
-        })
+#[async_trait]
+impl ListDatabases for MongoDbAdapter {
+    async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error> {
+        let client_options = mongodb::options::ClientOptions::parse(connection_string).await?;
+        let mongo_client = Client::with_options(client_options)?;
+        mongo_client.list_database_names().await
     }
 }
 
-pub struct MongoDbClientWrapper {
-    client: Client,
-}
+#[async_trait]
+impl GetDeploymentId for MongoDbAdapter {
+    async fn get_deployment_id(
+        &self,
+        connection_string: &str,
+    ) -> Result<String, GetDeploymentIdError> {
+        let client = Client::with_uri_str(connection_string).await?;
+        let admin_db = client.database("admin");
+        let collection = admin_db.collection("atlascli");
 
-impl MongoDbConnection for MongoDbClientWrapper {
-    fn database(&self, name: &str) -> Box<dyn MongoDbDatabase> {
-        Box::new(MongoDbDatabaseWrapper {
-            database: self.client.database(name),
-        })
+        let atlas_doc: Document =
+            collection
+                .find_one(Document::new())
+                .await?
+                .ok_or(GetDeploymentIdError::NotFound(
+                    "atlascli document".to_string(),
+                ))?;
+
+        atlas_doc
+            .get_str("uuid")
+            .map(|s| s.to_string())
+            .map_err(|_| GetDeploymentIdError::NotFound("uuid".to_string()))
     }
 }
 
-pub struct MongoDbDatabaseWrapper {
-    database: mongodb::Database,
-}
-
-impl MongoDbDatabase for MongoDbDatabaseWrapper {
-    fn collection(&self, name: &str) -> Box<dyn MongoDbCollection> {
-        let collection = self.database.collection(name);
-        Box::new(MongoDbCollectionWrapper { collection })
-    }
-}
-
-pub struct MongoDbCollectionWrapper {
-    collection: Collection<Document>,
-}
-
-impl MongoDbCollection for MongoDbCollectionWrapper {
-    fn find_one(&self, filter: Document) -> FindOneFuture {
-        let collection = self.collection.clone();
-        Box::pin(async move { collection.find_one(filter).await })
-    }
-}
+impl MongoClientFactory for MongoDbAdapter {}

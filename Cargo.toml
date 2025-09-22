@@ -17,6 +17,7 @@ include = [
 e2e-tests = []
 
 [dependencies]
+async-trait = "0.1.89"
 bollard = "0.19.2"
 futures-util = "0.3.31"
 maplit = "1.0.2"
