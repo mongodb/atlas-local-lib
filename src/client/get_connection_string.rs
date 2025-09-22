@@ -167,10 +167,8 @@ mod tests {
             .times(1)
             .returning(move |_, _| Ok(create_container_inspect_response_with_auth(27017)));
 
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(MockMongoAdapter::new()),
-        };
+        let client =
+            Client::with_mongo_client_factory(mock_docker, Box::new(MockMongoAdapter::new()));
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),
             db_username: Some("testuser".to_string()),
@@ -204,10 +202,7 @@ mod tests {
             .returning(move |_, _| Ok(create_container_inspect_response_no_auth(27017)));
 
         let mock_mongo_client = MockMongoAdapter::new();
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(mock_mongo_client),
-        };
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),
             db_username: None,
@@ -246,10 +241,7 @@ mod tests {
             });
 
         let mock_mongo_client = MockMongoAdapter::new();
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(mock_mongo_client),
-        };
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
         let req = GetConnectionStringOptions {
             container_id_or_name: "nonexistent-deployment".to_string(),
             db_username: None,
@@ -305,10 +297,7 @@ mod tests {
             .returning(move |_, _| Ok(container_inspect_response.clone()));
 
         let mock_mongo_client = MockMongoAdapter::new();
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(mock_mongo_client),
-        };
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),
             db_username: None,
@@ -352,10 +341,7 @@ mod tests {
                 Box::pin(async { Ok(Box::new(mock_connection) as Box<dyn MongoDbConnection>) })
             });
 
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(mock_mongo_client),
-        };
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
 
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),

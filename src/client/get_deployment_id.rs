@@ -177,10 +177,7 @@ mod tests {
                 })
             });
 
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(mock_mongo_client),
-        };
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
 
         // Act
         let result = client.get_deployment_id("test-cluster").await;
@@ -207,10 +204,7 @@ mod tests {
         // Mock successful connection to MongoDB, but no atlascli doc
         create_mongo_client_mock(&mut mock_mongo_client, None);
 
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(mock_mongo_client),
-        };
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
 
         // Act
         let result = client.get_deployment_id("test-cluster").await;
@@ -237,10 +231,7 @@ mod tests {
         // Mock successful connection to MongoDB, but no UUID in atlascli doc
         create_mongo_client_mock(&mut mock_mongo_client, Some(Document::new()));
 
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(mock_mongo_client),
-        };
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
 
         // Act
         let result = client.get_deployment_id("test-cluster").await;
@@ -266,10 +257,7 @@ mod tests {
         doc.insert("uuid", "test-uuid");
         create_mongo_client_mock(&mut mock_mongo_client, Some(doc));
 
-        let client = Client {
-            docker: mock_docker,
-            mongo_client_factory: Box::new(mock_mongo_client),
-        };
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
 
         // Act
         let result = client.get_deployment_id("test-cluster").await;
