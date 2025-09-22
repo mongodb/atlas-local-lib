@@ -88,7 +88,7 @@ mod tests {
         MongoConnection {}
 
         impl MongoDbConnection for MongoConnection {
-            fn database(&self, name: &str) -> Box<(dyn MongoDbDatabase)>;
+            fn database(&self, name: &str) -> Box<dyn MongoDbDatabase>;
         }
     }
 
@@ -96,7 +96,7 @@ mod tests {
         MongoDatabase {}
 
         impl MongoDbDatabase for MongoDatabase {
-            fn collection(&self, name: &str) -> Box<(dyn MongoDbCollection)>;
+            fn collection(&self, name: &str) -> Box<dyn MongoDbCollection>;
         }
     }
 
