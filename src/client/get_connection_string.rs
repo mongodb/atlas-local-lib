@@ -2,7 +2,7 @@ use crate::{
     client::Client,
     docker::DockerInspectContainer,
     models::{GetConnectionStringOptions, MongoDBPortBinding},
-    mongodb::{MongoDbAdapter, MongoDbClient},
+    mongodb::MongoDbClient,
 };
 use bollard::secret::PortBinding;
 
@@ -18,21 +18,11 @@ pub enum GetConnectionStringError {
     MongoConnect(#[from] mongodb::error::Error),
 }
 
-impl<D: DockerInspectContainer> Client<D> {
+impl<D: DockerInspectContainer, M: MongoDbClient> Client<D, M> {
     // Gets a local Atlas deployment's connection string.
     pub async fn get_connection_string(
         &self,
         req: GetConnectionStringOptions,
-    ) -> Result<String, GetConnectionStringError> {
-        self.get_connection_string_with_client(req, &MongoDbAdapter)
-            .await
-    }
-
-    // Internal method that accepts a MongoDB client for testing
-    async fn get_connection_string_with_client<M: MongoDbClient>(
-        &self,
-        req: GetConnectionStringOptions,
-        mongo_client: &M,
     ) -> Result<String, GetConnectionStringError> {
         // Get deployment
         let deployment = self.get_deployment(&req.container_id_or_name).await?;
@@ -61,7 +51,7 @@ impl<D: DockerInspectContainer> Client<D> {
 
         // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
-            verify_connection_string(&connection_string, mongo_client)
+            verify_connection_string(&connection_string, &self.mongo_client_factory)
                 .await
                 .map_err(GetConnectionStringError::MongoConnect)?;
         }
@@ -336,8 +326,6 @@ mod tests {
             .times(1)
             .returning(move |_, _| Ok(create_container_inspect_response_with_auth(27017)));
 
-        let client = Client::new(mock_docker);
-
         let mut mock_mongo_client = MockMongoAdapter::new();
         mock_mongo_client
             .expect_with_uri_str()
@@ -350,6 +338,8 @@ mod tests {
                 Ok(mock_connection)
             });
 
+        let client = Client::with_mongo_client_factory(mock_docker, mock_mongo_client);
+
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),
             db_username: Some("testuser".to_string()),
@@ -358,9 +348,7 @@ mod tests {
         };
 
         // Act
-        let result = client
-            .get_connection_string_with_client(req, &mock_mongo_client)
-            .await;
+        let result = client.get_connection_string(req).await;
 
         // Assert
         assert!(result.is_ok());

@@ -33,7 +33,7 @@ pub struct MongoDbAdapter;
 impl MongoDbClient for MongoDbAdapter {
     async fn with_uri_str(&self, uri: &str) -> Result<impl MongoDbConnection, Error> {
         let client = Client::with_uri_str(uri).await?;
-        Ok(MongoClientWrapper { client })
+        Ok(MongoDbClientWrapper { client })
     }
 
     async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error> {
@@ -43,34 +43,34 @@ impl MongoDbClient for MongoDbAdapter {
     }
 }
 
-pub struct MongoClientWrapper {
+pub struct MongoDbClientWrapper {
     client: Client,
 }
 
-impl MongoDbConnection for MongoClientWrapper {
+impl MongoDbConnection for MongoDbClientWrapper {
     fn database(&self, name: &str) -> impl MongoDbDatabase {
-        MongoDatabaseWrapper {
+        MongoDbDatabaseWrapper {
             database: self.client.database(name),
         }
     }
 }
 
-pub struct MongoDatabaseWrapper {
+pub struct MongoDbDatabaseWrapper {
     database: mongodb::Database,
 }
 
-impl MongoDbDatabase for MongoDatabaseWrapper {
+impl MongoDbDatabase for MongoDbDatabaseWrapper {
     fn collection(&self, name: &str) -> impl MongoDbCollection {
         let collection = self.database.collection(name);
-        MongoCollection { collection }
+        MongoDbCollectionWrapper { collection }
     }
 }
 
-pub struct MongoCollection {
+pub struct MongoDbCollectionWrapper {
     collection: Collection<Document>,
 }
 
-impl MongoDbCollection for MongoCollection {
+impl MongoDbCollection for MongoDbCollectionWrapper {
     async fn find_one(&self, filter: Document) -> Result<Option<Document>, Error> {
         self.collection.find_one(filter).await
     }

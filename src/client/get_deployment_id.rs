@@ -4,9 +4,7 @@ use crate::{
     Client,
     docker::DockerInspectContainer,
     models::GetConnectionStringOptions,
-    mongodb::{
-        MongoDbAdapter, MongoDbClient, MongoDbCollection, MongoDbConnection, MongoDbDatabase,
-    },
+    mongodb::{MongoDbClient, MongoDbCollection, MongoDbConnection, MongoDbDatabase},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -21,20 +19,11 @@ pub enum GetDeploymentIdError {
     NoUUID,
 }
 
-impl<D: DockerInspectContainer> Client<D> {
+impl<D: DockerInspectContainer, M: MongoDbClient> Client<D, M> {
     /// Gets the Atlas deployment ID for a local Atlas deployment.
     pub async fn get_deployment_id(
         &self,
         cluster_id_or_name: &str,
-    ) -> Result<String, GetDeploymentIdError> {
-        self.get_deployment_id_with_client(cluster_id_or_name, &MongoDbAdapter)
-            .await
-    }
-
-    async fn get_deployment_id_with_client<M: MongoDbClient>(
-        &self,
-        cluster_id_or_name: &str,
-        mongo_client: &M,
     ) -> Result<String, GetDeploymentIdError> {
         let get_connection_string_options = GetConnectionStringOptions {
             container_id_or_name: cluster_id_or_name.to_string(),
@@ -46,7 +35,10 @@ impl<D: DockerInspectContainer> Client<D> {
             .get_connection_string(get_connection_string_options)
             .await?;
 
-        let client = mongo_client.with_uri_str(&connection_string).await?;
+        let client = self
+            .mongo_client_factory
+            .with_uri_str(&connection_string)
+            .await?;
         let admin_db = client.database("admin");
         let collection = admin_db.collection("atlascli");
 
@@ -181,12 +173,13 @@ mod tests {
                 )))
             });
 
-        let client = Client::new(mock_docker);
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: mock_mongo_client,
+        };
 
         // Act
-        let result = client
-            .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
-            .await;
+        let result = client.get_deployment_id("test-cluster").await;
 
         // Assert
         assert!(result.is_err());
@@ -210,12 +203,13 @@ mod tests {
         // Mock successful connection to MongoDB, but no atlascli doc
         create_mongo_client_mock(&mut mock_mongo_client, None);
 
-        let client = Client::new(mock_docker);
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: mock_mongo_client,
+        };
 
         // Act
-        let result = client
-            .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
-            .await;
+        let result = client.get_deployment_id("test-cluster").await;
 
         // Assert
         assert!(result.is_err());
@@ -239,12 +233,13 @@ mod tests {
         // Mock successful connection to MongoDB, but no UUID in atlascli doc
         create_mongo_client_mock(&mut mock_mongo_client, Some(Document::new()));
 
-        let client = Client::new(mock_docker);
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: mock_mongo_client,
+        };
 
         // Act
-        let result = client
-            .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
-            .await;
+        let result = client.get_deployment_id("test-cluster").await;
 
         // Assert
         assert!(result.is_err());
@@ -267,12 +262,13 @@ mod tests {
         doc.insert("uuid", "test-uuid");
         create_mongo_client_mock(&mut mock_mongo_client, Some(doc));
 
-        let client = Client::new(mock_docker);
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: mock_mongo_client,
+        };
 
         // Act
-        let result = client
-            .get_deployment_id_with_client("test-cluster", &mock_mongo_client)
-            .await;
+        let result = client.get_deployment_id("test-cluster").await;
 
         // Assert
         assert!(result.is_ok());
