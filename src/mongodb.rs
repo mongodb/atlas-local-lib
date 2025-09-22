@@ -2,15 +2,14 @@ use mongodb::{Client, Collection, bson::Document, error::Error};
 use std::future::Future;
 use std::pin::Pin;
 
-type ConnectionResult =
+pub type WithUriStrFuture =
     Pin<Box<dyn Future<Output = Result<Box<dyn MongoDbConnection>, Error>> + Send>>;
+pub type ListDatabaseNamesFuture = Pin<Box<dyn Future<Output = Result<Vec<String>, Error>> + Send>>;
+pub type FindOneFuture = Pin<Box<dyn Future<Output = Result<Option<Document>, Error>> + Send>>;
 
 pub trait MongoDbClient: Send + Sync {
-    fn with_uri_str(&self, uri: &str) -> ConnectionResult;
-    fn list_database_names(
-        &self,
-        connection_string: &str,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, Error>> + Send>>;
+    fn with_uri_str(&self, uri: &str) -> WithUriStrFuture;
+    fn list_database_names(&self, connection_string: &str) -> ListDatabaseNamesFuture;
 }
 
 pub trait MongoDbConnection: Send + Sync {
@@ -22,17 +21,14 @@ pub trait MongoDbDatabase: Send + Sync {
 }
 
 pub trait MongoDbCollection: Send + Sync {
-    fn find_one(
-        &self,
-        filter: Document,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Document>, Error>> + Send>>;
+    fn find_one(&self, filter: Document) -> FindOneFuture;
 }
 
 // Real implementations using MongoDB client
 pub struct MongoDbAdapter;
 
 impl MongoDbClient for MongoDbAdapter {
-    fn with_uri_str(&self, uri: &str) -> ConnectionResult {
+    fn with_uri_str(&self, uri: &str) -> WithUriStrFuture {
         let uri = uri.to_string();
         Box::pin(async move {
             let client = Client::with_uri_str(&uri).await?;
@@ -40,10 +36,7 @@ impl MongoDbClient for MongoDbAdapter {
         })
     }
 
-    fn list_database_names(
-        &self,
-        connection_string: &str,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, Error>> + Send>> {
+    fn list_database_names(&self, connection_string: &str) -> ListDatabaseNamesFuture {
         let connection_string = connection_string.to_string();
         Box::pin(async move {
             let client_options = mongodb::options::ClientOptions::parse(&connection_string).await?;
@@ -81,10 +74,7 @@ pub struct MongoDbCollectionWrapper {
 }
 
 impl MongoDbCollection for MongoDbCollectionWrapper {
-    fn find_one(
-        &self,
-        filter: Document,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Document>, Error>> + Send>> {
+    fn find_one(&self, filter: Document) -> FindOneFuture {
         let collection = self.collection.clone();
         Box::pin(async move { collection.find_one(filter).await })
     }

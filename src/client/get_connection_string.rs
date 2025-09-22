@@ -90,6 +90,7 @@ async fn verify_connection_string(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mongodb::{FindOneFuture, ListDatabaseNamesFuture, WithUriStrFuture};
     use crate::{
         mongodb::{MongoDbCollection, MongoDbConnection, MongoDbDatabase},
         test_utils::{
@@ -106,16 +107,6 @@ mod tests {
     use maplit::hashmap;
     use mockall::mock;
     use mongodb::bson::Document;
-    use std::future::Future;
-    use std::pin::Pin;
-
-    type WithUriStrFuture = Pin<
-        Box<dyn Future<Output = Result<Box<dyn MongoDbConnection>, mongodb::error::Error>> + Send>,
-    >;
-    type ListDatabaseNamesFuture =
-        Pin<Box<dyn Future<Output = Result<Vec<String>, mongodb::error::Error>> + Send>>;
-    type FindOneFuture =
-        Pin<Box<dyn Future<Output = Result<Option<Document>, mongodb::error::Error>> + Send>>;
 
     mock! {
         Docker {}
@@ -132,7 +123,6 @@ mod tests {
     mock! {
         MongoAdapter {}
 
-        #[allow(refining_impl_trait)]
         impl MongoDbClient for MongoAdapter {
             fn with_uri_str(&self, uri: &str) -> WithUriStrFuture;
             fn list_database_names(&self, connection_string: &str) -> ListDatabaseNamesFuture;
@@ -142,7 +132,6 @@ mod tests {
     mock! {
         MongoConnection {}
 
-        #[allow(refining_impl_trait)]
         impl MongoDbConnection for MongoConnection {
             fn database(&self, name: &str) -> Box<dyn MongoDbDatabase>;
         }
@@ -151,7 +140,6 @@ mod tests {
     mock! {
         MongoDatabase {}
 
-        #[allow(refining_impl_trait)]
         impl MongoDbDatabase for MongoDatabase {
             fn collection(&self, name: &str) -> Box<dyn MongoDbCollection>;
         }

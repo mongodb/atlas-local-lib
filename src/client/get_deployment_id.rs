@@ -52,6 +52,7 @@ impl<D: DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mongodb::{FindOneFuture, ListDatabaseNamesFuture, WithUriStrFuture};
     use crate::mongodb::{MongoDbClient, MongoDbCollection, MongoDbConnection, MongoDbDatabase};
     use crate::test_utils::create_container_inspect_response_with_auth;
     use bollard::{
@@ -61,13 +62,6 @@ mod tests {
     use mockall::{mock, predicate::eq};
     use mongodb::bson::Document;
     use mongodb::error::{Error, ErrorKind};
-    use std::future::Future;
-    use std::pin::Pin;
-
-    type WithUriStrFuture =
-        Pin<Box<dyn Future<Output = Result<Box<dyn MongoDbConnection>, Error>> + Send>>;
-    type ListDatabaseNamesFuture = Pin<Box<dyn Future<Output = Result<Vec<String>, Error>> + Send>>;
-    type FindOneFuture = Pin<Box<dyn Future<Output = Result<Option<Document>, Error>> + Send>>;
 
     mock! {
         Docker {}
@@ -84,7 +78,6 @@ mod tests {
     mock! {
         MongoAdapter {}
 
-        #[allow(refining_impl_trait)]
         impl MongoDbClient for MongoAdapter {
             fn with_uri_str(&self, uri: &str) -> WithUriStrFuture;
             fn list_database_names(&self, connection_string: &str) -> ListDatabaseNamesFuture;
@@ -94,7 +87,6 @@ mod tests {
     mock! {
         MongoConnection {}
 
-        #[allow(refining_impl_trait)]
         impl MongoDbConnection for MongoConnection {
             fn database(&self, name: &str) -> Box<(dyn MongoDbDatabase)>;
         }
@@ -103,7 +95,6 @@ mod tests {
     mock! {
         MongoDatabase {}
 
-        #[allow(refining_impl_trait)]
         impl MongoDbDatabase for MongoDatabase {
             fn collection(&self, name: &str) -> Box<(dyn MongoDbCollection)>;
         }
