@@ -115,6 +115,68 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_get_deployment_id_atlascli_document_not_found() {
+        // Arrange
+        let mut mock_docker = MockDocker::new();
+        let mut mock_mongo_client = MockMongoClientFactory::new();
+
+        // Mock successful connection string retrieval
+        mock_docker
+            .expect_inspect_container()
+            .returning(|_, _| Ok(create_container_inspect_response_with_auth(27017)));
+
+        mock_mongo_client
+            .expect_get_deployment_id()
+            .with(eq("mongodb://127.0.0.1:27017/?directConnection=true"))
+            .returning(|_| {
+                Err(GetDeploymentIdError::NotFound(
+                    "atlascli document".to_string(),
+                ))
+            });
+
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
+
+        // Act
+        let result = client.get_deployment_id("test-cluster").await;
+
+        // Assert
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            GetDeploymentIdError::NotFound(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_get_deployment_id_uuid_not_found() {
+        // Arrange
+        let mut mock_docker = MockDocker::new();
+        let mut mock_mongo_client = MockMongoClientFactory::new();
+
+        // Mock successful connection string retrieval
+        mock_docker
+            .expect_inspect_container()
+            .returning(|_, _| Ok(create_container_inspect_response_with_auth(27017)));
+
+        mock_mongo_client
+            .expect_get_deployment_id()
+            .with(eq("mongodb://127.0.0.1:27017/?directConnection=true"))
+            .returning(|_| Err(GetDeploymentIdError::NotFound("uuid".to_string())));
+
+        let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
+
+        // Act
+        let result = client.get_deployment_id("test-cluster").await;
+
+        // Assert
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            GetDeploymentIdError::NotFound(_)
+        ));
+    }
+
+    #[tokio::test]
     async fn test_get_deployment_id_success() {
         // Arrange
         let mut mock_docker = MockDocker::new();
