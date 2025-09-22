@@ -1,45 +1,55 @@
 use mongodb::{Client, Collection, bson::Document, error::Error};
 use std::future::Future;
+use std::pin::Pin;
 
-pub trait MongoDbClient {
-    fn with_uri_str(
-        &self,
-        uri: &str,
-    ) -> impl Future<Output = Result<impl MongoDbConnection, Error>>;
+type ConnectionResult =
+    Pin<Box<dyn Future<Output = Result<Box<dyn MongoDbConnection>, Error>> + Send>>;
+
+pub trait MongoDbClient: Send + Sync {
+    fn with_uri_str(&self, uri: &str) -> ConnectionResult;
     fn list_database_names(
         &self,
         connection_string: &str,
-    ) -> impl Future<Output = Result<Vec<String>, Error>>;
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, Error>> + Send>>;
 }
 
-pub trait MongoDbConnection {
-    fn database(&self, name: &str) -> impl MongoDbDatabase;
+pub trait MongoDbConnection: Send + Sync {
+    fn database(&self, name: &str) -> Box<dyn MongoDbDatabase>;
 }
 
-pub trait MongoDbDatabase {
-    fn collection(&self, name: &str) -> impl MongoDbCollection;
+pub trait MongoDbDatabase: Send + Sync {
+    fn collection(&self, name: &str) -> Box<dyn MongoDbCollection>;
 }
 
-pub trait MongoDbCollection {
+pub trait MongoDbCollection: Send + Sync {
     fn find_one(
         &self,
         filter: Document,
-    ) -> impl Future<Output = Result<Option<Document>, Error>> + Send;
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Document>, Error>> + Send>>;
 }
 
 // Real implementations using MongoDB client
 pub struct MongoDbAdapter;
 
 impl MongoDbClient for MongoDbAdapter {
-    async fn with_uri_str(&self, uri: &str) -> Result<impl MongoDbConnection, Error> {
-        let client = Client::with_uri_str(uri).await?;
-        Ok(MongoDbClientWrapper { client })
+    fn with_uri_str(&self, uri: &str) -> ConnectionResult {
+        let uri = uri.to_string();
+        Box::pin(async move {
+            let client = Client::with_uri_str(&uri).await?;
+            Ok(Box::new(MongoDbClientWrapper { client }) as Box<dyn MongoDbConnection>)
+        })
     }
 
-    async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error> {
-        let client_options = mongodb::options::ClientOptions::parse(connection_string).await?;
-        let mongo_client = Client::with_options(client_options)?;
-        mongo_client.list_database_names().await
+    fn list_database_names(
+        &self,
+        connection_string: &str,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, Error>> + Send>> {
+        let connection_string = connection_string.to_string();
+        Box::pin(async move {
+            let client_options = mongodb::options::ClientOptions::parse(&connection_string).await?;
+            let mongo_client = Client::with_options(client_options)?;
+            mongo_client.list_database_names().await
+        })
     }
 }
 
@@ -48,10 +58,10 @@ pub struct MongoDbClientWrapper {
 }
 
 impl MongoDbConnection for MongoDbClientWrapper {
-    fn database(&self, name: &str) -> impl MongoDbDatabase {
-        MongoDbDatabaseWrapper {
+    fn database(&self, name: &str) -> Box<dyn MongoDbDatabase> {
+        Box::new(MongoDbDatabaseWrapper {
             database: self.client.database(name),
-        }
+        })
     }
 }
 
@@ -60,9 +70,9 @@ pub struct MongoDbDatabaseWrapper {
 }
 
 impl MongoDbDatabase for MongoDbDatabaseWrapper {
-    fn collection(&self, name: &str) -> impl MongoDbCollection {
+    fn collection(&self, name: &str) -> Box<dyn MongoDbCollection> {
         let collection = self.database.collection(name);
-        MongoDbCollectionWrapper { collection }
+        Box::new(MongoDbCollectionWrapper { collection })
     }
 }
 
@@ -71,7 +81,11 @@ pub struct MongoDbCollectionWrapper {
 }
 
 impl MongoDbCollection for MongoDbCollectionWrapper {
-    async fn find_one(&self, filter: Document) -> Result<Option<Document>, Error> {
-        self.collection.find_one(filter).await
+    fn find_one(
+        &self,
+        filter: Document,
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Document>, Error>> + Send>> {
+        let collection = self.collection.clone();
+        Box::pin(async move { collection.find_one(filter).await })
     }
 }

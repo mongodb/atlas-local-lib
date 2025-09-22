@@ -18,7 +18,7 @@ pub enum GetConnectionStringError {
     MongoConnect(#[from] mongodb::error::Error),
 }
 
-impl<D: DockerInspectContainer, M: MongoDbClient> Client<D, M> {
+impl<D: DockerInspectContainer> Client<D> {
     // Gets a local Atlas deployment's connection string.
     pub async fn get_connection_string(
         &self,
@@ -51,7 +51,7 @@ impl<D: DockerInspectContainer, M: MongoDbClient> Client<D, M> {
 
         // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
-            verify_connection_string(&connection_string, &self.mongo_client_factory)
+            verify_connection_string(&connection_string, self.mongo_client_factory.as_ref())
                 .await
                 .map_err(GetConnectionStringError::MongoConnect)?;
         }
@@ -78,9 +78,9 @@ fn format_connection_string(
 }
 
 // verify_connection_string verifies the provided connection string by attempting to connect to MongoDB and running a simple command.
-async fn verify_connection_string<M: MongoDbClient>(
+async fn verify_connection_string(
     connection_string: &str,
-    mongo_client: &M,
+    mongo_client: &dyn MongoDbClient,
 ) -> Result<(), mongodb::error::Error> {
     let _database = mongo_client.with_uri_str(connection_string).await?;
 
@@ -106,6 +106,17 @@ mod tests {
     use maplit::hashmap;
     use mockall::mock;
     use mongodb::bson::Document;
+    use std::future::Future;
+    use std::pin::Pin;
+
+    type WithUriStrFuture = Pin<
+        Box<dyn Future<Output = Result<Box<dyn MongoDbConnection>, mongodb::error::Error>> + Send>,
+    >;
+    type ListDatabaseNamesFuture =
+        Pin<Box<dyn Future<Output = Result<Vec<String>, mongodb::error::Error>> + Send>>;
+    type FindOneFuture =
+        Pin<Box<dyn Future<Output = Result<Option<Document>, mongodb::error::Error>> + Send>>;
+
     mock! {
         Docker {}
 
@@ -123,8 +134,8 @@ mod tests {
 
         #[allow(refining_impl_trait)]
         impl MongoDbClient for MongoAdapter {
-            async fn with_uri_str(&self, uri: &str) -> Result<MockMongoConnection, mongodb::error::Error>;
-            async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
+            fn with_uri_str(&self, uri: &str) -> WithUriStrFuture;
+            fn list_database_names(&self, connection_string: &str) -> ListDatabaseNamesFuture;
         }
     }
 
@@ -133,7 +144,7 @@ mod tests {
 
         #[allow(refining_impl_trait)]
         impl MongoDbConnection for MongoConnection {
-            fn database(&self, name: &str) -> MockMongoDatabase;
+            fn database(&self, name: &str) -> Box<dyn MongoDbDatabase>;
         }
     }
 
@@ -142,7 +153,7 @@ mod tests {
 
         #[allow(refining_impl_trait)]
         impl MongoDbDatabase for MongoDatabase {
-            fn collection(&self, name: &str) -> MockMongoCollection;
+            fn collection(&self, name: &str) -> Box<dyn MongoDbCollection>;
         }
     }
 
@@ -150,7 +161,7 @@ mod tests {
         MongoCollection {}
 
         impl MongoDbCollection for MongoCollection {
-            async fn find_one(&self, filter: Document) -> Result<Option<Document>, mongodb::error::Error>;
+            fn find_one(&self, filter: Document) -> FindOneFuture;
         }
     }
 
@@ -168,7 +179,10 @@ mod tests {
             .times(1)
             .returning(move |_, _| Ok(create_container_inspect_response_with_auth(27017)));
 
-        let client = Client::new(mock_docker);
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: Box::new(MockMongoAdapter::new()),
+        };
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),
             db_username: Some("testuser".to_string()),
@@ -201,7 +215,11 @@ mod tests {
             .times(1)
             .returning(move |_, _| Ok(create_container_inspect_response_no_auth(27017)));
 
-        let client = Client::new(mock_docker);
+        let mock_mongo_client = MockMongoAdapter::new();
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: Box::new(mock_mongo_client),
+        };
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),
             db_username: None,
@@ -239,7 +257,11 @@ mod tests {
                 })
             });
 
-        let client = Client::new(mock_docker);
+        let mock_mongo_client = MockMongoAdapter::new();
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: Box::new(mock_mongo_client),
+        };
         let req = GetConnectionStringOptions {
             container_id_or_name: "nonexistent-deployment".to_string(),
             db_username: None,
@@ -294,7 +316,11 @@ mod tests {
             .times(1)
             .returning(move |_, _| Ok(container_inspect_response.clone()));
 
-        let client = Client::new(mock_docker);
+        let mock_mongo_client = MockMongoAdapter::new();
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: Box::new(mock_mongo_client),
+        };
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),
             db_username: None,
@@ -335,10 +361,13 @@ mod tests {
             .times(1)
             .returning(|_| {
                 let mock_connection = MockMongoConnection::new();
-                Ok(mock_connection)
+                Box::pin(async { Ok(Box::new(mock_connection) as Box<dyn MongoDbConnection>) })
             });
 
-        let client = Client::with_mongo_client_factory(mock_docker, mock_mongo_client);
+        let client = Client {
+            docker: mock_docker,
+            mongo_client_factory: Box::new(mock_mongo_client),
+        };
 
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),

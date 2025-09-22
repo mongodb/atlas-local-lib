@@ -1,11 +1,6 @@
 use mongodb::{bson::Document, error::Error};
 
-use crate::{
-    Client,
-    docker::DockerInspectContainer,
-    models::GetConnectionStringOptions,
-    mongodb::{MongoDbClient, MongoDbCollection, MongoDbConnection, MongoDbDatabase},
-};
+use crate::{Client, docker::DockerInspectContainer, models::GetConnectionStringOptions};
 
 #[derive(Debug, thiserror::Error)]
 pub enum GetDeploymentIdError {
@@ -19,7 +14,7 @@ pub enum GetDeploymentIdError {
     NoUUID,
 }
 
-impl<D: DockerInspectContainer, M: MongoDbClient> Client<D, M> {
+impl<D: DockerInspectContainer> Client<D> {
     /// Gets the Atlas deployment ID for a local Atlas deployment.
     pub async fn get_deployment_id(
         &self,
@@ -57,7 +52,7 @@ impl<D: DockerInspectContainer, M: MongoDbClient> Client<D, M> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mongodb::MongoDbConnection;
+    use crate::mongodb::{MongoDbClient, MongoDbCollection, MongoDbConnection, MongoDbDatabase};
     use crate::test_utils::create_container_inspect_response_with_auth;
     use bollard::{
         errors::Error as BollardError, query_parameters::InspectContainerOptions,
@@ -66,6 +61,13 @@ mod tests {
     use mockall::{mock, predicate::eq};
     use mongodb::bson::Document;
     use mongodb::error::{Error, ErrorKind};
+    use std::future::Future;
+    use std::pin::Pin;
+
+    type WithUriStrFuture =
+        Pin<Box<dyn Future<Output = Result<Box<dyn MongoDbConnection>, Error>> + Send>>;
+    type ListDatabaseNamesFuture = Pin<Box<dyn Future<Output = Result<Vec<String>, Error>> + Send>>;
+    type FindOneFuture = Pin<Box<dyn Future<Output = Result<Option<Document>, Error>> + Send>>;
 
     mock! {
         Docker {}
@@ -84,8 +86,8 @@ mod tests {
 
         #[allow(refining_impl_trait)]
         impl MongoDbClient for MongoAdapter {
-            async fn with_uri_str(&self, uri: &str) -> Result<MockMongoConnection, Error>;
-            async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, Error>;
+            fn with_uri_str(&self, uri: &str) -> WithUriStrFuture;
+            fn list_database_names(&self, connection_string: &str) -> ListDatabaseNamesFuture;
         }
     }
 
@@ -94,7 +96,7 @@ mod tests {
 
         #[allow(refining_impl_trait)]
         impl MongoDbConnection for MongoConnection {
-            fn database(&self, name: &str) -> MockMongoDatabase;
+            fn database(&self, name: &str) -> Box<(dyn MongoDbDatabase)>;
         }
     }
 
@@ -103,7 +105,7 @@ mod tests {
 
         #[allow(refining_impl_trait)]
         impl MongoDbDatabase for MongoDatabase {
-            fn collection(&self, name: &str) -> MockMongoCollection;
+            fn collection(&self, name: &str) -> Box<(dyn MongoDbCollection)>;
         }
     }
 
@@ -111,7 +113,7 @@ mod tests {
         MongoCollection {}
 
         impl MongoDbCollection for MongoCollection {
-            async fn find_one(&self, filter: Document) -> Result<Option<Document>, Error>;
+            fn find_one(&self, filter: Document) -> FindOneFuture;
         }
     }
 
@@ -120,7 +122,10 @@ mod tests {
         mock_collection
             .expect_find_one()
             .with(eq(Document::new()))
-            .returning(move |_| Ok(doc.clone()));
+            .returning(move |_| {
+                let doc = doc.clone();
+                Box::pin(async move { Ok(doc) })
+            });
         mock_collection
     }
 
@@ -129,7 +134,7 @@ mod tests {
         admin_db
             .expect_collection()
             .with(eq("atlascli"))
-            .returning(move |_| create_mock_collection_with_doc(doc.clone()));
+            .returning(move |_| Box::new(create_mock_collection_with_doc(doc.clone())));
         admin_db
     }
 
@@ -138,7 +143,7 @@ mod tests {
         mock_connection
             .expect_database()
             .with(eq("admin"))
-            .returning(move |_| create_mock_admin_db(doc.clone()));
+            .returning(move |_| Box::new(create_mock_admin_db(doc.clone())));
         mock_connection
     }
 
@@ -146,7 +151,13 @@ mod tests {
         mock_mongo_client
             .expect_with_uri_str()
             .with(eq("mongodb://127.0.0.1:27017/?directConnection=true"))
-            .returning(move |_| Ok(create_mock_connection_with_admin_db(doc.clone())));
+            .returning(move |_| {
+                let doc = doc.clone();
+                Box::pin(async move {
+                    Ok(Box::new(create_mock_connection_with_admin_db(doc))
+                        as Box<dyn MongoDbConnection>)
+                })
+            });
     }
 
     #[tokio::test]
@@ -164,18 +175,20 @@ mod tests {
             .expect_with_uri_str()
             .with(eq("mongodb://127.0.0.1:27017/?directConnection=true"))
             .returning(|_| {
-                Err(Error::from(ErrorKind::Io(
-                    std::io::Error::new(
-                        std::io::ErrorKind::ConnectionRefused,
-                        "Connection refused",
-                    )
-                    .into(),
-                )))
+                Box::pin(async move {
+                    Err(Error::from(ErrorKind::Io(
+                        std::io::Error::new(
+                            std::io::ErrorKind::ConnectionRefused,
+                            "Connection refused",
+                        )
+                        .into(),
+                    )))
+                })
             });
 
         let client = Client {
             docker: mock_docker,
-            mongo_client_factory: mock_mongo_client,
+            mongo_client_factory: Box::new(mock_mongo_client),
         };
 
         // Act
@@ -205,7 +218,7 @@ mod tests {
 
         let client = Client {
             docker: mock_docker,
-            mongo_client_factory: mock_mongo_client,
+            mongo_client_factory: Box::new(mock_mongo_client),
         };
 
         // Act
@@ -235,7 +248,7 @@ mod tests {
 
         let client = Client {
             docker: mock_docker,
-            mongo_client_factory: mock_mongo_client,
+            mongo_client_factory: Box::new(mock_mongo_client),
         };
 
         // Act
@@ -264,7 +277,7 @@ mod tests {
 
         let client = Client {
             docker: mock_docker,
-            mongo_client_factory: mock_mongo_client,
+            mongo_client_factory: Box::new(mock_mongo_client),
         };
 
         // Act

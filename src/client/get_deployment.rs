@@ -14,7 +14,7 @@ pub enum GetDeploymentError {
     IntoDeployment(#[from] IntoDeploymentError),
 }
 
-impl<D: DockerInspectContainer, M> Client<D, M> {
+impl<D: DockerInspectContainer> Client<D> {
     /// Inspects a container.
     ///
     /// # Arguments
