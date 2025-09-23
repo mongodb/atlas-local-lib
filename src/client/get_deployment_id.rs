@@ -22,7 +22,6 @@ impl<D: DockerInspectContainer> Client<D> {
             container_id_or_name: cluster_id_or_name.to_string(),
             db_username: None,
             db_password: None,
-            verify: Some(false),
         };
         let connection_string = self
             .get_connection_string(get_connection_string_options)
@@ -61,7 +60,6 @@ mod tests {
 
         #[async_trait::async_trait]
         impl MongoDbClient for MongoClientFactory {
-            async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
             async fn get_deployment_id(&self, connection_string: &str) -> Result<String, GetDeploymentIdError>;
         }
     }

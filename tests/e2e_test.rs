@@ -94,7 +94,6 @@ async fn test_e2e_smoke_test() {
         container_id_or_name: name.to_string(),
         db_username: Some(username.to_string()),
         db_password: Some(password.to_string()),
-        verify: Some(false),
     };
 
     let conn_string = client

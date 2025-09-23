@@ -2,7 +2,6 @@ use crate::{
     client::Client,
     docker::DockerInspectContainer,
     models::{GetConnectionStringOptions, MongoDBPortBinding},
-    mongodb::MongoDbClient,
 };
 use bollard::secret::PortBinding;
 
@@ -49,13 +48,6 @@ impl<D: DockerInspectContainer> Client<D> {
         let connection_string =
             format_connection_string(hostname, req.db_username, req.db_password, port);
 
-        // Optionally, verify the connection string
-        if req.verify.unwrap_or(false) {
-            verify_connection_string(&connection_string, self.mongodb_client.as_ref())
-                .await
-                .map_err(GetConnectionStringError::MongoConnect)?;
-        }
-
         Ok(connection_string)
     }
 }
@@ -75,16 +67,6 @@ fn format_connection_string(
     };
 
     format!("mongodb://{auth_string}{hostname}:{port}/?directConnection=true",)
-}
-
-// verify_connection_string verifies the provided connection string by attempting to connect to MongoDB and running a simple command.
-async fn verify_connection_string(
-    connection_string: &str,
-    mongo_client: &dyn MongoDbClient,
-) -> Result<(), mongodb::error::Error> {
-    let _database = mongo_client.list_database_names(connection_string).await?;
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -124,7 +106,6 @@ mod tests {
 
         #[async_trait::async_trait]
         impl MongoDbClient for MongoClientFactory {
-            async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
             async fn get_deployment_id(&self, connection_string: &str) -> Result<String, GetDeploymentIdError>;
         }
     }
@@ -149,7 +130,6 @@ mod tests {
             container_id_or_name: "test-deployment".to_string(),
             db_username: Some("testuser".to_string()),
             db_password: Some("testpass".to_string()),
-            verify: None,
         };
 
         // Act
@@ -183,7 +163,6 @@ mod tests {
             container_id_or_name: "test-deployment".to_string(),
             db_username: None,
             db_password: None,
-            verify: None,
         };
 
         // Act
@@ -222,7 +201,6 @@ mod tests {
             container_id_or_name: "nonexistent-deployment".to_string(),
             db_username: None,
             db_password: None,
-            verify: None,
         };
 
         // Act
@@ -278,7 +256,6 @@ mod tests {
             container_id_or_name: "test-deployment".to_string(),
             db_username: None,
             db_password: None,
-            verify: None,
         };
 
         // Act
@@ -305,22 +282,13 @@ mod tests {
             .times(1)
             .returning(move |_, _| Ok(create_container_inspect_response_with_auth(27017)));
 
-        let mut mock_mongo_client = MockMongoClientFactory::new();
-        mock_mongo_client
-            .expect_list_database_names()
-            .with(mockall::predicate::eq(
-                "mongodb://testuser:testpass@127.0.0.1:27017/?directConnection=true",
-            ))
-            .times(1)
-            .returning(|_| Ok(vec!["admin".to_string(), "test".to_string()]));
-
+        let mock_mongo_client = MockMongoClientFactory::new();
         let client = Client::with_mongo_client_factory(mock_docker, Box::new(mock_mongo_client));
 
         let req = GetConnectionStringOptions {
             container_id_or_name: "test-deployment".to_string(),
             db_username: Some("testuser".to_string()),
             db_password: Some("testpass".to_string()),
-            verify: Some(true),
         };
 
         // Act
