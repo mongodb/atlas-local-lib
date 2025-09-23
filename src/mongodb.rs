@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use mongodb::{Client, bson::Document};
 
 #[async_trait]
-pub trait MongoDbClient {
+pub trait MongoDbClient: Send + Sync {
     async fn get_deployment_id(
         &self,
         connection_string: &str,
