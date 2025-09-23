@@ -21,7 +21,6 @@ async fn main() -> Result<()> {
             container_id_or_name: deployment.container_id,
             db_username: Some(username),
             db_password: Some(password),
-            verify: Some(true),
         };
         let conn_str = client
             .get_connection_string(req)

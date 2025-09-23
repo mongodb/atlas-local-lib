@@ -15,7 +15,7 @@ use crate::models::{
     LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
 };
 use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
-pub const ATLAS_LOCAL_IMAGE: &str = "mongodb/mongodb-atlas-local";
+pub const ATLAS_LOCAL_IMAGE: &str = "quay.io/mongodb/mongodb-atlas-local";
 pub const ATLAS_LOCAL_VERSION_TAG: Version = Version::new(8, 0, 0);
 
 #[derive(Debug, Default)]
@@ -230,7 +230,7 @@ mod tests {
         // Assert all fields are set correctly
         assert_eq!(
             container_create_body.image,
-            Some("mongodb/mongodb-atlas-local:8.0.0".to_string())
+            Some("quay.io/mongodb/mongodb-atlas-local:8.0.0".to_string())
         );
         assert_eq!(
             container_create_body
