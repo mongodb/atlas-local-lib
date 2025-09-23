@@ -1,6 +1,8 @@
 use bollard::{
     Docker,
+    container::LogOutput,
     errors::Error,
+    exec::{CreateExecOptions, StartExecOptions, StartExecResults},
     query_parameters::{
         CreateContainerOptions, CreateImageOptionsBuilder, InspectContainerOptions,
         ListContainersOptions, RemoveContainerOptions, StartContainerOptions, StopContainerOptions,
@@ -138,5 +140,89 @@ impl DockerStartContainer for Docker {
         options: Option<StartContainerOptions>,
     ) -> Result<(), Error> {
         self.start_container(container_id, options).await
+    }
+}
+
+pub trait RunCommandInContainer {
+    fn run_command_in_container(
+        &self,
+        container_id: &str,
+        command: Vec<String>,
+    ) -> impl Future<Output = Result<CommandOutput, RunCommandInContainerError>>;
+}
+
+pub struct CommandOutput {
+    pub stdout: Vec<String>,
+    pub stderr: Vec<String>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RunCommandInContainerError {
+    #[error("Failed to create exec: {0}")]
+    CreateExec(Error),
+    #[error("Failed to start exec: {0}")]
+    StartExec(Error),
+    #[error("Failed to get output, output was not attached")]
+    GetOutput,
+    #[error("Failed to get output: {0}")]
+    GetOutputError(Error),
+}
+
+impl RunCommandInContainer for Docker {
+    async fn run_command_in_container(
+        &self,
+        container_id: &str,
+        command: Vec<String>,
+    ) -> Result<CommandOutput, RunCommandInContainerError> {
+        let exec = self
+            .create_exec(
+                container_id,
+                CreateExecOptions {
+                    attach_stdout: Some(true),
+                    attach_stderr: Some(true),
+                    cmd: Some(command),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(RunCommandInContainerError::CreateExec)?;
+
+        let exec = self
+            .start_exec(
+                &exec.id,
+                Some(StartExecOptions {
+                    detach: false,
+                    tty: false,
+                    output_capacity: None,
+                }),
+            )
+            .await
+            .map_err(RunCommandInContainerError::StartExec)?;
+
+        let StartExecResults::Attached { mut output, .. } = exec else {
+            return Err(RunCommandInContainerError::GetOutput);
+        };
+
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+
+        while let Some(result) = output.next().await {
+            let log_ouput = result.map_err(RunCommandInContainerError::GetOutputError)?;
+
+            match log_ouput {
+                LogOutput::StdOut { message } => {
+                    stdout.push_str(&String::from_utf8_lossy(message.as_ref()));
+                }
+                LogOutput::StdErr { message } => {
+                    stderr.push_str(&String::from_utf8_lossy(message.as_ref()));
+                }
+                _ => {}
+            }
+        }
+
+        Ok(CommandOutput {
+            stdout: stdout.lines().map(str::to_string).collect(),
+            stderr: stderr.lines().map(str::to_string).collect(),
+        })
     }
 }

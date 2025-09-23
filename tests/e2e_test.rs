@@ -111,6 +111,19 @@ async fn test_e2e_smoke_test() {
         )
     );
 
+    // Get Deployment ID twice, verify the same ID is returned
+    let deployment_id = client
+        .get_deployment_id(name)
+        .await
+        .expect("Getting deployment id");
+
+    let deployment_id2 = client
+        .get_deployment_id(name)
+        .await
+        .expect("Getting deployment id");
+
+    assert_eq!(deployment_id, deployment_id2);
+
     // Delete Deployment
     client
         .delete_deployment(name)
