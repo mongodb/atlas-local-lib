@@ -28,7 +28,7 @@ impl<D: DockerInspectContainer> Client<D> {
             .get_connection_string(get_connection_string_options)
             .await?;
 
-        self.mongo_client_factory
+        self.mongodb_client
             .get_deployment_id(&connection_string)
             .await
     }
@@ -37,10 +37,7 @@ impl<D: DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        mongodb::{GetDeploymentId, ListDatabases},
-        test_utils::create_container_inspect_response_with_auth,
-    };
+    use crate::{mongodb::MongoDbClient, test_utils::create_container_inspect_response_with_auth};
     use bollard::{
         errors::Error as BollardError, query_parameters::InspectContainerOptions,
         secret::ContainerInspectResponse,
@@ -63,17 +60,11 @@ mod tests {
         MongoClientFactory {}
 
         #[async_trait::async_trait]
-        impl ListDatabases for MongoClientFactory {
+        impl MongoDbClient for MongoClientFactory {
             async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
-        }
-
-        #[async_trait::async_trait]
-        impl GetDeploymentId for MongoClientFactory {
             async fn get_deployment_id(&self, connection_string: &str) -> Result<String, GetDeploymentIdError>;
         }
     }
-
-    impl crate::mongodb::MongoClientFactory for MockMongoClientFactory {}
 
     #[tokio::test]
     async fn test_get_deployment_id_mongo_connection_error() {

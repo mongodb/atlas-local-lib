@@ -1,4 +1,4 @@
-use crate::mongodb::{MongoClientFactory, MongoDbAdapter};
+use crate::mongodb::{MongoDbAdapter, MongoDbClient};
 use bollard::Docker;
 
 mod create_deployment;
@@ -28,7 +28,7 @@ pub use pull_image::PullImageError;
 /// a new client instance.
 pub struct Client<D = Docker> {
     docker: D,
-    mongo_client_factory: Box<dyn MongoClientFactory>,
+    mongodb_client: Box<dyn MongoDbClient>,
 }
 
 impl<D> Client<D> {
@@ -48,11 +48,11 @@ impl<D> Client<D> {
     pub fn new(docker: D) -> Client<D> {
         Client {
             docker,
-            mongo_client_factory: Box::new(MongoDbAdapter),
+            mongodb_client: Box::new(MongoDbAdapter),
         }
     }
 
-    /// Creates a new Atlas Local client with a custom MongoDB client factory.
+    /// Creates a new Atlas Local client with a custom MongoDB client.
     ///
     /// This constructor is primarily useful for testing scenarios where you need
     /// to inject mock implementations of the MongoDB client.
@@ -60,18 +60,18 @@ impl<D> Client<D> {
     /// # Arguments
     ///
     /// * `docker` - A Docker client implementation
-    /// * `mongo_client_factory` - A MongoDB client factory implementation
+    /// * `mongodb_client` - A MongoDB client implementation
     ///
     /// # Returns
     ///
     /// A new `Client` instance with the specified implementations.
     pub fn with_mongo_client_factory(
         docker: D,
-        mongo_client_factory: Box<dyn MongoClientFactory>,
+        mongodb_client: Box<dyn MongoDbClient>,
     ) -> Client<D> {
         Client {
             docker,
-            mongo_client_factory,
+            mongodb_client,
         }
     }
 }

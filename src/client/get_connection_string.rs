@@ -2,7 +2,7 @@ use crate::{
     client::Client,
     docker::DockerInspectContainer,
     models::{GetConnectionStringOptions, MongoDBPortBinding},
-    mongodb::ListDatabases,
+    mongodb::MongoDbClient,
 };
 use bollard::secret::PortBinding;
 
@@ -51,7 +51,7 @@ impl<D: DockerInspectContainer> Client<D> {
 
         // Optionally, verify the connection string
         if req.verify.unwrap_or(false) {
-            verify_connection_string(&connection_string, self.mongo_client_factory.as_ref())
+            verify_connection_string(&connection_string, self.mongodb_client.as_ref())
                 .await
                 .map_err(GetConnectionStringError::MongoConnect)?;
         }
@@ -80,7 +80,7 @@ fn format_connection_string(
 // verify_connection_string verifies the provided connection string by attempting to connect to MongoDB and running a simple command.
 async fn verify_connection_string(
     connection_string: &str,
-    mongo_client: &dyn ListDatabases,
+    mongo_client: &dyn MongoDbClient,
 ) -> Result<(), mongodb::error::Error> {
     let _database = mongo_client.list_database_names(connection_string).await?;
 
@@ -92,7 +92,7 @@ mod tests {
     use super::*;
     use crate::{
         GetDeploymentIdError,
-        mongodb::GetDeploymentId,
+        mongodb::MongoDbClient,
         test_utils::{
             create_container_inspect_response_no_auth, create_container_inspect_response_with_auth,
         },
@@ -123,17 +123,11 @@ mod tests {
         MongoClientFactory {}
 
         #[async_trait::async_trait]
-        impl ListDatabases for MongoClientFactory {
+        impl MongoDbClient for MongoClientFactory {
             async fn list_database_names(&self, connection_string: &str) -> Result<Vec<String>, mongodb::error::Error>;
-        }
-
-        #[async_trait::async_trait]
-        impl GetDeploymentId for MongoClientFactory {
             async fn get_deployment_id(&self, connection_string: &str) -> Result<String, GetDeploymentIdError>;
         }
     }
-
-    impl crate::mongodb::MongoClientFactory for MockMongoClientFactory {}
 
     #[tokio::test]
     async fn test_get_connection_string() {
