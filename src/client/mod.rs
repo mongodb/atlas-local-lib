@@ -1,9 +1,11 @@
+use crate::mongodb::{MongoDbAdapter, MongoDbClient};
 use bollard::Docker;
 
 mod create_deployment;
 mod delete_deployment;
 mod get_connection_string;
 mod get_deployment;
+mod get_deployment_id;
 mod list_deployments;
 mod pull_image;
 
@@ -11,6 +13,7 @@ pub use create_deployment::CreateDeploymentError;
 pub use delete_deployment::DeleteDeploymentError;
 pub use get_connection_string::GetConnectionStringError;
 pub use get_deployment::GetDeploymentError;
+pub use get_deployment_id::GetDeploymentIdError;
 pub use pull_image::PullImageError;
 
 /// The main entry point for interacting with local Atlas deployments.
@@ -25,10 +28,11 @@ pub use pull_image::PullImageError;
 /// a new client instance.
 pub struct Client<D = Docker> {
     docker: D,
+    mongodb_client: Box<dyn MongoDbClient>,
 }
 
 impl<D> Client<D> {
-    /// Creates a new Atlas Local client.
+    /// Creates a new Atlas Local client with the default MongoDB adapter.
     ///
     /// # Arguments
     ///
@@ -40,8 +44,34 @@ impl<D> Client<D> {
     ///
     /// # Examples
     ///
-    /// See the [module-level documentation](crate) for usage examples.
+    /// See the [module-level documentation](crate) for usage examples.    
     pub fn new(docker: D) -> Client<D> {
-        Client { docker }
+        Client {
+            docker,
+            mongodb_client: Box::new(MongoDbAdapter),
+        }
+    }
+
+    /// Creates a new Atlas Local client with a custom MongoDB client.
+    ///
+    /// This constructor is primarily useful for testing scenarios where you need
+    /// to inject mock implementations of the MongoDB client.
+    ///
+    /// # Arguments
+    ///
+    /// * `docker` - A Docker client implementation
+    /// * `mongodb_client` - A MongoDB client implementation
+    ///
+    /// # Returns
+    ///
+    /// A new `Client` instance with the specified implementations.
+    pub fn with_mongo_client_factory(
+        docker: D,
+        mongodb_client: Box<dyn MongoDbClient>,
+    ) -> Client<D> {
+        Client {
+            docker,
+            mongodb_client,
+        }
     }
 }
