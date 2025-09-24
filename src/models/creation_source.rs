@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CreationSource {
     AtlasCLI,
@@ -13,6 +15,17 @@ impl From<&str> for CreationSource {
             "CONTAINER" => CreationSource::Container,
             "MCPSERVER" => CreationSource::MCPServer,
             unknown => CreationSource::Unknown(unknown.to_string()),
+        }
+    }
+}
+
+impl Display for CreationSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CreationSource::AtlasCLI => write!(f, "ATLASCLI"),
+            CreationSource::Container => write!(f, "CONTAINER"),
+            CreationSource::MCPServer => write!(f, "MCPSERVER"),
+            CreationSource::Unknown(s) => write!(f, "{}", s),
         }
     }
 }
@@ -46,5 +59,29 @@ mod tests {
             source,
             CreationSource::Unknown("some_unknown_source".to_string())
         );
+    }
+
+    #[test]
+    fn test_creation_source_to_string_atlascli() {
+        let source = CreationSource::AtlasCLI;
+        assert_eq!(source.to_string(), "ATLASCLI");
+    }
+
+    #[test]
+    fn test_creation_source_to_string_container() {
+        let source = CreationSource::Container;
+        assert_eq!(source.to_string(), "CONTAINER");
+    }
+
+    #[test]
+    fn test_creation_source_to_string_mcp_server() {
+        let source = CreationSource::MCPServer;
+        assert_eq!(source.to_string(), "MCPSERVER");
+    }
+
+    #[test]
+    fn test_creation_source_to_string_unknown() {
+        let source = CreationSource::Unknown("custom_source".to_string());
+        assert_eq!(source.to_string(), "custom_source");
     }
 }
