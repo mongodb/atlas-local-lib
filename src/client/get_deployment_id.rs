@@ -216,10 +216,11 @@ mod tests {
 
         // Add username and password environment variables
         if let Some(config) = container_inspect_response.config.as_mut()
-            && let Some(env) = config.env.as_mut() {
-                env.push("MONGODB_INITDB_ROOT_USERNAME=testuser".to_string());
-                env.push("MONGODB_INITDB_ROOT_PASSWORD=testpass".to_string());
-            }
+            && let Some(env) = config.env.as_mut()
+        {
+            env.push("MONGODB_INITDB_ROOT_USERNAME=testuser".to_string());
+            env.push("MONGODB_INITDB_ROOT_PASSWORD=testpass".to_string());
+        }
 
         // Mock get_deployment call
         mock_docker
@@ -269,10 +270,11 @@ mod tests {
 
         // Add username and password file environment variables
         if let Some(config) = container_inspect_response.config.as_mut()
-            && let Some(env) = config.env.as_mut() {
-                env.push("MONGODB_INITDB_ROOT_USERNAME_FILE=/run/secrets/username".to_string());
-                env.push("MONGODB_INITDB_ROOT_PASSWORD_FILE=/run/secrets/password".to_string());
-            }
+            && let Some(env) = config.env.as_mut()
+        {
+            env.push("MONGODB_INITDB_ROOT_USERNAME_FILE=/run/secrets/username".to_string());
+            env.push("MONGODB_INITDB_ROOT_PASSWORD_FILE=/run/secrets/password".to_string());
+        }
 
         // Mock get_deployment call
         mock_docker
@@ -387,9 +389,10 @@ mod tests {
 
         // Add username file environment variable (but no direct username)
         if let Some(config) = container_inspect_response.config.as_mut()
-            && let Some(env) = config.env.as_mut() {
-                env.push("MONGODB_INITDB_ROOT_USERNAME_FILE=/run/secrets/username".to_string());
-            }
+            && let Some(env) = config.env.as_mut()
+        {
+            env.push("MONGODB_INITDB_ROOT_USERNAME_FILE=/run/secrets/username".to_string());
+        }
 
         // Mock get_deployment call
         mock_docker
@@ -438,9 +441,10 @@ mod tests {
 
         // Add password file environment variable (but no direct password)
         if let Some(config) = container_inspect_response.config.as_mut()
-            && let Some(env) = config.env.as_mut() {
-                env.push("MONGODB_INITDB_ROOT_PASSWORD_FILE=/run/secrets/password".to_string());
-            }
+            && let Some(env) = config.env.as_mut()
+        {
+            env.push("MONGODB_INITDB_ROOT_PASSWORD_FILE=/run/secrets/password".to_string());
+        }
 
         // Mock get_deployment call
         mock_docker
@@ -533,10 +537,11 @@ mod tests {
 
         // Add username from env and password from file
         if let Some(config) = container_inspect_response.config.as_mut()
-            && let Some(env) = config.env.as_mut() {
-                env.push("MONGODB_INITDB_ROOT_USERNAME=envuser".to_string());
-                env.push("MONGODB_INITDB_ROOT_PASSWORD_FILE=/run/secrets/password".to_string());
-            }
+            && let Some(env) = config.env.as_mut()
+        {
+            env.push("MONGODB_INITDB_ROOT_USERNAME=envuser".to_string());
+            env.push("MONGODB_INITDB_ROOT_PASSWORD_FILE=/run/secrets/password".to_string());
+        }
 
         // Mock get_deployment call
         mock_docker
@@ -692,9 +697,10 @@ mod tests {
 
         // Add only username environment variable
         if let Some(config) = container_inspect_response.config.as_mut()
-            && let Some(env) = config.env.as_mut() {
-                env.push("MONGODB_INITDB_ROOT_USERNAME=onlyuser".to_string());
-            }
+            && let Some(env) = config.env.as_mut()
+        {
+            env.push("MONGODB_INITDB_ROOT_USERNAME=onlyuser".to_string());
+        }
 
         mock_docker
             .expect_inspect_container()
@@ -738,9 +744,10 @@ mod tests {
 
         // Add only password environment variable
         if let Some(config) = container_inspect_response.config.as_mut()
-            && let Some(env) = config.env.as_mut() {
-                env.push("MONGODB_INITDB_ROOT_PASSWORD=onlypass".to_string());
-            }
+            && let Some(env) = config.env.as_mut()
+        {
+            env.push("MONGODB_INITDB_ROOT_PASSWORD=onlypass".to_string());
+        }
 
         mock_docker
             .expect_inspect_container()
