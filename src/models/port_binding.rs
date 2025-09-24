@@ -46,6 +46,7 @@ impl MongoDBPortBinding {
         }
 
         // It's safe to unwrap because we checked the length above
+        #[allow(clippy::unwrap_used)]
         let port = ports.first().unwrap();
 
         // Get the port number (convert optional string to u16)

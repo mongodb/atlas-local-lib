@@ -144,14 +144,8 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
         })
         .collect::<Vec<String>>();
 
-        match deployment_options.creation_source {
-            Some(CreationSource::AtlasCLI) => env_vars.push(format!("{}=ATLASCLI", ENV_VAR_TOOL)),
-            Some(CreationSource::Container) => env_vars.push(format!("{}=CONTAINER", ENV_VAR_TOOL)),
-            Some(CreationSource::MCPServer) => env_vars.push(format!("{}=MCPSERVER", ENV_VAR_TOOL)),
-            Some(CreationSource::Unknown(ref s)) => {
-                env_vars.push(format!("{}={}", ENV_VAR_TOOL, s))
-            }
-            None => {}
+        if let Some(source) = deployment_options.creation_source.as_ref() {
+            env_vars.push(format!("{ENV_VAR_TOOL}={source}"));
         }
 
         // Only set env if we have any to set, otherwise leave it as None

@@ -57,10 +57,14 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
         // Create the container with the correct configuration
         let create_container_options: CreateContainerOptions = deployment_options.into();
         let create_container_config: ContainerCreateBody = deployment_options.into();
+
+        // Get the cluster name
+        // It is safe to unwrap because CreateContainerOptions::from will generate a random name if none is provided
+        #[allow(clippy::expect_used)]
         let cluster_name = create_container_options
             .name
             .clone()
-            .expect("Container name");
+            .expect("Container name to be set by CreateContainerOptions::from");
 
         self.docker
             .create_container(Some(create_container_options), create_container_config)
@@ -118,19 +122,18 @@ impl<D: DockerInspectContainer> Client<D> {
                 .await
                 .map_err(CreateDeploymentError::ContainerInspect)?
                 .state
-                .unwrap();
+                .and_then(|s| s.health)
+                .and_then(|h| h.status)
+                .ok_or_else(|| {
+                    CreateDeploymentError::UnhealthyDeployment(cluster_name.to_string())
+                })?;
 
-            match status.health.unwrap().status {
-                Some(HealthStatusEnum::HEALTHY) => return Ok(()),
-                Some(HealthStatusEnum::UNHEALTHY) => {
-                    return Err(CreateDeploymentError::UnhealthyDeployment(
-                        cluster_name.to_string(),
-                    ));
-                }
-                Some(HealthStatusEnum::STARTING) => {
+            match status {
+                HealthStatusEnum::HEALTHY => return Ok(()),
+                HealthStatusEnum::STARTING => {
                     time::sleep(std::time::Duration::from_secs(1)).await;
                 }
-                _ => {
+                HealthStatusEnum::UNHEALTHY | HealthStatusEnum::NONE | HealthStatusEnum::EMPTY => {
                     return Err(CreateDeploymentError::UnhealthyDeployment(
                         cluster_name.to_string(),
                     ));
@@ -251,6 +254,69 @@ mod tests {
             state: Some(ContainerState {
                 health: Some(bollard::secret::Health {
                     status: Some(HealthStatusEnum::STARTING),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn create_test_container_inspect_response_no_state() -> ContainerInspectResponse {
+        ContainerInspectResponse {
+            id: Some("test_container_id".to_string()),
+            name: Some("/test-deployment".to_string()),
+            config: Some(ContainerConfig {
+                labels: Some(hashmap! {
+                    "mongodb-atlas-local".to_string() => "container".to_string(),
+                    "version".to_string() => "8.0.0".to_string(),
+                    "mongodb-type".to_string() => "community".to_string(),
+                }),
+                env: Some(vec!["TOOL=ATLASCLI".to_string()]),
+                ..Default::default()
+            }),
+            state: None,
+            ..Default::default()
+        }
+    }
+
+    fn create_test_container_inspect_response_no_health() -> ContainerInspectResponse {
+        ContainerInspectResponse {
+            id: Some("test_container_id".to_string()),
+            name: Some("/test-deployment".to_string()),
+            config: Some(ContainerConfig {
+                labels: Some(hashmap! {
+                    "mongodb-atlas-local".to_string() => "container".to_string(),
+                    "version".to_string() => "8.0.0".to_string(),
+                    "mongodb-type".to_string() => "community".to_string(),
+                }),
+                env: Some(vec!["TOOL=ATLASCLI".to_string()]),
+                ..Default::default()
+            }),
+            state: Some(ContainerState {
+                health: None,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn create_test_container_inspect_response_no_health_status() -> ContainerInspectResponse {
+        ContainerInspectResponse {
+            id: Some("test_container_id".to_string()),
+            name: Some("/test-deployment".to_string()),
+            config: Some(ContainerConfig {
+                labels: Some(hashmap! {
+                    "mongodb-atlas-local".to_string() => "container".to_string(),
+                    "version".to_string() => "8.0.0".to_string(),
+                    "mongodb-type".to_string() => "community".to_string(),
+                }),
+                env: Some(vec!["TOOL=ATLASCLI".to_string()]),
+                ..Default::default()
+            }),
+            state: Some(ContainerState {
+                health: Some(bollard::secret::Health {
+                    status: None,
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -651,5 +717,257 @@ mod tests {
 
         // Assert
         assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_deployment_timeout() {
+        // Arrange
+        let mut mock_docker = MockDocker::new();
+        let options = CreateDeploymentOptions {
+            name: Some("test-deployment".to_string()),
+            wait_until_healthy: Some(true),
+            wait_until_healthy_timeout: Some(time::Duration::from_millis(1)),
+            ..Default::default()
+        };
+
+        // Set up expectations
+        mock_docker
+            .expect_pull_image()
+            .with(
+                mockall::predicate::eq(ATLAS_LOCAL_IMAGE),
+                mockall::predicate::eq("latest"),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_create_container()
+            .times(1)
+            .returning(|_, _| {
+                Ok(ContainerCreateResponse {
+                    id: "container_id".to_string(),
+                    warnings: vec![],
+                })
+            });
+
+        mock_docker
+            .expect_start_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<StartContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        // Mock inspect_container to always return STARTING status, which will cause timeout
+        mock_docker
+            .expect_inspect_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<InspectContainerOptions>),
+            )
+            .returning(|_, _| Ok(create_test_container_inspect_response_starting()));
+
+        let client = Client::new(mock_docker);
+
+        // Act
+        let result = client.create_deployment(&options).await;
+
+        // Assert
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CreateDeploymentError::UnhealthyDeployment(msg) => {
+                assert!(msg.contains(
+                    "Timeout while waiting for container test-deployment to become healthy"
+                ));
+            }
+            _ => panic!("Expected UnhealthyDeployment error with timeout message"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_healthy_deployment_no_state() {
+        // Arrange
+        let mut mock_docker = MockDocker::new();
+        let options = CreateDeploymentOptions {
+            name: Some("test-deployment".to_string()),
+            ..Default::default()
+        };
+
+        // Set up expectations
+        mock_docker
+            .expect_pull_image()
+            .with(
+                mockall::predicate::eq(ATLAS_LOCAL_IMAGE),
+                mockall::predicate::eq("latest"),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_create_container()
+            .times(1)
+            .returning(|_, _| {
+                Ok(ContainerCreateResponse {
+                    id: "container_id".to_string(),
+                    warnings: vec![],
+                })
+            });
+
+        mock_docker
+            .expect_start_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<StartContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_inspect_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<InspectContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(create_test_container_inspect_response_no_state()));
+
+        let client = Client::new(mock_docker);
+
+        // Act
+        let result = client.create_deployment(&options).await;
+
+        // Assert
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CreateDeploymentError::UnhealthyDeployment(name) => {
+                assert_eq!(name, "test-deployment");
+            }
+            _ => panic!("Expected UnhealthyDeployment error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_healthy_deployment_no_health() {
+        // Arrange
+        let mut mock_docker = MockDocker::new();
+        let options = CreateDeploymentOptions {
+            name: Some("test-deployment".to_string()),
+            ..Default::default()
+        };
+
+        // Set up expectations
+        mock_docker
+            .expect_pull_image()
+            .with(
+                mockall::predicate::eq(ATLAS_LOCAL_IMAGE),
+                mockall::predicate::eq("latest"),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_create_container()
+            .times(1)
+            .returning(|_, _| {
+                Ok(ContainerCreateResponse {
+                    id: "container_id".to_string(),
+                    warnings: vec![],
+                })
+            });
+
+        mock_docker
+            .expect_start_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<StartContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_inspect_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<InspectContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(create_test_container_inspect_response_no_health()));
+
+        let client = Client::new(mock_docker);
+
+        // Act
+        let result = client.create_deployment(&options).await;
+
+        // Assert
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CreateDeploymentError::UnhealthyDeployment(name) => {
+                assert_eq!(name, "test-deployment");
+            }
+            _ => panic!("Expected UnhealthyDeployment error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_healthy_deployment_no_health_status() {
+        // Arrange
+        let mut mock_docker = MockDocker::new();
+        let options = CreateDeploymentOptions {
+            name: Some("test-deployment".to_string()),
+            ..Default::default()
+        };
+
+        // Set up expectations
+        mock_docker
+            .expect_pull_image()
+            .with(
+                mockall::predicate::eq(ATLAS_LOCAL_IMAGE),
+                mockall::predicate::eq("latest"),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_create_container()
+            .times(1)
+            .returning(|_, _| {
+                Ok(ContainerCreateResponse {
+                    id: "container_id".to_string(),
+                    warnings: vec![],
+                })
+            });
+
+        mock_docker
+            .expect_start_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<StartContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_inspect_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<InspectContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(create_test_container_inspect_response_no_health_status()));
+
+        let client = Client::new(mock_docker);
+
+        // Act
+        let result = client.create_deployment(&options).await;
+
+        // Assert
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            CreateDeploymentError::UnhealthyDeployment(name) => {
+                assert_eq!(name, "test-deployment");
+            }
+            _ => panic!("Expected UnhealthyDeployment error"),
+        }
     }
 }

@@ -1,4 +1,7 @@
 #![doc = include_str!("../README.md")]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
 
 pub mod client;
 pub mod docker;
