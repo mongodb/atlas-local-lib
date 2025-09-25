@@ -13,8 +13,6 @@ pub enum GetConnectionStringError {
     GetDeployment(#[from] GetDeploymentError),
     #[error("Missing port binding information")]
     MissingPortBinding,
-    #[error("Failed to connect to MongoDB: {0}")]
-    MongoConnect(#[from] mongodb::error::Error),
 }
 
 impl<D: DockerInspectContainer> Client<D> {

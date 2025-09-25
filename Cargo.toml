@@ -10,19 +10,16 @@ include = [
     "README.md",
     "CONTRIBUTING.md",
     "LICENSE",
-    "license.html"
+    "license.html",
 ]
 
 [features]
 e2e-tests = []
 
 [dependencies]
-async-trait = "0.1.89"
 bollard = "0.19.2"
 futures-util = "0.3.31"
 maplit = "1.0.2"
-mockall = "0.13.1"
-mongodb = "3.3.0"
 rand = "0.9.2"
 semver = "1.0.26"
 thiserror = "2.0.16"
@@ -30,5 +27,6 @@ tokio = { version = "1.0", features = ["time"] }
 
 [dev-dependencies]
 anyhow = "1.0.99"
+mockall = "0.13.1"
 pretty_assertions = "1.4.1"
 tokio = { version = "1.0", features = ["full"] }
