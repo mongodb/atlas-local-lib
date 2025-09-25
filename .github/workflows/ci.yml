@@ -10,6 +10,7 @@ env:
   CARGO_DENY_VERSION: 0.18.4
   CARGO_AUDIT_VERSION: 0.21.2
   CARGO_LLVM_COV_VERSION: 0.6.19
+  CARGO_UDEPS_VERSION: 0.1.59
 
 jobs:
   check:
@@ -22,6 +23,7 @@ jobs:
         rustup update stable
         rustup default stable
         rustup component add clippy rustfmt
+        rustup toolchain install nightly
     
     - name: Cache cargo registry
       uses: actions/cache@v4
@@ -38,7 +40,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-tools-deny-${{ env.CARGO_DENY_VERSION }}-audit-${{ env.CARGO_AUDIT_VERSION }}
+        key: ${{ runner.os }}-cargo-tools-deny-${{ env.CARGO_DENY_VERSION }}-audit-${{ env.CARGO_AUDIT_VERSION }}-udeps-${{ env.CARGO_UDEPS_VERSION }}
         restore-keys: |
           ${{ runner.os }}-cargo-tools-
     
@@ -52,6 +54,12 @@ jobs:
       run: |
         if ! command -v cargo-audit &> /dev/null; then
           cargo install --locked --version ${{ env.CARGO_AUDIT_VERSION }} cargo-audit
+        fi
+    
+    - name: Install cargo-udeps
+      run: |
+        if ! command -v cargo-udeps &> /dev/null; then
+          cargo install --locked --version ${{ env.CARGO_UDEPS_VERSION }} cargo-udeps
         fi
     
     - name: Check formatting
@@ -68,6 +76,12 @@ jobs:
     
     - name: Run cargo audit
       run: cargo audit
+    
+    - name: Run cargo udeps (package dependencies)
+      run: cargo +nightly udeps
+
+    - name: Run cargo udeps (dev dependencies)
+      run: cargo +nightly udeps --all-features --all-targets
 
   test-matrix:
     runs-on: ${{ matrix.os }}
