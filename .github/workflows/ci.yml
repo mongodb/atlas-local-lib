@@ -92,7 +92,7 @@ jobs:
 
     - name: Verify LICENSE-3RD-PARTY.txt is up to date
       run: |
-        cargo about generate about.hbs > LICENSE-3RD-PARTY-generated.txt
+        cargo about generate --frozen about.hbs > LICENSE-3RD-PARTY-generated.txt
         if ! diff -q LICENSE-3RD-PARTY.txt LICENSE-3RD-PARTY-generated.txt > /dev/null; then
           echo "ERROR: LICENSE-3RD-PARTY.txt is not up to date!"
           echo "Please run: cargo about generate about.hbs > LICENSE-3RD-PARTY.txt"
