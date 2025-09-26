@@ -101,10 +101,10 @@ This verifies that all dependencies use acceptable licenses and checks for known
 We use [`cargo-about`](https://github.com/EmbarkStudios/cargo-about) to generate our third-party licenses notice:
 
 ```sh
-cargo about generate about.hbs > license.html
+cargo about generate about.hbs > LICENSE-3RD-PARTY.txt
 ```
 
-This generates an HTML file containing all third-party license information for our dependencies.
+This generates the file containing all third-party license information for our dependencies.
 
 ## Submitting Your Changes
 
