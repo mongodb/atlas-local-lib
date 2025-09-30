@@ -13,6 +13,10 @@ pub fn create_container_inspect_response_with_auth(port: u16) -> ContainerInspec
                 "version".to_string() => "7.0.0".to_string(),
                 "mongodb-type".to_string() => "community".to_string(),
             }),
+            env: Some(vec![
+                "MONGODB_INITDB_ROOT_USERNAME=testuser".to_string(),
+                "MONGODB_INITDB_ROOT_PASSWORD=testpass".to_string(),
+            ]),
             ..Default::default()
         }),
         state: Some(ContainerState {
