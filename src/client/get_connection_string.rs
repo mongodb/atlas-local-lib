@@ -1,5 +1,5 @@
 use crate::{
-    client::get_deployment_id::get_mongodb_secret,
+    client::get_mongodb_secret::get_mongodb_secret,
     docker::{DockerInspectContainer, RunCommandInContainer, RunCommandInContainerError},
     models::MongoDBPortBinding,
 };
