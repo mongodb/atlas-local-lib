@@ -1,7 +1,7 @@
 use crate::{
-    client::Client,
-    docker::DockerInspectContainer,
-    models::{GetConnectionStringOptions, MongoDBPortBinding},
+    client::get_mongodb_secret::get_mongodb_secret,
+    docker::{DockerInspectContainer, RunCommandInContainer, RunCommandInContainerError},
+    models::MongoDBPortBinding,
 };
 use bollard::secret::PortBinding;
 
@@ -11,18 +11,22 @@ use super::GetDeploymentError;
 pub enum GetConnectionStringError {
     #[error("Failed to get deployment: {0}")]
     GetDeployment(#[from] GetDeploymentError),
+    #[error("Failed to get MongoDB username: {0}")]
+    GetMongodbUsername(RunCommandInContainerError),
+    #[error("Failed to get MongoDB password: {0}")]
+    GetMongodbPassword(RunCommandInContainerError),
     #[error("Missing port binding information")]
     MissingPortBinding,
 }
 
-impl<D: DockerInspectContainer> Client<D> {
+impl<D: DockerInspectContainer + RunCommandInContainer> crate::client::Client<D> {
     // Gets a local Atlas deployment's connection string.
     pub async fn get_connection_string(
         &self,
-        req: GetConnectionStringOptions,
+        container_id_or_name: String,
     ) -> Result<String, GetConnectionStringError> {
         // Get deployment
-        let deployment = self.get_deployment(&req.container_id_or_name).await?;
+        let deployment = self.get_deployment(&container_id_or_name).await?;
 
         // Extract port binding
         let port = match &deployment.port_bindings {
@@ -42,9 +46,29 @@ impl<D: DockerInspectContainer> Client<D> {
         .host_ip
         .ok_or(GetConnectionStringError::MissingPortBinding)?;
 
+        // Try to get the MongoDB root username
+        let mongodb_root_username = get_mongodb_secret(
+            &self.docker,
+            &deployment,
+            |d| d.mongodb_initdb_root_username.as_deref(),
+            |d| d.mongodb_initdb_root_username_file.as_deref(),
+        )
+        .await
+        .map_err(GetConnectionStringError::GetMongodbUsername)?;
+
+        // Try to get the MongoDB root password
+        let mongodb_root_password = get_mongodb_secret(
+            &self.docker,
+            &deployment,
+            |d| d.mongodb_initdb_root_password.as_deref(),
+            |d| d.mongodb_initdb_root_password_file.as_deref(),
+        )
+        .await
+        .map_err(GetConnectionStringError::GetMongodbPassword)?;
+
         // Construct the connection string
         let connection_string =
-            format_connection_string(hostname, req.db_username, req.db_password, port);
+            format_connection_string(hostname, mongodb_root_username, mongodb_root_password, port);
 
         Ok(connection_string)
     }
@@ -70,8 +94,15 @@ fn format_connection_string(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{
-        create_container_inspect_response_no_auth, create_container_inspect_response_with_auth,
+    use crate::{
+        client::Client,
+        docker::{
+            CommandOutput, DockerInspectContainer, RunCommandInContainer,
+            RunCommandInContainerError,
+        },
+        test_utils::{
+            create_container_inspect_response_no_auth, create_container_inspect_response_with_auth,
+        },
     };
     use bollard::{
         errors::Error as BollardError,
@@ -93,6 +124,14 @@ mod tests {
                 options: Option<InspectContainerOptions>,
             ) -> Result<ContainerInspectResponse, BollardError>;
         }
+
+        impl RunCommandInContainer for Docker {
+            async fn run_command_in_container(
+                &self,
+                container_id: &str,
+                command: Vec<String>,
+            ) -> Result<CommandOutput, RunCommandInContainerError>;
+        }
     }
 
     #[tokio::test]
@@ -100,6 +139,7 @@ mod tests {
         // Arrange
         let mut mock_docker = MockDocker::new();
 
+        // Mock call to get_deployment
         mock_docker
             .expect_inspect_container()
             .with(
@@ -110,14 +150,10 @@ mod tests {
             .returning(move |_, _| Ok(create_container_inspect_response_with_auth(27017)));
 
         let client = Client::new(mock_docker);
-        let req = GetConnectionStringOptions {
-            container_id_or_name: "test-deployment".to_string(),
-            db_username: Some("testuser".to_string()),
-            db_password: Some("testpass".to_string()),
-        };
+        let container_id_or_name = "test-deployment".to_string();
 
         // Act
-        let result = client.get_connection_string(req).await;
+        let result = client.get_connection_string(container_id_or_name).await;
 
         // Assert
         assert!(result.is_ok());
@@ -132,6 +168,7 @@ mod tests {
         // Arrange
         let mut mock_docker = MockDocker::new();
 
+        // Mock call to get_deployment
         mock_docker
             .expect_inspect_container()
             .with(
@@ -142,14 +179,10 @@ mod tests {
             .returning(move |_, _| Ok(create_container_inspect_response_no_auth(27017)));
 
         let client = Client::new(mock_docker);
-        let req = GetConnectionStringOptions {
-            container_id_or_name: "test-deployment".to_string(),
-            db_username: None,
-            db_password: None,
-        };
+        let container_id_or_name = "test-deployment".to_string();
 
         // Act
-        let result = client.get_connection_string(req).await;
+        let result = client.get_connection_string(container_id_or_name).await;
 
         // Assert
         assert!(result.is_ok());
@@ -164,6 +197,7 @@ mod tests {
         // Arrange
         let mut mock_docker = MockDocker::new();
 
+        // Mock call to get_deployment
         mock_docker
             .expect_inspect_container()
             .with(
@@ -179,14 +213,10 @@ mod tests {
             });
 
         let client = Client::new(mock_docker);
-        let req = GetConnectionStringOptions {
-            container_id_or_name: "nonexistent-deployment".to_string(),
-            db_username: None,
-            db_password: None,
-        };
+        let container_id_or_name = "nonexistent-deployment".to_string();
 
         // Act
-        let result = client.get_connection_string(req).await;
+        let result = client.get_connection_string(container_id_or_name).await;
 
         // Assert
         assert!(result.is_err());
@@ -223,6 +253,7 @@ mod tests {
             ..Default::default()
         };
 
+        // Mock call to get_deployment
         mock_docker
             .expect_inspect_container()
             .with(
@@ -233,14 +264,10 @@ mod tests {
             .returning(move |_, _| Ok(container_inspect_response.clone()));
 
         let client = Client::new(mock_docker);
-        let req = GetConnectionStringOptions {
-            container_id_or_name: "test-deployment".to_string(),
-            db_username: None,
-            db_password: None,
-        };
+        let container_id_or_name = "test-deployment".to_string();
 
         // Act
-        let result = client.get_connection_string(req).await;
+        let result = client.get_connection_string(container_id_or_name).await;
 
         // Assert
         assert!(result.is_err());
@@ -254,6 +281,8 @@ mod tests {
     async fn test_get_connection_string_verify_success() {
         // Arrange
         let mut mock_docker = MockDocker::new();
+
+        // Mock call to get_deployment
         mock_docker
             .expect_inspect_container()
             .with(
@@ -265,14 +294,10 @@ mod tests {
 
         let client = Client::new(mock_docker);
 
-        let req = GetConnectionStringOptions {
-            container_id_or_name: "test-deployment".to_string(),
-            db_username: Some("testuser".to_string()),
-            db_password: Some("testpass".to_string()),
-        };
+        let container_id_or_name = "test-deployment".to_string();
 
         // Act
-        let result = client.get_connection_string(req).await;
+        let result = client.get_connection_string(container_id_or_name).await;
 
         // Assert
         assert!(result.is_ok());

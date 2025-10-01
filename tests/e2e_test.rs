@@ -1,7 +1,7 @@
 #![cfg(feature = "e2e-tests")]
 use atlas_local::{
     Client,
-    models::{CreateDeploymentOptions, GetConnectionStringOptions, MongoDBPortBinding},
+    models::{CreateDeploymentOptions, MongoDBPortBinding},
 };
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
@@ -90,14 +90,8 @@ async fn test_e2e_smoke_test() {
     };
 
     // Get Connection String
-    let get_conn_string_req = GetConnectionStringOptions {
-        container_id_or_name: name.to_string(),
-        db_username: Some(username.to_string()),
-        db_password: Some(password.to_string()),
-    };
-
     let conn_string = client
-        .get_connection_string(get_conn_string_req)
+        .get_connection_string(name.to_string())
         .await
         .expect("Getting connection string");
 

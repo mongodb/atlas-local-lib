@@ -1,8 +1,7 @@
 use crate::{
     Client,
-    client::get_deployment::GetDeploymentError,
+    client::{get_deployment::GetDeploymentError, get_mongodb_secret::get_mongodb_secret},
     docker::{DockerInspectContainer, RunCommandInContainer, RunCommandInContainerError},
-    models::Deployment,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -28,24 +27,24 @@ impl<D: DockerInspectContainer + RunCommandInContainer> Client<D> {
         let deployment = self.get_deployment(cluster_id_or_name).await?;
 
         // Try to get the MongoDB root username
-        let mongodb_root_username = self
-            .get_mongodb_secret(
-                &deployment,
-                |d| d.mongodb_initdb_root_username.as_deref(),
-                |d| d.mongodb_initdb_root_username_file.as_deref(),
-            )
-            .await
-            .map_err(GetDeploymentIdError::GetMongodbUsername)?;
+        let mongodb_root_username = get_mongodb_secret(
+            &self.docker,
+            &deployment,
+            |d| d.mongodb_initdb_root_username.as_deref(),
+            |d| d.mongodb_initdb_root_username_file.as_deref(),
+        )
+        .await
+        .map_err(GetDeploymentIdError::GetMongodbUsername)?;
 
         // Try to get the MongoDB root password
-        let mongodb_root_password = self
-            .get_mongodb_secret(
-                &deployment,
-                |d| d.mongodb_initdb_root_password.as_deref(),
-                |d| d.mongodb_initdb_root_password_file.as_deref(),
-            )
-            .await
-            .map_err(GetDeploymentIdError::GetMongodbPassword)?;
+        let mongodb_root_password = get_mongodb_secret(
+            &self.docker,
+            &deployment,
+            |d| d.mongodb_initdb_root_password.as_deref(),
+            |d| d.mongodb_initdb_root_password_file.as_deref(),
+        )
+        .await
+        .map_err(GetDeploymentIdError::GetMongodbPassword)?;
 
         // Build the mongosh command
         let mut mongosh_command = vec![
@@ -75,36 +74,6 @@ impl<D: DockerInspectContainer + RunCommandInContainer> Client<D> {
             Some(line) => Ok(line),
             None => Err(GetDeploymentIdError::DeploymentIdEmpty),
         }
-    }
-
-    async fn get_mongodb_secret(
-        &self,
-        deployment: &Deployment,
-        value: impl FnOnce(&Deployment) -> Option<&str>,
-        file: impl FnOnce(&Deployment) -> Option<&str>,
-    ) -> Result<Option<String>, RunCommandInContainerError> {
-        // Try to get the value from the environment variables first
-        if let Some(env_value) = value(deployment) {
-            return Ok(Some(env_value.to_string()));
-        }
-
-        // If the value is not found in the environment variables, try to get it from the file
-        if let Some(file_value) = file(deployment) {
-            let command_output = self
-                .docker
-                .run_command_in_container(
-                    &deployment.container_id,
-                    vec!["cat".to_string(), file_value.to_string()],
-                )
-                .await?;
-
-            if let Some(line) = command_output.stdout.into_iter().next() {
-                return Ok(Some(line));
-            }
-        }
-
-        // If the value is not found in the environment variables or the file, return None
-        Ok(None)
     }
 }
 

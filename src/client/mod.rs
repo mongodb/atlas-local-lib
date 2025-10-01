@@ -5,6 +5,7 @@ mod delete_deployment;
 mod get_connection_string;
 mod get_deployment;
 mod get_deployment_id;
+mod get_mongodb_secret;
 mod list_deployments;
 mod pull_image;
 
