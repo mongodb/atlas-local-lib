@@ -93,7 +93,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contributing guidelines.
 
 ## License
 
-This project is licensed under the terms specified in the project's license file.
+This project is licensed under the Apache License, Version 2.0 (see `LICENSE.txt`). It also makes use of third-party libraries, which are distributed under their own respective licenses (see `LICENSE-3RD-PARTY.txt`).
 
 ## Related Projects
 

@@ -10,7 +10,7 @@ include = [
     "README.md",
     "CONTRIBUTING.md",
     "LICENSE",
-    "license.html",
+    "LICENSE-3RD-PARTY.txt",
 ]
 
 [features]

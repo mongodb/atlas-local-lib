@@ -11,6 +11,7 @@ env:
   CARGO_AUDIT_VERSION: 0.21.2
   CARGO_LLVM_COV_VERSION: 0.6.19
   CARGO_UDEPS_VERSION: 0.1.59
+  CARGO_ABOUT_VERSION: 0.8.2
 
 jobs:
   check:
@@ -40,7 +41,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-tools-deny-${{ env.CARGO_DENY_VERSION }}-audit-${{ env.CARGO_AUDIT_VERSION }}-udeps-${{ env.CARGO_UDEPS_VERSION }}
+        key: ${{ runner.os }}-cargo-tools-deny-${{ env.CARGO_DENY_VERSION }}-audit-${{ env.CARGO_AUDIT_VERSION }}-udeps-${{ env.CARGO_UDEPS_VERSION }}-about-${{ env.CARGO_ABOUT_VERSION }}
         restore-keys: |
           ${{ runner.os }}-cargo-tools-
     
@@ -60,6 +61,12 @@ jobs:
       run: |
         if ! command -v cargo-udeps &> /dev/null; then
           cargo install --locked --version ${{ env.CARGO_UDEPS_VERSION }} cargo-udeps
+        fi
+    
+    - name: Install cargo-about
+      run: |
+        if ! command -v cargo-about &> /dev/null; then
+          cargo install --locked --version ${{ env.CARGO_ABOUT_VERSION }} cargo-about
         fi
     
     - name: Check formatting
@@ -82,6 +89,19 @@ jobs:
 
     - name: Run cargo udeps (dev dependencies)
       run: cargo +nightly udeps --all-features --all-targets
+
+    - name: Verify LICENSE-3RD-PARTY.txt is up to date
+      run: |
+        cargo about generate --frozen about.hbs > LICENSE-3RD-PARTY-generated.txt
+        if ! diff -q LICENSE-3RD-PARTY.txt LICENSE-3RD-PARTY-generated.txt > /dev/null; then
+          echo "ERROR: LICENSE-3RD-PARTY.txt is not up to date!"
+          echo "Please run: cargo about generate about.hbs > LICENSE-3RD-PARTY.txt"
+          echo "Differences found:"
+          diff LICENSE-3RD-PARTY.txt LICENSE-3RD-PARTY-generated.txt || true
+          exit 1
+        fi
+        rm LICENSE-3RD-PARTY-generated.txt
+        echo "LICENSE-3RD-PARTY.txt is up to date"
 
   test-matrix:
     runs-on: ${{ matrix.os }}
