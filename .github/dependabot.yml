@@ -1,0 +1,63 @@
+version: 2
+updates:
+  # Enable version updates for Rust/Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "mongodb/apix-2"
+    assignees:
+      - "mongodb/apix-2"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "rust"
+    # Auto-merge patch and minor updates after CI passes
+    auto-merge:
+      - dependency-type: "all"
+        update-type: "security"
+      - dependency-type: "all"
+        update-type: "patch"
+      - dependency-type: "all"
+        update-type: "minor"
+    # Group minor and patch updates together to reduce PR noise
+    groups:
+      rust-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "mongodb/apix-2"
+    assignees:
+      - "mongodb/apix-2"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    # Auto-merge patch and minor updates after CI passes
+    auto-merge:
+      - dependency-type: "all"
+        update-type: "security"
+      - dependency-type: "all"
+        update-type: "patch"
+      - dependency-type: "all"
+        update-type: "minor"
