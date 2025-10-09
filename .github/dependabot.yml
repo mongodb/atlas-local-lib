@@ -8,32 +8,20 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 10
-    reviewers:
-      - "mongodb/apix-2"
-    assignees:
-      - "mongodb/apix-2"
     commit-message:
-      prefix: "chore"
-      include: "scope"
+      prefix: "chore(deps)"
     labels:
       - "dependencies"
-      - "rust"
-    # Auto-merge patch and minor updates after CI passes
-    auto-merge:
-      - dependency-type: "all"
-        update-type: "security"
-      - dependency-type: "all"
-        update-type: "patch"
-      - dependency-type: "all"
-        update-type: "minor"
-    # Group minor and patch updates together to reduce PR noise
+    # Group updates by type to separate security from version updates
     groups:
-      rust-minor-patch:
+      rust-security:
+        applies-to: security-updates
         patterns:
           - "*"
-        update-types:
-          - "minor"
-          - "patch"
+      rust-version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -43,21 +31,7 @@ updates:
       day: "monday"
       time: "09:00"
     open-pull-requests-limit: 5
-    reviewers:
-      - "mongodb/apix-2"
-    assignees:
-      - "mongodb/apix-2"
     commit-message:
-      prefix: "chore"
-      include: "scope"
+      prefix: "chore(deps)"
     labels:
       - "dependencies"
-      - "github-actions"
-    # Auto-merge patch and minor updates after CI passes
-    auto-merge:
-      - dependency-type: "all"
-        update-type: "security"
-      - dependency-type: "all"
-        update-type: "patch"
-      - dependency-type: "all"
-        update-type: "minor"
