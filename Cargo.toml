@@ -17,16 +17,16 @@ include = [
 e2e-tests = []
 
 [dependencies]
-bollard = "0.19.2"
+bollard = "0.19.3"
 futures-util = "0.3.31"
 maplit = "1.0.2"
 rand = "0.9.2"
-semver = "1.0.26"
-thiserror = "2.0.16"
+semver = "1.0.27"
+thiserror = "2.0.17"
 tokio = { version = "1.0", features = ["time"] }
 
 [dev-dependencies]
-anyhow = "1.0.99"
+anyhow = "1.0.100"
 mockall = "0.13.1"
 pretty_assertions = "1.4.1"
 tokio = { version = "1.0", features = ["full"] }
