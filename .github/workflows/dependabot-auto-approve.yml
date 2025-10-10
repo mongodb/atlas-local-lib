@@ -6,6 +6,9 @@ permissions:
   pull-requests: write
   contents: write
 
+env:
+  CARGO_ABOUT_VERSION: 0.8.2
+
 jobs:
   auto-approve:
     runs-on: ubuntu-latest
@@ -13,12 +16,56 @@ jobs:
       github.repository == 'mongodb/atlas-local-lib' &&
       github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Install Rust toolchain
+        run: |
+          rustup update stable
+          rustup default stable
+
+      - name: Cache cargo tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-tools-about-${{ env.CARGO_ABOUT_VERSION }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-tools-
+
+      - name: Install cargo-about
+        run: |
+          if ! command -v cargo-about &> /dev/null; then
+            cargo install --locked --version ${{ env.CARGO_ABOUT_VERSION }} cargo-about
+          fi
+
       - name: Dependabot metadata
         id: metadata
         uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe83e0af444713e90b7
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
       
+      - name: Update third-party licenses
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor' || contains(steps.metadata.outputs.dependency-names, 'security') || steps.metadata.outputs.package-ecosystem == 'cargo'
+        run: |
+          # Generate updated LICENSE-3RD-PARTY.txt
+          cargo about generate about.hbs > LICENSE-3RD-PARTY.txt
+          
+          # Check if there are changes to commit
+          if ! git diff --quiet LICENSE-3RD-PARTY.txt; then
+            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config --local user.name "github-actions[bot]"
+            git add LICENSE-3RD-PARTY.txt
+            git commit -m "chore(deps): update LICENSE-3RD-PARTY.txt"
+            git push
+            echo "Updated LICENSE-3RD-PARTY.txt"
+          else
+            echo "LICENSE-3RD-PARTY.txt is already up to date"
+          fi
+
       - name: Approve Dependabot PR
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor' || contains(steps.metadata.outputs.dependency-names, 'security') || steps.metadata.outputs.package-ecosystem == 'github-actions'
         run: gh pr review --approve "$PR_URL"
