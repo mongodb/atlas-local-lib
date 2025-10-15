@@ -311,7 +311,7 @@ mod tests {
     fn test_try_from_empty_mongodb_ports() {
         let container = create_container_response_with_mongodb_ports(vec![]);
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(result, Ok(None)));
+        assert_eq!(result, Ok(None));
     }
 
     #[test]
@@ -322,10 +322,7 @@ mod tests {
         ]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(
-            result,
-            Err(GetMongoDBPortBindingError::MultiplePortsFound)
-        ));
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound));
     }
 
     #[test]
@@ -364,10 +361,7 @@ mod tests {
         }]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(
-            result,
-            Err(GetMongoDBPortBindingError::MissingPortNumber)
-        ));
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MissingPortNumber));
     }
 
     #[test]
@@ -392,10 +386,7 @@ mod tests {
         }]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(
-            result,
-            Err(GetMongoDBPortBindingError::MissingHostIP)
-        ));
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MissingHostIP));
     }
 
     #[test]
