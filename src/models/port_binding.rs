@@ -1,4 +1,4 @@
-use std::{net::IpAddr, ops::Deref};
+use std::net::IpAddr;
 
 use bollard::secret::{ContainerInspectResponse, PortBinding};
 
@@ -41,39 +41,54 @@ impl MongoDBPortBinding {
             return Ok(None);
         };
 
-        if ports.len() != 1 {
-            return Err(GetMongoDBPortBindingError::MultiplePortsFound);
+        let ports = ports
+            .iter()
+            .map(ParsedPortBinding::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Ensure we have the expected number of port bindings
+        match ports.len() {
+            // If there are no port bindings, we return None
+            0 => return Ok(None),
+            // If there is one port binding, we can proceed
+            1 => {}
+            // If there are multiple host IPs, they should all have the same port number and either all be loopback or all be any interface
+            // Multiple specific host IPs are not supported
+            _ => {
+                // Ensure all port bindings have the same port number
+                let port_number = ports
+                    .first()
+                    .ok_or(GetMongoDBPortBindingError::MissingPortNumber)?
+                    .host_port;
+                let all_the_same_port_number = ports.iter().all(|p| p.host_port == port_number);
+                if !all_the_same_port_number {
+                    return Err(GetMongoDBPortBindingError::MultiplePortsFound);
+                }
+
+                // Ensure all port bindings are either loopback or any interface
+                let all_loopback = ports.iter().all(|p| p.host_ip.is_loopback());
+                let all_any_interface = ports.iter().all(|p| p.host_ip.is_unspecified());
+
+                // If the port bindings are not all loopback or all any interface, we return an error
+                if !(all_loopback || all_any_interface) {
+                    return Err(GetMongoDBPortBindingError::MultiplePortsFound);
+                }
+            }
         }
 
         // It's safe to unwrap because we checked the length above
         #[allow(clippy::unwrap_used)]
         let port = ports.first().unwrap();
 
-        // Get the port number (convert optional string to u16)
-        let port_number = port
-            .host_port
-            .as_ref()
-            .ok_or(GetMongoDBPortBindingError::MissingPortNumber)?
-            .parse::<u16>()
-            .map_err(GetMongoDBPortBindingError::InvalidPortNumber)?;
-
         // Get the binding type (determine if it's any interface, loopback, or specific IP address)
-        let binding_type = match port
-            .host_ip
-            .as_ref()
-            .ok_or(GetMongoDBPortBindingError::MissingHostIP)?
-            .deref()
-        {
-            "0.0.0.0" => BindingType::AnyInterface,
-            "127.0.0.1" => BindingType::Loopback,
-            ip => BindingType::Specific(
-                ip.parse::<IpAddr>()
-                    .map_err(GetMongoDBPortBindingError::InvalidHostIP)?,
-            ),
+        let binding_type = match port.host_ip {
+            ip if ip.is_unspecified() => BindingType::AnyInterface,
+            ip if ip.is_loopback() => BindingType::Loopback,
+            ip => BindingType::Specific(ip),
         };
 
         Ok(Some(MongoDBPortBinding::new(
-            Some(port_number),
+            Some(port.host_port),
             binding_type,
         )))
     }
@@ -83,6 +98,35 @@ impl MongoDBPortBinding {
         let port = network_settings.ports.as_ref()?;
         let ports = port.get("27017/tcp")?.as_ref()?;
         Some(ports)
+    }
+}
+
+struct ParsedPortBinding {
+    host_ip: IpAddr,
+    host_port: u16,
+}
+
+impl TryFrom<&PortBinding> for ParsedPortBinding {
+    type Error = GetMongoDBPortBindingError;
+
+    fn try_from(value: &PortBinding) -> Result<Self, Self::Error> {
+        // Get the port number (convert optional string to u16)
+        let host_port = value
+            .host_port
+            .as_ref()
+            .ok_or(GetMongoDBPortBindingError::MissingPortNumber)?
+            .parse::<u16>()
+            .map_err(GetMongoDBPortBindingError::InvalidPortNumber)?;
+
+        // Get the host IP
+        let host_ip = value
+            .host_ip
+            .as_ref()
+            .ok_or(GetMongoDBPortBindingError::MissingHostIP)?
+            .parse::<IpAddr>()
+            .map_err(GetMongoDBPortBindingError::InvalidHostIP)?;
+
+        Ok(ParsedPortBinding { host_ip, host_port })
     }
 }
 
@@ -158,6 +202,38 @@ mod tests {
     }
 
     #[test]
+    fn test_try_from_successful_parse_two_any_interface() {
+        let container = create_container_response_with_mongodb_ports(vec![
+            create_port_binding("0.0.0.0", "27017"),
+            create_port_binding("::", "27017"),
+        ]);
+
+        let result = MongoDBPortBinding::try_from(&container).unwrap();
+        assert!(result.is_some());
+
+        let binding = result.unwrap();
+        assert_eq!(binding.port, Some(27017));
+        assert_eq!(binding.binding_type, BindingType::AnyInterface);
+    }
+
+    #[test]
+    fn test_try_from_successful_parse_many_any_interface() {
+        let container = create_container_response_with_mongodb_ports(vec![
+            create_port_binding("0.0.0.0", "27017"),
+            create_port_binding("::", "27017"),
+            create_port_binding("0.0.0.0", "27017"),
+            create_port_binding("::", "27017"),
+        ]);
+
+        let result = MongoDBPortBinding::try_from(&container).unwrap();
+        assert!(result.is_some());
+
+        let binding = result.unwrap();
+        assert_eq!(binding.port, Some(27017));
+        assert_eq!(binding.binding_type, BindingType::AnyInterface);
+    }
+
+    #[test]
     fn test_try_from_successful_parse_specific_ipv4() {
         let container = create_container_response_with_mongodb_ports(vec![create_port_binding(
             "192.168.1.100",
@@ -176,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    fn test_try_from_successful_parse_specific_ipv6() {
+    fn test_try_from_successful_parse_loopback_ipv6() {
         let container =
             create_container_response_with_mongodb_ports(vec![create_port_binding("::1", "27017")]);
 
@@ -185,10 +261,7 @@ mod tests {
 
         let binding = result.unwrap();
         assert_eq!(binding.port, Some(27017));
-        assert_eq!(
-            binding.binding_type,
-            BindingType::Specific("::1".parse().unwrap())
-        );
+        assert_eq!(binding.binding_type, BindingType::Loopback);
     }
 
     #[test]
@@ -238,24 +311,57 @@ mod tests {
     fn test_try_from_empty_mongodb_ports() {
         let container = create_container_response_with_mongodb_ports(vec![]);
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(
-            result,
-            Err(GetMongoDBPortBindingError::MultiplePortsFound)
-        ));
+        assert_eq!(result, Ok(None));
     }
 
     #[test]
-    fn test_try_from_multiple_ports_found() {
+    fn test_try_from_multiple_ports_different_port_number_found() {
         let container = create_container_response_with_mongodb_ports(vec![
             create_port_binding("127.0.0.1", "27017"),
             create_port_binding("0.0.0.0", "27018"),
         ]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound));
+    }
+
+    #[test]
+    fn test_try_from_multiple_ports_same_port_number_found() {
+        let container = create_container_response_with_mongodb_ports(vec![
+            create_port_binding("127.0.0.1", "27017"),
+            create_port_binding("::1", "27017"),
+        ]);
+
+        let result = MongoDBPortBinding::try_from(&container);
+        assert_eq!(
             result,
-            Err(GetMongoDBPortBindingError::MultiplePortsFound)
-        ));
+            Ok(Some(MongoDBPortBinding::new(
+                Some(27017),
+                BindingType::Loopback
+            )))
+        );
+    }
+
+    #[test]
+    fn test_try_from_multiple_ports_ipv4_and_ipv6_found() {
+        let container = create_container_response_with_mongodb_ports(vec![
+            create_port_binding("127.0.0.1", "27017"),
+            create_port_binding("::1", "27018"),
+        ]);
+
+        let result = MongoDBPortBinding::try_from(&container);
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound));
+    }
+
+    #[test]
+    fn test_try_from_multiple_ports_different_addresses_found() {
+        let container = create_container_response_with_mongodb_ports(vec![
+            create_port_binding("127.0.0.1", "27017"),
+            create_port_binding("192.168.1.100", "27017"),
+        ]);
+
+        let result = MongoDBPortBinding::try_from(&container);
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound));
     }
 
     #[test]
@@ -266,10 +372,7 @@ mod tests {
         }]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(
-            result,
-            Err(GetMongoDBPortBindingError::MissingPortNumber)
-        ));
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MissingPortNumber));
     }
 
     #[test]
@@ -294,10 +397,7 @@ mod tests {
         }]);
 
         let result = MongoDBPortBinding::try_from(&container);
-        assert!(matches!(
-            result,
-            Err(GetMongoDBPortBindingError::MissingHostIP)
-        ));
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MissingHostIP));
     }
 
     #[test]
