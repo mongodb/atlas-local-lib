@@ -353,6 +353,18 @@ mod tests {
         assert_eq!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound));
     }
 
+
+    #[test]
+    fn test_try_from_multiple_ports_different_addresses_found() {
+        let container = create_container_response_with_mongodb_ports(vec![
+            create_port_binding("127.0.0.1", "27017"),
+            create_port_binding("192.168.1.100", "27017"),
+        ]);
+
+        let result = MongoDBPortBinding::try_from(&container);
+        assert_eq!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound));
+    }
+
     #[test]
     fn test_try_from_missing_port_number() {
         let container = create_container_response_with_mongodb_ports(vec![PortBinding {
