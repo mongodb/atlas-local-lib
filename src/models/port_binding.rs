@@ -353,7 +353,6 @@ mod tests {
         assert_eq!(result, Err(GetMongoDBPortBindingError::MultiplePortsFound));
     }
 
-
     #[test]
     fn test_try_from_multiple_ports_different_addresses_found() {
         let container = create_container_response_with_mongodb_ports(vec![
