@@ -42,7 +42,7 @@ impl MongoDBPortBinding {
         };
 
         let ports = ports
-            .into_iter()
+            .iter()
             .map(ParsedPortBinding::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
