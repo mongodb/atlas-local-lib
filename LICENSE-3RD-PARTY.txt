@@ -442,7 +442,7 @@ OVERVIEW OF LICENSES:
 -----------------------------------------------------------------------------
                         Apache License 2.0
         applies to: 
-        - bollard 0.19.3 (https://github.com/fussybeaver/bollard)
+        - bollard 0.19.4 (https://github.com/fussybeaver/bollard)
         - hyper-named-pipe 0.1.0 (https://github.com/fussybeaver/hyper-named-pipe)
 -----------------------------------------------------------------------------
 
