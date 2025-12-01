@@ -212,10 +212,7 @@ mod tests {
             env_vars.telemetry_base_url,
             Some("https://telemetry.example.com".to_string())
         );
-        assert_eq!(
-            env_vars.mongodb_load_sample_data,
-            Some("true".to_string())
-        );
+        assert_eq!(env_vars.mongodb_load_sample_data, Some("true".to_string()));
     }
 
     #[test]
