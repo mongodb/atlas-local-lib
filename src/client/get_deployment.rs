@@ -119,6 +119,7 @@ mod tests {
                 mongodb_initdb_root_password: None,
                 mongodb_initdb_root_username_file: None,
                 mongodb_initdb_root_username: None,
+                mongodb_load_sample_data: None,
                 mongot_log_file: None,
                 runner_log_file: None,
                 do_not_track: None,
