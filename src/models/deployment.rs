@@ -33,14 +33,14 @@ pub struct Deployment {
     pub mongodb_initdb_root_password: Option<String>,
     pub mongodb_initdb_root_username_file: Option<String>,
     pub mongodb_initdb_root_username: Option<String>,
-    pub mongodb_load_sample_data: Option<String>,
+    pub mongodb_load_sample_data: Option<bool>,
 
     // Logging
     pub mongot_log_file: Option<String>,
     pub runner_log_file: Option<String>,
 
     // Telemetry
-    pub do_not_track: Option<String>,
+    pub do_not_track: bool,
     pub telemetry_base_url: Option<String>,
 }
 
@@ -125,14 +125,15 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             mongodb_initdb_root_password,
             mongodb_initdb_root_username_file,
             mongodb_initdb_root_username,
-            mongodb_load_sample_data,
+            mongodb_load_sample_data: mongodb_load_sample_data.map(is_seeding_true),
 
             // Logging
             mongot_log_file,
             runner_log_file,
 
             // Telemetry
-            do_not_track,
+            // If the DO_NOT_TRACK environment variable is set, do not track is enabled
+            do_not_track: do_not_track.is_some(),
             telemetry_base_url,
         })
     }
@@ -150,6 +151,22 @@ fn extract_local_seed_location(
 
     // Return the source of the mount
     mount.source.clone()
+}
+
+/// Determine if the value is a boolean or an integer that is larger than 0, and return true if it is
+fn is_seeding_true(value: impl AsRef<str>) -> bool {
+    let value = value.as_ref();
+    // Try to parse the value as a boolean, if it succeeds, return the value
+    if let Ok(value) = value.to_ascii_lowercase().parse::<bool>() {
+        return value;
+    }
+
+    // Try to parse the value as an integer, if it succeeds, return true if the value is larger than 0
+    if let Ok(value) = value.parse::<i32>() {
+        return value > 0;
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -179,7 +196,6 @@ mod tests {
             "MONGODB_INITDB_DATABASE=testdb".to_string(),
             "RUNNER_LOG_FILE=/tmp/runner.log".to_string(),
             "MONGOT_LOG_FILE=/tmp/mongot.log".to_string(),
-            "DO_NOT_TRACK=false".to_string(),
             "TELEMETRY_BASE_URL=https://telemetry.example.com".to_string(),
             "MONGODB_LOAD_SAMPLE_DATA=true".to_string(),
         ];
@@ -271,15 +287,12 @@ mod tests {
             deployment.mongot_log_file,
             Some("/tmp/mongot.log".to_string())
         );
-        assert_eq!(deployment.do_not_track, Some("false".to_string()));
+        assert_eq!(deployment.do_not_track, false);
         assert_eq!(
             deployment.telemetry_base_url,
             Some("https://telemetry.example.com".to_string())
         );
-        assert_eq!(
-            deployment.mongodb_load_sample_data,
-            Some("true".to_string())
-        );
+        assert_eq!(deployment.mongodb_load_sample_data, Some(true));
     }
 
     #[test]
@@ -341,5 +354,20 @@ mod tests {
 
         let result = extract_local_seed_location(&container_inspect_response);
         assert_eq!(result, Some("/host/seed-data".to_string()));
+    }
+
+    #[test]
+    fn test_is_seeding_true() {
+        // True values
+        assert!(is_seeding_true("true"));
+        assert!(is_seeding_true("True"));
+        assert!(is_seeding_true("TRUE"));
+        assert!(is_seeding_true("1"));
+        assert!(is_seeding_true("2"));
+
+        // False values
+        assert!(!is_seeding_true("false"));
+        assert!(!is_seeding_true("0"));
+        assert!(!is_seeding_true("something else"));
     }
 }
