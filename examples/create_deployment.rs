@@ -7,8 +7,11 @@ async fn main() -> Result<()> {
     let docker = Docker::connect_with_defaults().context("connecting to docker")?;
     let client = Client::new(docker);
 
+    // Create a deployment with the name local1234 and loaded sample data
+    // More details about sample data can be found here: https://docs.mongodb.com/atlas/sample-data/
     let deployment1 = CreateDeploymentOptions {
         name: Some("local1234".to_string()),
+        load_sample_data: Some(true),
         ..Default::default()
     };
     let deployment = client
