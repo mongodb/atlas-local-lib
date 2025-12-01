@@ -14,6 +14,7 @@ pub const ENV_VAR_MONGODB_INITDB_DATABASE: &str = "MONGODB_INITDB_DATABASE";
 pub const ENV_VAR_MONGOT_LOG_FILE: &str = "MONGOT_LOG_FILE";
 pub const ENV_VAR_DO_NOT_TRACK: &str = "DO_NOT_TRACK";
 pub const ENV_VAR_TELEMETRY_BASE_URL: &str = "TELEMETRY_BASE_URL";
+pub const ENV_VAR_MONGODB_LOAD_SAMPLE_DATA: &str = "MONGODB_LOAD_SAMPLE_DATA";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct EnvironmentVariables {
@@ -34,6 +35,8 @@ pub struct EnvironmentVariables {
     pub do_not_track: Option<String>,
 
     pub telemetry_base_url: Option<String>,
+
+    pub mongodb_load_sample_data: Option<String>,
 }
 
 impl From<&ContainerInspectResponse> for EnvironmentVariables {
@@ -71,6 +74,8 @@ impl From<&ContainerInspectResponse> for EnvironmentVariables {
         environment_variables.mongot_log_file = get_value(&env, ENV_VAR_MONGOT_LOG_FILE);
         environment_variables.do_not_track = get_value(&env, ENV_VAR_DO_NOT_TRACK);
         environment_variables.telemetry_base_url = get_value(&env, ENV_VAR_TELEMETRY_BASE_URL);
+        environment_variables.mongodb_load_sample_data =
+            get_value(&env, ENV_VAR_MONGODB_LOAD_SAMPLE_DATA);
 
         environment_variables
     }
@@ -109,6 +114,7 @@ mod tests {
         assert_eq!(env_vars.mongot_log_file, None);
         assert_eq!(env_vars.do_not_track, None);
         assert_eq!(env_vars.telemetry_base_url, None);
+        assert_eq!(env_vars.mongodb_load_sample_data, None);
     }
 
     #[test]
@@ -135,6 +141,7 @@ mod tests {
         assert_eq!(env_vars.mongot_log_file, None);
         assert_eq!(env_vars.do_not_track, None);
         assert_eq!(env_vars.telemetry_base_url, None);
+        assert_eq!(env_vars.mongodb_load_sample_data, None);
     }
 
     #[test]
@@ -160,6 +167,7 @@ mod tests {
                 "{}=https://telemetry.example.com",
                 ENV_VAR_TELEMETRY_BASE_URL
             ),
+            format!("{}=true", ENV_VAR_MONGODB_LOAD_SAMPLE_DATA),
         ];
 
         let container_response = ContainerInspectResponse {
@@ -204,6 +212,7 @@ mod tests {
             env_vars.telemetry_base_url,
             Some("https://telemetry.example.com".to_string())
         );
+        assert_eq!(env_vars.mongodb_load_sample_data, Some("true".to_string()));
     }
 
     #[test]
@@ -244,6 +253,7 @@ mod tests {
         assert_eq!(env_vars.mongodb_initdb_database, None);
         assert_eq!(env_vars.mongot_log_file, None);
         assert_eq!(env_vars.telemetry_base_url, None);
+        assert_eq!(env_vars.mongodb_load_sample_data, None);
     }
 
     #[test]

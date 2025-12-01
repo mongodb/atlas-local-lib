@@ -11,8 +11,9 @@ use crate::models::{
     CreationSource, ENV_VAR_DO_NOT_TRACK, ENV_VAR_MONGODB_INITDB_DATABASE,
     ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD, ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD_FILE,
     ENV_VAR_MONGODB_INITDB_ROOT_USERNAME, ENV_VAR_MONGODB_INITDB_ROOT_USERNAME_FILE,
-    ENV_VAR_MONGOT_LOG_FILE, ENV_VAR_RUNNER_LOG_FILE, ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL,
-    LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
+    ENV_VAR_MONGODB_LOAD_SAMPLE_DATA, ENV_VAR_MONGOT_LOG_FILE, ENV_VAR_RUNNER_LOG_FILE,
+    ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL, LOCAL_DEPLOYMENT_LABEL_KEY,
+    LOCAL_DEPLOYMENT_LABEL_VALUE,
 };
 use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
 pub const ATLAS_LOCAL_IMAGE: &str = "quay.io/mongodb/mongodb-atlas-local";
@@ -39,6 +40,7 @@ pub struct CreateDeploymentOptions {
     pub mongodb_initdb_root_password: Option<String>,
     pub mongodb_initdb_root_username_file: Option<String>,
     pub mongodb_initdb_root_username: Option<String>,
+    pub load_sample_data: Option<bool>,
 
     // Logging
     pub mongot_log_file: Option<String>,
@@ -120,6 +122,14 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             (
                 ENV_VAR_MONGODB_INITDB_DATABASE,
                 deployment_options.mongodb_initdb_database.as_ref(),
+            ),
+            (
+                ENV_VAR_MONGODB_LOAD_SAMPLE_DATA,
+                deployment_options
+                    .load_sample_data
+                    .as_ref()
+                    .map(|b| b.to_string())
+                    .as_ref(),
             ),
             (
                 ENV_VAR_MONGOT_LOG_FILE,
@@ -210,6 +220,7 @@ mod tests {
             mongodb_initdb_root_password: Some("password123".to_string()),
             mongodb_initdb_root_username_file: Some("/run/secrets/username".to_string()),
             mongodb_initdb_root_username: Some("admin".to_string()),
+            load_sample_data: Some(true),
             mongot_log_file: Some("/tmp/mongot.log".to_string()),
             runner_log_file: Some("/tmp/runner.log".to_string()),
             do_not_track: Some(false),
@@ -259,13 +270,14 @@ mod tests {
             ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD_FILE
         )));
         assert!(env_vars.contains(&format!("{}=testdb", ENV_VAR_MONGODB_INITDB_DATABASE)));
+        assert!(env_vars.contains(&format!("{}=true", ENV_VAR_MONGODB_LOAD_SAMPLE_DATA)));
         assert!(env_vars.contains(&format!("{}=/tmp/mongot.log", ENV_VAR_MONGOT_LOG_FILE)));
         assert!(env_vars.contains(&format!("{}=false", ENV_VAR_DO_NOT_TRACK)));
         assert!(env_vars.contains(&format!(
             "{}=https://telemetry.example.com",
             ENV_VAR_TELEMETRY_BASE_URL
         )));
-        assert_eq!(env_vars.len(), 10);
+        assert_eq!(env_vars.len(), 11);
 
         let host_config = container_create_body.host_config.unwrap();
         let port_bindings = host_config.port_bindings.unwrap();
@@ -373,6 +385,7 @@ mod tests {
         assert!(options.mongodb_initdb_root_password.is_none());
         assert!(options.mongodb_initdb_root_username_file.is_none());
         assert!(options.mongodb_initdb_root_username.is_none());
+        assert!(options.load_sample_data.is_none());
         assert!(options.mongot_log_file.is_none());
         assert!(options.runner_log_file.is_none());
         assert!(options.do_not_track.is_none());

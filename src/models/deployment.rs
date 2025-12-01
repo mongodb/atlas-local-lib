@@ -33,6 +33,7 @@ pub struct Deployment {
     pub mongodb_initdb_root_password: Option<String>,
     pub mongodb_initdb_root_username_file: Option<String>,
     pub mongodb_initdb_root_username: Option<String>,
+    pub mongodb_load_sample_data: Option<String>,
 
     // Logging
     pub mongot_log_file: Option<String>,
@@ -95,6 +96,7 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             mongodb_initdb_root_password,
             mongodb_initdb_root_password_file,
             mongodb_initdb_database,
+            mongodb_load_sample_data,
             mongot_log_file,
             do_not_track,
             telemetry_base_url,
@@ -123,6 +125,7 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             mongodb_initdb_root_password,
             mongodb_initdb_root_username_file,
             mongodb_initdb_root_username,
+            mongodb_load_sample_data,
 
             // Logging
             mongot_log_file,
@@ -178,6 +181,7 @@ mod tests {
             "MONGOT_LOG_FILE=/tmp/mongot.log".to_string(),
             "DO_NOT_TRACK=false".to_string(),
             "TELEMETRY_BASE_URL=https://telemetry.example.com".to_string(),
+            "MONGODB_LOAD_SAMPLE_DATA=true".to_string(),
         ];
 
         // Create a mount for local seed location
@@ -271,6 +275,10 @@ mod tests {
         assert_eq!(
             deployment.telemetry_base_url,
             Some("https://telemetry.example.com".to_string())
+        );
+        assert_eq!(
+            deployment.mongodb_load_sample_data,
+            Some("true".to_string())
         );
     }
 
