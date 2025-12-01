@@ -122,7 +122,7 @@ mod tests {
                 mongodb_load_sample_data: None,
                 mongot_log_file: None,
                 runner_log_file: None,
-                do_not_track: None,
+                do_not_track: false,
                 telemetry_base_url: None,
             }
         );
