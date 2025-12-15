@@ -27,7 +27,7 @@ jobs:
         rustup toolchain install nightly
     
     - name: Cache cargo registry
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cargo/registry
@@ -38,7 +38,7 @@ jobs:
           ${{ runner.os }}-cargo-
     
     - name: Cache cargo tools
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: ~/.cargo/bin
         key: ${{ runner.os }}-cargo-tools-deny-${{ env.CARGO_DENY_VERSION }}-audit-${{ env.CARGO_AUDIT_VERSION }}-udeps-${{ env.CARGO_UDEPS_VERSION }}-about-${{ env.CARGO_ABOUT_VERSION }}
@@ -125,7 +125,7 @@ jobs:
         rustup default ${{ matrix.rust }}
    
     - name: Cache cargo-llvm-cov
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cargo/bin
@@ -142,7 +142,7 @@ jobs:
         fi
 
     - name: Cache cargo registry
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cargo/registry
@@ -183,7 +183,7 @@ jobs:
         rustup default 1.89
     
     - name: Cache cargo registry
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           ~/.cargo/registry
@@ -218,7 +218,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Cache cargo-llvm-cov
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin
