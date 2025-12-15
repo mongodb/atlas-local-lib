@@ -18,11 +18,11 @@ MongoDB Atlas Local Library simplifies the process of managing MongoDB Atlas Loc
 
 ## Installation
 
-Since this library is not yet published to crates.io, you need to add it as a Git dependency to your `Cargo.toml`:
+Add this library to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-atlas-local-lib = { git = "https://github.com/mongodb/atlas-local-lib" }
+atlas-local = "0.0.1"
 ```
 
 For development and testing, you may also want to include tokio:
@@ -37,7 +37,7 @@ tokio = { version = "1.0", features = ["full"] }
 Before using this library, make sure you have:
 
 - **Docker**: Docker must be installed and running on your system
-- **Rust**: Rust 1.70 or later (edition 2024)
+- **Rust**: Rust 1.85 or later (for edition 2024)
 
 ## Quick Start
 
