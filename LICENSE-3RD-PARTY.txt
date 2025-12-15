@@ -862,7 +862,7 @@ OVERVIEW OF LICENSES:
 -----------------------------------------------------------------------------
                         Apache License 2.0
         applies to: 
-        - atlas-local 0.1.0 (https://crates.io/crates/atlas-local)
+        - atlas-local 0.0.1 (https://github.com/mongodb/atlas-local-lib)
 -----------------------------------------------------------------------------
 
                                  Apache License

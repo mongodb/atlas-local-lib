@@ -1,8 +1,19 @@
 [package]
 name = "atlas-local"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 license = "Apache-2.0"
+description = "A library for managing MongoDB Atlas local environments."
+authors = [
+    "Jeroen Vervaeke",
+    "Luke Sanderson",
+    "Melanija Cvetic"
+]
+repository = "https://github.com/mongodb/atlas-local-lib"
+documentation = "https://docs.rs/atlas-local"
+rust-version = "1.89"
+keywords = ["mongodb", "atlas", "docker", "database", "local"]
+categories = ["database", "development-tools"]
 
 include = [
     "src/**",
