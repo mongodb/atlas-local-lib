@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+run-name: "Release: ${{ inputs.version }}"
+
+permissions:
+  contents: read
+  id-token: write # Required for trusted publishing
+
+jobs:
+  update-version-and-changelog:
+    # This job:
+    # - updates the version in Cargo.toml
+    # - generates a changelog (also generates a release notes file)
+    # - commits the changes to the repository with the message "chore(release): prepare for ${{ github.event.inputs.version }}"
+    name: Update Version and Changelog
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Set Apix Bot token
+        id: app-token
+        uses: mongodb/apix-action/token@6c3fde402c21942fa46cde003f190c2b23c59530
+        with:
+          app-id: ${{ secrets.APIXBOT_APP_ID }}
+          private-key: ${{ secrets.APIXBOT_APP_PEM }}
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-unknown-linux-gnu
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.16.2
+      - name: Install cargo-edit to update Cargo.toml version
+        run: cargo binstall --no-confirm --locked cargo-edit
+      - name: Install cargo tools for license verification
+        run: cargo binstall --no-confirm --locked cargo-about
+      - name: Update Cargo.toml version
+        run: cargo set-version "${{ github.event.inputs.version }}"
+      - name: Update third-party licenses
+        run: cargo about generate about.hbs > LICENSE-3RD-PARTY.txt
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --tag ${{ github.event.inputs.version }} --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+      - name: Generate release notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --tag ${{ github.event.inputs.version }} --verbose --unreleased
+        env:
+          OUTPUT: RELEASE_NOTES.md
+          GITHUB_REPO: ${{ github.repository }}
+      - name: Upload release notes artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: release-notes
+          path: RELEASE_NOTES.md
+          if-no-files-found: error
+      - name: Commit version changes
+        run: |
+          git config --global user.name "${{ steps.app-token.outputs.user-name }}"
+          git config --global user.email "${{ steps.app-token.outputs.user-email }}"
+          git add Cargo.toml Cargo.lock CHANGELOG.md LICENSE-3RD-PARTY.txt
+          git commit -m "chore(release): prepare for ${{ github.event.inputs.version }}"
+          git push
+      - name: Set version output
+        id: version
+        run: echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+
+  create-github-release:
+    # This job creates a GitHub release for the given version, using the release notes file generated in the previous job.
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: [update-version-and-changelog]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - name: Download all artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.update-version-and-changelog.outputs.version }}
+          name: Release v${{ needs.update-version-and-changelog.outputs.version }}
+          body_path: artifacts/release-notes/RELEASE_NOTES.md
+          files: |
+            # Include only the source code in the release (no binaries).
+            # This will create a release with the tarball/zip assets auto-attached by GitHub,
+            # containing the full repository source (checked out at the release commit).
+            #
+            # No additional files specified here means only the GitHub auto-generated archives are included.
+            # Remove the below lines to avoid uploading build artifacts.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+  publish-to-crates-io:
+    # This job publishes the crate to Crates.io using trusted publishing.
+    name: Publish to Crates.io
+    runs-on: ubuntu-latest
+    permissions:
+        id-token: write
+    needs: [create-github-release]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: rust-lang/crates-io-auth-action@v1
+      id: auth
+    - run: cargo publish
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
