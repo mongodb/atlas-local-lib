@@ -2,13 +2,15 @@ use std::net::IpAddr;
 
 use bollard::secret::{ContainerInspectResponse, PortBinding};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MongoDBPortBinding {
     pub port: Option<u16>,
     pub binding_type: BindingType,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BindingType {
     Loopback,         // 127.0.0.1
     AnyInterface,     // 0.0.0.0

@@ -19,7 +19,8 @@ use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
 pub const ATLAS_LOCAL_IMAGE: &str = "quay.io/mongodb/mongodb-atlas-local";
 pub const ATLAS_LOCAL_VERSION_TAG: Version = Version::new(8, 0, 0);
 
-#[derive(Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CreateDeploymentOptions {
     // Identifiers
     pub name: Option<String>,

@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CreationSource {
     AtlasCLI,
