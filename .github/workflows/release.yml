@@ -81,7 +81,9 @@ jobs:
           git push
       - name: Set version output
         id: version
-        run: echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        env:
+            VERSION: ${{ github.event.inputs.version }}
+        run: echo "version=$VERSION" >> $GITHUB_OUTPUT
 
   create-github-release:
     # This job creates a GitHub release for the given version, using the release notes file generated in the previous job.
