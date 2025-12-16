@@ -3,7 +3,6 @@ use std::{fmt::Display, str::FromStr};
 use bollard::secret::{ContainerInspectResponse, ContainerStateStatusEnum};
 
 /// The state of the container (from the Docker API)
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
     Created,
@@ -86,7 +85,7 @@ impl FromStr for State {
     type Err = FromStrStateError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        match s {
             "created" => Ok(State::Created),
             "dead" => Ok(State::Dead),
             "exited" => Ok(State::Exited),
@@ -96,6 +95,27 @@ impl FromStr for State {
             "running" => Ok(State::Running),
             _ => Err(FromStrStateError::InvalidState(s.to_string())),
         }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for State {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for State {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        State::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 

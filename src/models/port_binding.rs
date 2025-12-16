@@ -6,15 +6,20 @@ use bollard::secret::{ContainerInspectResponse, PortBinding};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MongoDBPortBinding {
     pub port: Option<u16>,
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub binding_type: BindingType,
 }
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(tag = "type", rename_all = "snake_case")
+)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BindingType {
-    Loopback,         // 127.0.0.1
-    AnyInterface,     // 0.0.0.0
-    Specific(IpAddr), // Specific IP address
+    Loopback,                // 127.0.0.1
+    AnyInterface,            // 0.0.0.0
+    Specific { ip: IpAddr }, // Specific IP address
 }
 
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -86,7 +91,7 @@ impl MongoDBPortBinding {
         let binding_type = match port.host_ip {
             ip if ip.is_unspecified() => BindingType::AnyInterface,
             ip if ip.is_loopback() => BindingType::Loopback,
-            ip => BindingType::Specific(ip),
+            ip => BindingType::Specific { ip },
         };
 
         Ok(Some(MongoDBPortBinding::new(
@@ -137,7 +142,7 @@ impl From<&MongoDBPortBinding> for PortBinding {
         let host_ip = match mdb_port_binding.binding_type {
             BindingType::AnyInterface => "0.0.0.0".to_string(),
             BindingType::Loopback => "127.0.0.1".to_string(),
-            BindingType::Specific(ip) => ip.to_string(),
+            BindingType::Specific { ip } => ip.to_string(),
         };
         PortBinding {
             host_ip: Some(host_ip),
@@ -150,6 +155,7 @@ impl From<&MongoDBPortBinding> for PortBinding {
 mod tests {
     use super::*;
     use bollard::secret::NetworkSettings;
+    use serde_json::json;
     use std::collections::HashMap;
 
     fn create_container_response_with_mongodb_ports(
@@ -249,7 +255,9 @@ mod tests {
         assert_eq!(binding.port, Some(27017));
         assert_eq!(
             binding.binding_type,
-            BindingType::Specific("192.168.1.100".parse().unwrap())
+            BindingType::Specific {
+                ip: "192.168.1.100".parse().unwrap()
+            }
         );
     }
 
@@ -436,7 +444,7 @@ mod tests {
     fn test_specific_ip_into_port_binding_vec() {
         let specific_ip: IpAddr = "128.128.128.128".parse().unwrap();
         let mdb_port_binding =
-            MongoDBPortBinding::new(Some(27017), BindingType::Specific(specific_ip));
+            MongoDBPortBinding::new(Some(27017), BindingType::Specific { ip: specific_ip });
         let port_bindings: PortBinding = (&mdb_port_binding).into();
 
         assert_eq!(port_bindings.host_ip.as_deref(), Some("128.128.128.128"));
@@ -445,10 +453,51 @@ mod tests {
     #[test]
     fn test_specific_ip_into_port_binding_vec_no_port() {
         let specific_ip: IpAddr = "128.128.128.128".parse().unwrap();
-        let mdb_port_binding = MongoDBPortBinding::new(None, BindingType::Specific(specific_ip));
+        let mdb_port_binding =
+            MongoDBPortBinding::new(None, BindingType::Specific { ip: specific_ip });
         let port_bindings: PortBinding = (&mdb_port_binding).into();
 
         assert_eq!(port_bindings.host_ip.as_deref(), Some("128.128.128.128"));
         assert_eq!(port_bindings.host_port.as_deref(), None);
+    }
+
+    #[test]
+    fn test_json_serialization_loopback() {
+        let port_binding = MongoDBPortBinding::new(Some(27017), BindingType::Loopback);
+        let json = serde_json::to_value(&port_binding).unwrap();
+        assert_eq!(json, json!({"port": 27017, "type": "loopback"}));
+    }
+
+    #[test]
+    fn test_json_deserialization_loopback() {
+        let json = json!({"port": 27017, "type": "loopback"});
+        let port_binding = serde_json::from_value::<MongoDBPortBinding>(json).unwrap();
+        assert_eq!(
+            port_binding,
+            MongoDBPortBinding::new(Some(27017), BindingType::Loopback)
+        );
+    }
+
+    #[test]
+    fn test_json_serialization_specific_ip() {
+        let specific_ip: IpAddr = "128.128.128.128".parse().unwrap();
+        let port_binding =
+            MongoDBPortBinding::new(Some(27017), BindingType::Specific { ip: specific_ip });
+        let json = serde_json::to_value(&port_binding).unwrap();
+        assert_eq!(
+            json,
+            json!({"port": 27017, "type": "specific", "ip": specific_ip.to_string()})
+        );
+    }
+
+    #[test]
+    fn test_json_deserialization_specific_ip() {
+        let specific_ip: IpAddr = "128.128.128.128".parse().unwrap();
+        let json = json!({"port": 27017, "type": "specific", "ip": specific_ip.to_string()});
+        let port_binding = serde_json::from_value::<MongoDBPortBinding>(json).unwrap();
+        assert_eq!(
+            port_binding,
+            MongoDBPortBinding::new(Some(27017), BindingType::Specific { ip: specific_ip })
+        );
     }
 }

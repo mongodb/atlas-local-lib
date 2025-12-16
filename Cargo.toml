@@ -25,6 +25,7 @@ include = [
 ]
 
 [features]
+default = ["serde"]
 e2e-tests = []
 serde = ["dep:serde", "semver/serde"]
 
@@ -42,4 +43,5 @@ tokio = { version = "1.48", features = ["time"] }
 anyhow = "1.0.100"
 mockall = "0.14.0"
 pretty_assertions = "1.4.1"
+serde_json = "1.0.145"
 tokio = { version = "1.48", features = ["full"] }
