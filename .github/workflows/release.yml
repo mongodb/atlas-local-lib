@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - name: Set Apix Bot token
         id: app-token
@@ -85,11 +86,22 @@ jobs:
             git add Cargo.toml Cargo.lock CHANGELOG.md LICENSE-3RD-PARTY.txt
             git commit -m "chore(release): prepare for $VERSION"
             git push
+      - name: Create and push tag
+        env:
+            VERSION: ${{ github.event.inputs.version }}
+        run: |
+            git tag "v$VERSION"
+            git push origin "v$VERSION"
       - name: Set version output
         id: version
         env:
             VERSION: ${{ github.event.inputs.version }}
         run: echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Set tag output
+        id: tag
+        env:
+            VERSION: ${{ github.event.inputs.version }}
+        run: echo "tag=v$VERSION" >> $GITHUB_OUTPUT
 
   create-github-release:
     # This job creates a GitHub release for the given version, using the release notes file generated in the previous job.
@@ -101,7 +113,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ needs.update-version-and-changelog.outputs.tag }}
       - name: Download all artifacts
         uses: actions/download-artifact@v6
         with:
@@ -109,8 +121,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.update-version-and-changelog.outputs.version }}
-          name: Release v${{ needs.update-version-and-changelog.outputs.version }}
+          tag_name: ${{ needs.update-version-and-changelog.outputs.tag }}
+          name: Release ${{ needs.update-version-and-changelog.outputs.tag }}
           body_path: artifacts/release-notes/RELEASE_NOTES.md
           files: |
             # Include only the source code in the release (no binaries).
@@ -128,9 +140,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
         id-token: write
-    needs: [create-github-release]
+    needs: [update-version-and-changelog]
     steps:
     - uses: actions/checkout@v6
+      with:
+        ref: ${{ needs.update-version-and-changelog.outputs.tag }}
     - uses: rust-lang/crates-io-auth-action@v1
       id: auth
     - run: cargo publish
