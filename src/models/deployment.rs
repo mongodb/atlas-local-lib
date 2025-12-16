@@ -9,7 +9,8 @@ use crate::models::{
 
 pub const LOCAL_SEED_LOCATION: &str = "/docker-entrypoint-initdb.d";
 
-#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Deployment {
     // Identifiers
     pub container_id: String,

@@ -9,7 +9,8 @@ pub const LOCAL_DEPLOYMENT_LABEL_VALUE: &str = "container";
 pub const MONGODB_TYPE_LABEL_KEY: &str = "mongodb-type";
 pub const MONGODB_VERSION_LABEL_KEY: &str = "version";
 
-#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocalDeploymentLabels {
     pub mongodb_version: Version,
     pub mongodb_type: MongodbType,

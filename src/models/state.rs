@@ -1,7 +1,9 @@
+use std::{fmt::Display, str::FromStr};
+
 use bollard::secret::{ContainerInspectResponse, ContainerStateStatusEnum};
 
 /// The state of the container (from the Docker API)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
     Created,
     Dead,
@@ -56,6 +58,64 @@ impl TryFrom<&ContainerStateStatusEnum> for State {
                 return Err(FromContainerStateStatusEnumError::EmptyState);
             }
         })
+    }
+}
+
+impl Display for State {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            State::Created => write!(f, "created"),
+            State::Dead => write!(f, "dead"),
+            State::Exited => write!(f, "exited"),
+            State::Paused => write!(f, "paused"),
+            State::Removing => write!(f, "removing"),
+            State::Restarting => write!(f, "restarting"),
+            State::Running => write!(f, "running"),
+        }
+    }
+}
+
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum FromStrStateError {
+    #[error("Invalid state: {0}")]
+    InvalidState(String),
+}
+
+impl FromStr for State {
+    type Err = FromStrStateError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "created" => Ok(State::Created),
+            "dead" => Ok(State::Dead),
+            "exited" => Ok(State::Exited),
+            "paused" => Ok(State::Paused),
+            "removing" => Ok(State::Removing),
+            "restarting" => Ok(State::Restarting),
+            "running" => Ok(State::Running),
+            _ => Err(FromStrStateError::InvalidState(s.to_string())),
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for State {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for State {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        State::from_str(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -215,5 +275,40 @@ mod tests {
         let from_enum_error = FromContainerStateStatusEnumError::EmptyState;
         let debug_output = format!("{:?}", from_enum_error);
         assert!(debug_output.contains("EmptyState"));
+    }
+
+    #[test]
+    fn test_display_all_states() {
+        // Test Display implementation for all State variants
+        assert_eq!(State::Created.to_string(), "created");
+        assert_eq!(State::Dead.to_string(), "dead");
+        assert_eq!(State::Exited.to_string(), "exited");
+        assert_eq!(State::Paused.to_string(), "paused");
+        assert_eq!(State::Removing.to_string(), "removing");
+        assert_eq!(State::Restarting.to_string(), "restarting");
+        assert_eq!(State::Running.to_string(), "running");
+    }
+
+    #[test]
+    fn test_from_str_success() {
+        // Test FromStr for all valid states
+        assert_eq!("created".parse::<State>().unwrap(), State::Created);
+        assert_eq!("dead".parse::<State>().unwrap(), State::Dead);
+        assert_eq!("exited".parse::<State>().unwrap(), State::Exited);
+        assert_eq!("paused".parse::<State>().unwrap(), State::Paused);
+        assert_eq!("removing".parse::<State>().unwrap(), State::Removing);
+        assert_eq!("restarting".parse::<State>().unwrap(), State::Restarting);
+        assert_eq!("running".parse::<State>().unwrap(), State::Running);
+    }
+
+    #[test]
+    fn test_from_str_invalid() {
+        // Test FromStr error branch
+        let result = "invalid".parse::<State>();
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            FromStrStateError::InvalidState("invalid".to_string())
+        );
     }
 }

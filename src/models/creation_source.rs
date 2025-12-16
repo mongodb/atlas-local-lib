@@ -30,8 +30,32 @@ impl Display for CreationSource {
     }
 }
 
+#[cfg(feature = "serde")]
+impl serde::Serialize for CreationSource {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for CreationSource {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Ok(CreationSource::from(s.as_str()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use serde::{Deserialize, Serialize};
+    use serde_json::json;
+
     use super::*;
 
     #[test]
@@ -83,5 +107,34 @@ mod tests {
     fn test_creation_source_to_string_unknown() {
         let source = CreationSource::Unknown("custom_source".to_string());
         assert_eq!(source.to_string(), "custom_source");
+    }
+
+    #[test]
+    fn test_json_serialization() {
+        #[derive(Serialize)]
+        struct Test {
+            source: CreationSource,
+        }
+        let json = serde_json::to_value(&Test {
+            source: CreationSource::AtlasCLI,
+        })
+        .unwrap();
+        assert_eq!(json, json!({"source": "ATLASCLI"}));
+    }
+
+    #[test]
+    fn test_json_deserialization() {
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        struct Test {
+            source: CreationSource,
+        }
+        let json = json!({"source": "OTHER"});
+        let source = serde_json::from_value::<Test>(json).unwrap();
+        assert_eq!(
+            source,
+            Test {
+                source: CreationSource::Unknown("OTHER".to_string()),
+            }
+        );
     }
 }

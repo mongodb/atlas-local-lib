@@ -16,7 +16,8 @@ pub const ENV_VAR_DO_NOT_TRACK: &str = "DO_NOT_TRACK";
 pub const ENV_VAR_TELEMETRY_BASE_URL: &str = "TELEMETRY_BASE_URL";
 pub const ENV_VAR_MONGODB_LOAD_SAMPLE_DATA: &str = "MONGODB_LOAD_SAMPLE_DATA";
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EnvironmentVariables {
     pub tool: Option<CreationSource>,
 
