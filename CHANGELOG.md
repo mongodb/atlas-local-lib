@@ -1,4 +1,4 @@
-## [0.0.1] - 2025-12-15
+## [0.1.0] - 2025-12-16
 
 ### 🚀 Features
 
@@ -16,6 +16,7 @@
 - [**breaking**] Git add emoved verify option and switch to quay.io ([#21](https://github.com/mongodb/atlas-local-lib/pull/21))
 - Get deployment id without networking, fixes library inside of docker ([#23](https://github.com/mongodb/atlas-local-lib/pull/23))
 - Add support for loading sample data ([#44](https://github.com/mongodb/atlas-local-lib/pull/44))
+- Integrate serde for serialization and deserialization ([#48](https://github.com/mongodb/atlas-local-lib/pull/48))
 
 ### 🐛 Bug Fixes
 
@@ -41,4 +42,6 @@
 - Change merge strategy to --squash for dependabot prs ([#34](https://github.com/mongodb/atlas-local-lib/pull/34))
 - Re-generate third party licenses on dependabot PR ([#35](https://github.com/mongodb/atlas-local-lib/pull/35))
 - Fix auto-merge for github action dependabot updates ([#36](https://github.com/mongodb/atlas-local-lib/pull/36))
-- Improve boolean handling
+- Improve boolean handling ([#45](https://github.com/mongodb/atlas-local-lib/pull/45))
+- Set up release github action ([#49](https://github.com/mongodb/atlas-local-lib/pull/49))
+- Fix release process ([#50](https://github.com/mongodb/atlas-local-lib/pull/50))
