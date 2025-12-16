@@ -39,6 +39,25 @@ Before using this library, make sure you have:
 - **Docker**: Docker must be installed and running on your system
 - **Rust**: Rust 1.85 or later (for edition 2024)
 
+## Feature Flags
+
+This library provides optional feature flags to enable additional functionality:
+
+### `serde`
+
+Enables serialization and deserialization support for the library's models using [serde](https://serde.rs/).
+
+**When to use:** Enable this feature if you need to serialize or deserialize deployment configurations, responses, or other model types (e.g., for storing configurations as JSON or passing data across API boundaries).
+
+```toml
+[dependencies]
+atlas-local = { version = "0.0.1", features = ["serde"] }
+```
+
+### `e2e-tests` ⚠️
+
+**For internal use only.** This feature is used by the maintainers for end-to-end testing and is not part of the public API. It may change or be removed without notice.
+
 ## Quick Start
 
 Here's a simple example to get you started:
