@@ -47,7 +47,9 @@ jobs:
       - name: Install cargo tools for license verification
         run: cargo binstall --no-confirm --locked cargo-about
       - name: Update Cargo.toml version
-        run: cargo set-version "${{ github.event.inputs.version }}"
+        env:
+            VERSION: ${{ github.event.inputs.version }}
+        run: cargo set-version "$VERSION"
       - name: Update third-party licenses
         run: cargo about generate about.hbs > LICENSE-3RD-PARTY.txt
       - name: Generate changelog
@@ -73,12 +75,16 @@ jobs:
           path: RELEASE_NOTES.md
           if-no-files-found: error
       - name: Commit version changes
+        env:
+            GIT_USER_NAME: ${{ steps.app-token.outputs.user-name }}
+            GIT_USER_EMAIL: ${{ steps.app-token.outputs.user-email }}
+            VERSION: ${{ github.event.inputs.version }}
         run: |
-          git config --global user.name "${{ steps.app-token.outputs.user-name }}"
-          git config --global user.email "${{ steps.app-token.outputs.user-email }}"
-          git add Cargo.toml Cargo.lock CHANGELOG.md LICENSE-3RD-PARTY.txt
-          git commit -m "chore(release): prepare for ${{ github.event.inputs.version }}"
-          git push
+            git config --global user.name "$GIT_USER_NAME"
+            git config --global user.email "$GIT_USER_EMAIL"
+            git add Cargo.toml Cargo.lock CHANGELOG.md LICENSE-3RD-PARTY.txt
+            git commit -m "chore(release): prepare for $VERSION"
+            git push
       - name: Set version output
         id: version
         env:
