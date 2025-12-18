@@ -4,7 +4,7 @@ THIRD PARTY LICENSES
 This file lists the licenses of the projects used in atlas-local-lib.
 
 OVERVIEW OF LICENSES:
-- Apache License 2.0 (119 dependencies)
+- Apache License 2.0 (117 dependencies)
 - MIT License (21 dependencies)
 - Unicode License v3 (19 dependencies)
 
@@ -3631,9 +3631,7 @@ limitations under the License.
         - bollard-stubs 1.49.1-rc.28.4.0 (https://crates.io/crates/bollard-stubs)
         - itoa 1.0.15 (https://github.com/dtolnay/itoa)
         - libc 0.2.175 (https://github.com/rust-lang/libc)
-        - pin-project-internal 1.1.10 (https://github.com/taiki-e/pin-project)
         - pin-project-lite 0.2.16 (https://github.com/taiki-e/pin-project-lite)
-        - pin-project 1.1.10 (https://github.com/taiki-e/pin-project)
         - proc-macro2 1.0.101 (https://github.com/dtolnay/proc-macro2)
         - quote 1.0.40 (https://github.com/dtolnay/quote)
         - r-efi 5.3.0 (https://github.com/r-efi/r-efi)
