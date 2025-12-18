@@ -3,7 +3,7 @@ use crate::{
     docker::DockerLogContainer,
     models::{LogOutput, LogsOptions},
 };
-use futures_util::{pin_mut, StreamExt};
+use futures_util::{StreamExt, pin_mut};
 
 #[derive(Debug, thiserror::Error)]
 pub enum GetLogsError {
@@ -43,13 +43,13 @@ impl<D: DockerLogContainer> Client<D> {
         let bollard_options = options.map(bollard::query_parameters::LogsOptions::from);
         let stream = self.docker.logs(container_id_or_name, bollard_options);
         pin_mut!(stream);
-        
+
         let mut logs = Vec::new();
         while let Some(result) = stream.next().await {
             let log_output = result.map_err(GetLogsError::ContainerLogs)?;
             logs.push(LogOutput::from(log_output));
         }
-        
+
         Ok(logs)
     }
 }
@@ -134,9 +134,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client
-            .get_logs("nonexistent-container", None)
-            .await;
+        let result = client.get_logs("nonexistent-container", None).await;
 
         // Assert
         assert!(result.is_err());
