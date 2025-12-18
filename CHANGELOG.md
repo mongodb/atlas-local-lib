@@ -1,3 +1,12 @@
+## [0.1.1] - 2025-12-18
+
+### 🚀 Features
+
+- Added client.get_logs ([#51](https://github.com/mongodb/atlas-local-lib/pull/51))
+
+### ⚙️ Miscellaneous Tasks
+
+- Fix release + make publish --dry-run part of CI checks ([#52](https://github.com/mongodb/atlas-local-lib/pull/52))
 ## [0.1.0] - 2025-12-16
 
 ### 🚀 Features
