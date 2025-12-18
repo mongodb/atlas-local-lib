@@ -5,6 +5,7 @@ mod delete_deployment;
 mod get_connection_string;
 mod get_deployment;
 mod get_deployment_id;
+mod get_logs;
 mod get_mongodb_secret;
 mod list_deployments;
 mod pull_image;
@@ -14,6 +15,7 @@ pub use delete_deployment::DeleteDeploymentError;
 pub use get_connection_string::GetConnectionStringError;
 pub use get_deployment::GetDeploymentError;
 pub use get_deployment_id::GetDeploymentIdError;
+pub use get_logs::GetLogsError;
 pub use pull_image::PullImageError;
 
 /// The main entry point for interacting with local Atlas deployments.

@@ -13,5 +13,5 @@ pub mod test_utils;
 // Re-export the main types for convenience
 pub use client::{
     Client, CreateDeploymentError, DeleteDeploymentError, GetConnectionStringError,
-    GetDeploymentError, GetDeploymentIdError, PullImageError,
+    GetDeploymentError, GetDeploymentIdError, GetLogsError, PullImageError,
 };
