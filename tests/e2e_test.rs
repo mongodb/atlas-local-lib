@@ -1,9 +1,10 @@
 #![cfg(feature = "e2e-tests")]
 use atlas_local::{
     Client,
-    models::{CreateDeploymentOptions, MongoDBPortBinding},
+    models::{CreateDeploymentOptions, LogsOptions, MongoDBPortBinding, Tail},
 };
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
+use futures_util::StreamExt;
 use tokio::runtime::Handle;
 
 pub struct TestContainerCleaner {
@@ -104,6 +105,21 @@ async fn test_e2e_smoke_test() {
             port.unwrap()
         )
     );
+
+    // Get logs from the deployment
+    let mut logs = client.get_logs(
+        name,
+        Some(
+            LogsOptions::builder()
+                .stdout(true)
+                .stderr(true)
+                .tail(Tail::Number(10))
+                .build(),
+        ),
+    );
+    while let Some(Ok(log)) = logs.next().await {
+        println!("{}", log);
+    }
 
     // Get Deployment ID twice, verify the same ID is returned
     let deployment_id = client

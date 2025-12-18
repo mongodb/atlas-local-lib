@@ -5,13 +5,14 @@ use bollard::{
     exec::{CreateExecOptions, StartExecOptions, StartExecResults},
     query_parameters::{
         CreateContainerOptions, CreateImageOptionsBuilder, InspectContainerOptions,
-        ListContainersOptions, RemoveContainerOptions, StartContainerOptions, StopContainerOptions,
+        ListContainersOptions, LogsOptions, RemoveContainerOptions, StartContainerOptions,
+        StopContainerOptions,
     },
     secret::{
         ContainerCreateBody, ContainerCreateResponse, ContainerInspectResponse, ContainerSummary,
     },
 };
-use futures_util::StreamExt;
+use futures_util::{Stream, StreamExt};
 
 pub trait DockerInspectContainer {
     fn inspect_container(
@@ -224,5 +225,23 @@ impl RunCommandInContainer for Docker {
             stdout: stdout.lines().map(str::to_string).collect(),
             stderr: stderr.lines().map(str::to_string).collect(),
         })
+    }
+}
+
+pub trait DockerLogContainer {
+    fn logs<'a>(
+        &'a self,
+        container_id: &'a str,
+        options: Option<LogsOptions>,
+    ) -> impl Stream<Item = Result<LogOutput, Error>> + 'a;
+}
+
+impl DockerLogContainer for Docker {
+    fn logs<'a>(
+        &'a self,
+        container_id: &'a str,
+        options: Option<LogsOptions>,
+    ) -> impl Stream<Item = Result<LogOutput, Error>> + 'a {
+        self.logs(container_id, options)
     }
 }
