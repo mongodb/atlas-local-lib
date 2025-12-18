@@ -1,8 +1,9 @@
 use crate::{
     client::Client,
     docker::DockerLogContainer,
-    models::{LogOutputStream, LogsOptions},
+    models::{LogOutput, LogsOptions},
 };
+use futures_util::{pin_mut, StreamExt};
 
 #[derive(Debug, thiserror::Error)]
 pub enum GetLogsError {
@@ -16,11 +17,11 @@ impl<D: DockerLogContainer> Client<D> {
     /// # Arguments
     ///
     /// * `container_id_or_name` - The ID or name of the container to get logs from.
-    /// * `options` - Optional logging options (e.g., follow, tail, timestamps, etc.)
+    /// * `options` - Optional logging options (e.g., tail, timestamps, etc.)
     ///
     /// # Returns
     ///
-    /// A [`LogOutputStream`] that yields log entries from the container.
+    /// A `Result` containing a vector of log entries from the container, or an error if the logs could not be retrieved.
     ///
     /// # Examples
     ///
@@ -34,13 +35,22 @@ impl<D: DockerLogContainer> Client<D> {
     #[doc = "```rust,no_run"]
     #[doc = include_str!("../../examples/get_logs.rs")]
     #[doc = "```"]
-    pub fn get_logs<'a>(
-        &'a self,
-        container_id_or_name: &'a str,
+    pub async fn get_logs(
+        &self,
+        container_id_or_name: &str,
         options: Option<LogsOptions>,
-    ) -> LogOutputStream<'a> {
+    ) -> Result<Vec<LogOutput>, GetLogsError> {
         let bollard_options = options.map(bollard::query_parameters::LogsOptions::from);
-        LogOutputStream::new(self.docker.logs(container_id_or_name, bollard_options))
+        let stream = self.docker.logs(container_id_or_name, bollard_options);
+        pin_mut!(stream);
+        
+        let mut logs = Vec::new();
+        while let Some(result) = stream.next().await {
+            let log_output = result.map_err(GetLogsError::ContainerLogs)?;
+            logs.push(LogOutput::from(log_output));
+        }
+        
+        Ok(logs)
     }
 }
 
@@ -89,15 +99,15 @@ mod tests {
         let options = LogsOptions::builder().stdout(true).stderr(true).build();
 
         // Act
-        let logs: Vec<_> = client
+        let logs = client
             .get_logs("test-container", Some(options))
-            .collect()
-            .await;
+            .await
+            .expect("get_logs should succeed");
 
         // Assert
         assert_eq!(logs.len(), 2);
-        assert!(logs[0].is_ok());
-        assert!(logs[1].is_ok());
+        assert!(logs[0].is_stdout());
+        assert!(logs[1].is_stdout());
     }
 
     #[tokio::test]
@@ -124,16 +134,14 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let logs: Vec<_> = client
+        let result = client
             .get_logs("nonexistent-container", None)
-            .collect()
             .await;
 
         // Assert
-        assert_eq!(logs.len(), 1);
-        assert!(logs[0].is_err());
+        assert!(result.is_err());
         assert!(matches!(
-            logs[0].as_ref().unwrap_err(),
+            result.as_ref().unwrap_err(),
             GetLogsError::ContainerLogs(_)
         ));
     }
@@ -166,34 +174,21 @@ mod tests {
         let options = LogsOptions::builder().stdout(true).stderr(true).build();
 
         // Act
-        let logs: Vec<_> = client
+        let logs = client
             .get_logs("test-container", Some(options))
-            .collect()
-            .await;
+            .await
+            .expect("get_logs should succeed");
 
         // Assert
         assert_eq!(logs.len(), 3);
-        assert!(logs.iter().all(|log| log.is_ok()));
 
         // Verify first is stdout
-        if let Ok(log) = &logs[0] {
-            assert!(log.is_stdout());
-        } else {
-            panic!("Expected stdout log");
-        }
+        assert!(logs[0].is_stdout());
 
         // Verify second is stderr
-        if let Ok(log) = &logs[1] {
-            assert!(log.is_stderr());
-        } else {
-            panic!("Expected stderr log");
-        }
+        assert!(logs[1].is_stderr());
 
         // Verify third is stdout
-        if let Ok(log) = &logs[2] {
-            assert!(log.is_stdout());
-        } else {
-            panic!("Expected stdout log");
-        }
+        assert!(logs[2].is_stdout());
     }
 }

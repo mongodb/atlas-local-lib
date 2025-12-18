@@ -4,7 +4,6 @@ use atlas_local::{
     models::{CreateDeploymentOptions, LogsOptions, Tail},
 };
 use bollard::Docker;
-use futures_util::StreamExt;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,15 +25,15 @@ async fn main() -> Result<()> {
         .build();
 
     // Get logs from the deployment
-    let mut logs = client.get_logs(&deployment.container_id, Some(log_options));
+    let logs = client
+        .get_logs(&deployment.container_id, Some(log_options))
+        .await
+        .context("getting logs")?;
 
     println!("Container logs:");
-    while let Some(log_result) = logs.next().await {
-        match log_result {
-            // Use print! instead of println! because logs contain new line characters
-            Ok(log) => print!("{}", log),
-            Err(e) => eprintln!("Error reading log: {}", e),
-        }
+    for log in logs {
+        // Use print! instead of println! because logs contain new line characters
+        print!("{}", log);
     }
 
     Ok(())
