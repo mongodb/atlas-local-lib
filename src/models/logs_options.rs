@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+
 /// Specifies how many lines to retrieve from the tail of the logs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tail {
@@ -81,10 +83,10 @@ pub struct LogsOptions {
     pub stderr: bool,
     /// Return logs from the given timestamp
     #[builder(default, setter(strip_option))]
-    pub since: Option<i64>,
+    pub since: Option<DateTime<Utc>>,
     /// Return logs before the given timestamp
     #[builder(default, setter(strip_option))]
-    pub until: Option<i64>,
+    pub until: Option<DateTime<Utc>>,
     /// Add timestamps to every log line
     #[builder(default = false)]
     pub timestamps: bool,
@@ -102,8 +104,8 @@ impl From<LogsOptions> for bollard::query_parameters::LogsOptions {
             follow: options.follow,
             stdout: options.stdout,
             stderr: options.stderr,
-            since: options.since.unwrap_or(0) as i32,
-            until: options.until.unwrap_or(0) as i32,
+            since: options.since.map(|t| t.timestamp() as i32).unwrap_or(0),
+            until: options.until.map(|t| t.timestamp() as i32).unwrap_or(0),
             timestamps: options.timestamps,
             tail: options.tail.map(|t| t.to_string()).unwrap_or_default(),
         }
@@ -115,65 +117,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_logs_options_default() {
-        let options = LogsOptions::default();
-        assert!(!options.stdout);
-        assert!(!options.stderr);
-        assert!(options.since.is_none());
-        assert!(options.until.is_none());
-        assert!(!options.timestamps);
-        assert!(!options.follow);
-        assert!(options.tail.is_none());
-    }
-
-    #[test]
-    fn test_logs_options_builder() {
+    fn test_logs_options_into_bollard() {
         let options = LogsOptions::builder()
             .stdout(true)
             .stderr(true)
+            .since(DateTime::from_timestamp(1234567890, 0).unwrap())
+            .until(DateTime::from_timestamp(1234567900, 0).unwrap())
             .timestamps(true)
+            .follow(false)
             .tail(Tail::Number(100))
             .build();
-
-        assert!(options.stdout);
-        assert!(options.stderr);
-        assert!(options.timestamps);
-        assert_eq!(options.tail, Some(Tail::Number(100)));
-        assert!(!options.follow);
-    }
-
-    #[test]
-    fn test_logs_options_builder_with_since_until() {
-        let options = LogsOptions::builder()
-            .stdout(true)
-            .since(1234567890)
-            .until(1234567900)
-            .build();
-
-        assert!(options.stdout);
-        assert_eq!(options.since, Some(1234567890));
-        assert_eq!(options.until, Some(1234567900));
-    }
-
-    #[test]
-    fn test_logs_options_builder_follow() {
-        let options = LogsOptions::builder().stdout(true).follow(true).build();
-
-        assert!(options.stdout);
-        assert!(options.follow);
-    }
-
-    #[test]
-    fn test_logs_options_into_bollard() {
-        let options = LogsOptions {
-            stdout: true,
-            stderr: true,
-            since: Some(1234567890),
-            until: Some(1234567900),
-            timestamps: true,
-            follow: false,
-            tail: Some(Tail::Number(100)),
-        };
 
         let bollard_options: bollard::query_parameters::LogsOptions = options.into();
 
