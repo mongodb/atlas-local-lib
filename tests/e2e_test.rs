@@ -4,7 +4,6 @@ use atlas_local::{
     models::{CreateDeploymentOptions, LogsOptions, MongoDBPortBinding, Tail},
 };
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
-use futures_util::StreamExt;
 use tokio::runtime::Handle;
 
 pub struct TestContainerCleaner {
@@ -107,17 +106,20 @@ async fn test_e2e_smoke_test() {
     );
 
     // Get logs from the deployment
-    let mut logs = client.get_logs(
-        name,
-        Some(
-            LogsOptions::builder()
-                .stdout(true)
-                .stderr(true)
-                .tail(Tail::Number(10))
-                .build(),
-        ),
-    );
-    while let Some(Ok(log)) = logs.next().await {
+    let logs = client
+        .get_logs(
+            name,
+            Some(
+                LogsOptions::builder()
+                    .stdout(true)
+                    .stderr(true)
+                    .tail(Tail::Number(10))
+                    .build(),
+            ),
+        )
+        .await
+        .expect("Getting logs");
+    for log in logs {
         println!("{}", log);
     }
 

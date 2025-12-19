@@ -58,7 +58,7 @@ impl std::fmt::Display for Tail {
 ///
 /// This struct provides configuration options for fetching container logs,
 /// including filtering by stream type (stdout/stderr), limiting the number
-/// of lines, adding timestamps, and following the log stream in real-time.
+/// of lines, and adding timestamps.
 ///
 /// # Examples
 ///
@@ -90,9 +90,6 @@ pub struct LogsOptions {
     /// Add timestamps to every log line
     #[builder(default = false)]
     pub timestamps: bool,
-    /// Follow the log stream (keep connection open for new logs)
-    #[builder(default = false)]
-    pub follow: bool,
     /// Return this number of lines at the tail of the logs
     #[builder(default, setter(strip_option, into))]
     pub tail: Option<Tail>,
@@ -101,7 +98,7 @@ pub struct LogsOptions {
 impl From<LogsOptions> for bollard::query_parameters::LogsOptions {
     fn from(options: LogsOptions) -> Self {
         bollard::query_parameters::LogsOptions {
-            follow: options.follow,
+            follow: false,
             stdout: options.stdout,
             stderr: options.stderr,
             since: options.since.map(|t| t.timestamp() as i32).unwrap_or(0),
@@ -124,7 +121,6 @@ mod tests {
             .since(DateTime::from_timestamp(1234567890, 0).unwrap())
             .until(DateTime::from_timestamp(1234567900, 0).unwrap())
             .timestamps(true)
-            .follow(false)
             .tail(Tail::Number(100))
             .build();
 
@@ -201,7 +197,6 @@ mod tests {
             since: None,
             until: None,
             timestamps: false,
-            follow: false,
             tail: Some(Tail::All),
         };
 
