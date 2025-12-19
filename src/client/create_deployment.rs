@@ -1,9 +1,8 @@
 use bollard::{
     errors::Error::DockerResponseServerError,
-    query_parameters::{CreateContainerOptions, InspectContainerOptions, StartContainerOptions},
-    secret::{ContainerCreateBody, HealthStatusEnum},
+    query_parameters::{CreateContainerOptions, StartContainerOptions},
+    secret::ContainerCreateBody,
 };
-use tokio::time;
 
 use crate::{
     GetDeploymentError,
@@ -11,10 +10,10 @@ use crate::{
     docker::{
         DockerCreateContainer, DockerInspectContainer, DockerPullImage, DockerStartContainer,
     },
-    models::{ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment},
+    models::{ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, WatchOptions},
 };
 
-use super::PullImageError;
+use super::{PullImageError, WatchDeploymentError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateDeploymentError {
@@ -30,6 +29,8 @@ pub enum CreateDeploymentError {
     UnhealthyDeployment(String),
     #[error("Unable to get details for Deployment: {0}")]
     GetDeploymentError(GetDeploymentError),
+    #[error("Error when waiting for deployment to become healthy: {0}")]
+    WatchDeployment(#[from] WatchDeploymentError),
 }
 
 impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerInspectContainer>
@@ -84,22 +85,12 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
 
         // Default to waiting for the deployment to be healthy
         if deployment_options.wait_until_healthy.unwrap_or(true) {
-            // Default timeout after 10 minutes
-            // Container should become unhealthy before the timeout is reached
-            let timeout_duration = deployment_options
-                .wait_until_healthy_timeout
-                .unwrap_or(time::Duration::from_secs(60) * 10);
-            time::timeout(
-                timeout_duration,
-                self.wait_for_healthy_deployment(&cluster_name),
-            )
-            .await
-            .map_err(|_| {
-                CreateDeploymentError::UnhealthyDeployment(format!(
-                    "Timeout while waiting for container {cluster_name} to become healthy"
-                ))
-            })
-            .flatten()?;
+            let watch_options = WatchOptions {
+                timeout_duration: deployment_options.wait_until_healthy_timeout,
+                allow_unhealthy_initial_state: false,
+            };
+            self.wait_for_healthy_deployment(&cluster_name, watch_options)
+                .await?;
         }
 
         // Return the deployment details
@@ -109,53 +100,22 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
     }
 }
 
-impl<D: DockerInspectContainer> Client<D> {
-    async fn wait_for_healthy_deployment(
-        &self,
-        cluster_name: &str,
-    ) -> Result<(), CreateDeploymentError> {
-        // Loop until the container is healthy
-        loop {
-            let status = self
-                .docker
-                .inspect_container(cluster_name, None::<InspectContainerOptions>)
-                .await
-                .map_err(CreateDeploymentError::ContainerInspect)?
-                .state
-                .and_then(|s| s.health)
-                .and_then(|h| h.status)
-                .ok_or_else(|| {
-                    CreateDeploymentError::UnhealthyDeployment(cluster_name.to_string())
-                })?;
-
-            match status {
-                HealthStatusEnum::HEALTHY => return Ok(()),
-                HealthStatusEnum::STARTING => {
-                    time::sleep(std::time::Duration::from_secs(1)).await;
-                }
-                HealthStatusEnum::UNHEALTHY | HealthStatusEnum::NONE | HealthStatusEnum::EMPTY => {
-                    return Err(CreateDeploymentError::UnhealthyDeployment(
-                        cluster_name.to_string(),
-                    ));
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::client::WatchDeploymentError;
     use bollard::{
         errors::Error as BollardError,
+        query_parameters::InspectContainerOptions,
         secret::{
             ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState,
-            ContainerStateStatusEnum,
+            ContainerStateStatusEnum, HealthStatusEnum,
         },
     };
     use maplit::hashmap;
     use mockall::mock;
     use pretty_assertions::assert_eq;
+    use tokio::time;
 
     mock! {
         Docker {}
@@ -593,7 +553,9 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            CreateDeploymentError::UnhealthyDeployment(_)
+            CreateDeploymentError::WatchDeployment(
+                WatchDeploymentError::UnhealthyDeployment { .. }
+            )
         ));
     }
 
@@ -776,12 +738,12 @@ mod tests {
         // Assert
         assert!(result.is_err());
         match result.unwrap_err() {
-            CreateDeploymentError::UnhealthyDeployment(msg) => {
-                assert!(msg.contains(
-                    "Timeout while waiting for container test-deployment to become healthy"
-                ));
+            CreateDeploymentError::WatchDeployment(WatchDeploymentError::Timeout {
+                cluster_name,
+            }) => {
+                assert_eq!(cluster_name, "test-deployment");
             }
-            _ => panic!("Expected UnhealthyDeployment error with timeout message"),
+            _ => panic!("Expected WatchDeployment Timeout error"),
         }
     }
 
@@ -840,10 +802,14 @@ mod tests {
         // Assert
         assert!(result.is_err());
         match result.unwrap_err() {
-            CreateDeploymentError::UnhealthyDeployment(name) => {
-                assert_eq!(name, "test-deployment");
+            CreateDeploymentError::WatchDeployment(WatchDeploymentError::UnhealthyDeployment {
+                deployment_name,
+                status,
+            }) => {
+                assert_eq!(deployment_name, "test-deployment");
+                assert_eq!(status, HealthStatusEnum::NONE);
             }
-            _ => panic!("Expected UnhealthyDeployment error"),
+            _ => panic!("Expected WatchDeployment error"),
         }
     }
 
@@ -902,10 +868,14 @@ mod tests {
         // Assert
         assert!(result.is_err());
         match result.unwrap_err() {
-            CreateDeploymentError::UnhealthyDeployment(name) => {
-                assert_eq!(name, "test-deployment");
+            CreateDeploymentError::WatchDeployment(WatchDeploymentError::UnhealthyDeployment {
+                deployment_name,
+                status,
+            }) => {
+                assert_eq!(deployment_name, "test-deployment");
+                assert_eq!(status, HealthStatusEnum::NONE);
             }
-            _ => panic!("Expected UnhealthyDeployment error"),
+            _ => panic!("Expected WatchDeployment error"),
         }
     }
 
@@ -964,10 +934,14 @@ mod tests {
         // Assert
         assert!(result.is_err());
         match result.unwrap_err() {
-            CreateDeploymentError::UnhealthyDeployment(name) => {
-                assert_eq!(name, "test-deployment");
+            CreateDeploymentError::WatchDeployment(WatchDeploymentError::UnhealthyDeployment {
+                deployment_name,
+                status,
+            }) => {
+                assert_eq!(deployment_name, "test-deployment");
+                assert_eq!(status, HealthStatusEnum::NONE);
             }
-            _ => panic!("Expected UnhealthyDeployment error"),
+            _ => panic!("Expected WatchDeployment error"),
         }
     }
 }

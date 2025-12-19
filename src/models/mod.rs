@@ -8,6 +8,7 @@ mod logs_options;
 mod mongodb_type;
 mod port_binding;
 mod state;
+mod watch_options;
 
 pub use create_deployment_options::*;
 pub use creation_source::*;
@@ -19,3 +20,4 @@ pub use logs_options::*;
 pub use mongodb_type::*;
 pub use port_binding::*;
 pub use state::*;
+pub use watch_options::*;

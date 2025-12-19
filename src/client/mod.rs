@@ -13,6 +13,7 @@ mod pull_image;
 mod start_deployment;
 mod stop_deployment;
 mod unpause_deployment;
+mod watch_deployment;
 
 pub use create_deployment::CreateDeploymentError;
 pub use delete_deployment::DeleteDeploymentError;
@@ -25,6 +26,7 @@ pub use pull_image::PullImageError;
 pub use start_deployment::StartDeploymentError;
 pub use stop_deployment::StopDeploymentError;
 pub use unpause_deployment::UnpauseDeploymentError;
+pub use watch_deployment::WatchDeploymentError;
 
 /// The main entry point for interacting with local Atlas deployments.
 ///
