@@ -41,6 +41,24 @@ async fn main() -> Result<()> {
 
     print_deployment_state(&client, deployment_name).await?;
 
+    // Pause the deployment
+    println!("Pausing deployment '{}'...", deployment_name);
+    client
+        .pause_deployment(deployment_name)
+        .await
+        .context("pausing deployment")?;
+
+    print_deployment_state(&client, deployment_name).await?;
+
+    // Unpause the deployment
+    println!("Unpausing deployment '{}'...", deployment_name);
+    client
+        .unpause_deployment(deployment_name)
+        .await
+        .context("unpausing deployment")?;
+
+    print_deployment_state(&client, deployment_name).await?;
+
     // Remove the deployment
     println!("Removing deployment '{}'...", deployment_name);
     client

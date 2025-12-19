@@ -141,11 +141,22 @@ async fn test_e2e_smoke_test() {
         .stop_deployment(name)
         .await
         .expect("Stopping deployment");
-    
+
     client
         .start_deployment(name)
         .await
         .expect("Starting deployment");
+
+    // Pause and unpause the deployment
+    client
+        .pause_deployment(name)
+        .await
+        .expect("Pausing deployment");
+
+    client
+        .unpause_deployment(name)
+        .await
+        .expect("Unpausing deployment");
 
     // Delete Deployment
     client
