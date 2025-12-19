@@ -136,6 +136,17 @@ async fn test_e2e_smoke_test() {
 
     assert_eq!(deployment_id, deployment_id2);
 
+    // Stop and start the deployment
+    client
+        .stop_deployment(name)
+        .await
+        .expect("Stopping deployment");
+    
+    client
+        .start_deployment(name)
+        .await
+        .expect("Starting deployment");
+
     // Delete Deployment
     client
         .delete_deployment(name)
