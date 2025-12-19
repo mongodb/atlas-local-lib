@@ -1,3 +1,8 @@
+## [0.2.0] - 2025-12-19
+
+### 🚜 Refactor
+
+- Update get_logs implementation to return logs as a vector and remove LogOutputStream ([#53](https://github.com/mongodb/atlas-local-lib/pull/53))
 ## [0.1.1] - 2025-12-18
 
 ### 🚀 Features
