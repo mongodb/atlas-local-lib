@@ -42,7 +42,7 @@ jobs:
           toolchain: stable
           targets: x86_64-unknown-linux-gnu
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.16.2
+        uses: cargo-bins/cargo-binstall@v1.16.4
       - name: Install cargo-edit to update Cargo.toml version
         run: cargo binstall --no-confirm --locked cargo-edit
       - name: Install cargo tools for license verification
