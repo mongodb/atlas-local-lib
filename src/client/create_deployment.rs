@@ -739,9 +739,9 @@ mod tests {
         assert!(result.is_err());
         match result.unwrap_err() {
             CreateDeploymentError::WatchDeployment(WatchDeploymentError::Timeout {
-                cluster_name,
+                deployment_name,
             }) => {
-                assert_eq!(cluster_name, "test-deployment");
+                assert_eq!(deployment_name, "test-deployment");
             }
             _ => panic!("Expected WatchDeployment Timeout error"),
         }

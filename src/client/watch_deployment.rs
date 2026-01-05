@@ -8,8 +8,8 @@ use crate::{client::Client, docker::DockerInspectContainer, models::WatchOptions
 pub enum WatchDeploymentError {
     #[error("Failed to inspect container: {0}")]
     ContainerInspect(#[from] bollard::errors::Error),
-    #[error("Timeout while waiting for container {cluster_name} to become healthy")]
-    Timeout { cluster_name: String },
+    #[error("Timeout while waiting for container {deployment_name} to become healthy")]
+    Timeout { deployment_name: String },
     #[error("Deployment {deployment_name} is not healthy [status: {status}]")]
     UnhealthyDeployment {
         deployment_name: String,
@@ -52,7 +52,7 @@ impl<D: DockerInspectContainer> Client<D> {
     /// ```
     pub async fn wait_for_healthy_deployment(
         &self,
-        cluster_name: &str,
+        deployment_name: &str,
         options: WatchOptions,
     ) -> Result<(), WatchDeploymentError> {
         let timeout_duration = options
@@ -60,31 +60,31 @@ impl<D: DockerInspectContainer> Client<D> {
             .unwrap_or(time::Duration::from_secs(60) * 10);
         time::timeout(
             timeout_duration,
-            self.wait_for_healthy_deployment_inner(cluster_name, options),
+            self.wait_for_healthy_deployment_inner(deployment_name, options),
         )
         .await
         .map_err(|_| WatchDeploymentError::Timeout {
-            cluster_name: cluster_name.to_string(),
+            deployment_name: deployment_name.to_string(),
         })?
     }
 
     async fn wait_for_healthy_deployment_inner(
         &self,
-        cluster_name: &str,
+        deployment_name: &str,
         options: WatchOptions,
     ) -> Result<(), WatchDeploymentError> {
         // Loop until the container is healthy
         loop {
             let mut status = self
                 .docker
-                .inspect_container(cluster_name, None::<InspectContainerOptions>)
+                .inspect_container(deployment_name, None::<InspectContainerOptions>)
                 .await
                 .map_err(WatchDeploymentError::ContainerInspect)?
                 .state
                 .and_then(|s| s.health)
                 .and_then(|h| h.status)
                 .ok_or_else(|| WatchDeploymentError::UnhealthyDeployment {
-                    deployment_name: cluster_name.to_string(),
+                    deployment_name: deployment_name.to_string(),
                     status: HealthStatusEnum::NONE,
                 })?;
 
@@ -100,7 +100,7 @@ impl<D: DockerInspectContainer> Client<D> {
                 }
                 HealthStatusEnum::NONE | HealthStatusEnum::EMPTY | HealthStatusEnum::UNHEALTHY => {
                     return Err(WatchDeploymentError::UnhealthyDeployment {
-                        deployment_name: cluster_name.to_string(),
+                        deployment_name: deployment_name.to_string(),
                         status,
                     });
                 }
@@ -365,8 +365,8 @@ mod tests {
         // Assert
         assert!(result.is_err());
         match result.unwrap_err() {
-            WatchDeploymentError::Timeout { cluster_name } => {
-                assert_eq!(cluster_name, "test-deployment");
+            WatchDeploymentError::Timeout { deployment_name } => {
+                assert_eq!(deployment_name, "test-deployment");
             }
             _ => panic!("Expected Timeout error"),
         }
