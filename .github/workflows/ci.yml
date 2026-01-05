@@ -189,7 +189,9 @@ jobs:
           apt-get update
           apt-get install -y curl gcc
       - name: Install Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        run: |
+          rustup update stable
+          rustup default stable
 
       - name: Install cargo-binstall
         uses: cargo-bins/cargo-binstall@v1.16.2
