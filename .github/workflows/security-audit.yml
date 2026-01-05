@@ -15,7 +15,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_DENY_VERSION: 0.18.9
-  CARGO_AUDIT_VERSION: 0.21.2
+  CARGO_AUDIT_VERSION: 0.22.0
 
 jobs:
   security-audit:
