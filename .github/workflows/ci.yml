@@ -162,10 +162,7 @@ jobs:
       uses: cargo-bins/cargo-binstall@v1.16.2
 
     - name: Install cargo-deny
-      run: |
-        if ! command -v cargo-deny &> /dev/null; then
-          cargo binstall --no-confirm --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
-        fi
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
 
     - name: Check MSRV build
       run: cargo check --verbose
@@ -201,6 +198,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-llvm-cov-
 
+      # cargo-llvm-cov is not available in cargo-binstall yet, so we need to install it manually
       - name: Install cargo-llvm-cov
         shell: bash
         run: |
