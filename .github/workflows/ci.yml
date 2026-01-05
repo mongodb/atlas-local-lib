@@ -190,7 +190,9 @@ jobs:
           apt-get install -y curl gcc
 
       - name: Install Rustup
-        run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          . "$HOME/.cargo/env"
 
       - name: Install Rust toolchain
         run: |
