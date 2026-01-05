@@ -14,8 +14,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_DENY_VERSION: 0.18.4
-  CARGO_AUDIT_VERSION: 0.21.2
+  CARGO_DENY_VERSION: 0.18.9
+  CARGO_AUDIT_VERSION: 0.22.0
 
 jobs:
   security-audit:
@@ -39,25 +39,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-audit-cargo-
     
-    - name: Cache cargo tools
-      uses: actions/cache@v5
-      with:
-        path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-tools-deny-${{ env.CARGO_DENY_VERSION }}-audit-${{ env.CARGO_AUDIT_VERSION }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-tools-
-    
+    - name: Install cargo-binstall
+      uses: cargo-bins/cargo-binstall@v1.16.2
+
     - name: Install cargo-deny
-      run: |
-        if ! command -v cargo-deny &> /dev/null; then
-          cargo install --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
-        fi
-    
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
+
     - name: Install cargo-audit
-      run: |
-        if ! command -v cargo-audit &> /dev/null; then
-          cargo install --locked --version ${{ env.CARGO_AUDIT_VERSION }} cargo-audit
-        fi
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_AUDIT_VERSION }} cargo-audit
     
     - name: Run cargo deny
       run: cargo deny check

@@ -1,7 +1,7 @@
 #![cfg(feature = "e2e-tests")]
 use atlas_local::{
     Client,
-    models::{CreateDeploymentOptions, LogsOptions, MongoDBPortBinding, Tail},
+    models::{CreateDeploymentOptions, LogsOptions, MongoDBPortBinding, Tail, WatchOptions},
 };
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
@@ -119,8 +119,9 @@ async fn test_e2e_smoke_test() {
         )
         .await
         .expect("Getting logs");
-    for log in logs {
-        println!("{}", log);
+
+    if logs.is_empty() {
+        panic!("No logs found");
     }
 
     // Get Deployment ID twice, verify the same ID is returned
@@ -135,6 +136,50 @@ async fn test_e2e_smoke_test() {
         .expect("Getting deployment id");
 
     assert_eq!(deployment_id, deployment_id2);
+
+    // Stop and start the deployment
+    client
+        .stop_deployment(name)
+        .await
+        .expect("Stopping deployment");
+
+    client
+        .start_deployment(name)
+        .await
+        .expect("Starting deployment");
+
+    // Wait for the deployment to become healthy again
+    client
+        .wait_for_healthy_deployment(
+            name,
+            WatchOptions::builder()
+                .allow_unhealthy_initial_state(true)
+                .build(),
+        )
+        .await
+        .expect("Waiting for deployment to become healthy");
+
+    // Pause and unpause the deployment
+    client
+        .pause_deployment(name)
+        .await
+        .expect("Pausing deployment");
+
+    client
+        .unpause_deployment(name)
+        .await
+        .expect("Unpausing deployment");
+
+    // Wait for the deployment to become healthy again
+    client
+        .wait_for_healthy_deployment(
+            name,
+            WatchOptions::builder()
+                .allow_unhealthy_initial_state(true)
+                .build(),
+        )
+        .await
+        .expect("Waiting for deployment to become healthy");
 
     // Delete Deployment
     client

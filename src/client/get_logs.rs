@@ -59,7 +59,7 @@ mod tests {
     use super::*;
     use crate::models::LogsOptions;
     use bollard::errors::Error as BollardError;
-    use futures_util::{Stream, StreamExt, stream};
+    use futures_util::{Stream, stream};
     use mockall::mock;
 
     mock! {

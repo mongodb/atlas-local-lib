@@ -144,6 +144,26 @@ impl DockerStartContainer for Docker {
     }
 }
 
+pub trait DockerPauseContainer {
+    fn pause_container(&self, container_id: &str) -> impl Future<Output = Result<(), Error>>;
+}
+
+impl DockerPauseContainer for Docker {
+    async fn pause_container(&self, container_id: &str) -> Result<(), Error> {
+        self.pause_container(container_id).await
+    }
+}
+
+pub trait DockerUnpauseContainer {
+    fn unpause_container(&self, container_id: &str) -> impl Future<Output = Result<(), Error>>;
+}
+
+impl DockerUnpauseContainer for Docker {
+    async fn unpause_container(&self, container_id: &str) -> Result<(), Error> {
+        self.unpause_container(container_id).await
+    }
+}
+
 pub trait RunCommandInContainer {
     fn run_command_in_container(
         &self,

@@ -7,11 +7,11 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_DENY_VERSION: 0.18.4
-  CARGO_AUDIT_VERSION: 0.21.2
+  CARGO_DENY_VERSION: 0.18.9
+  CARGO_AUDIT_VERSION: 0.22.0
   CARGO_LLVM_COV_VERSION: 0.6.19
   CARGO_UDEPS_VERSION: 0.1.59
-  CARGO_ABOUT_VERSION: 0.8.2
+  CARGO_ABOUT_VERSION: 0.8.4
 
 jobs:
   check:
@@ -37,37 +37,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
     
-    - name: Cache cargo tools
-      uses: actions/cache@v5
-      with:
-        path: ~/.cargo/bin
-        key: ${{ runner.os }}-cargo-tools-deny-${{ env.CARGO_DENY_VERSION }}-audit-${{ env.CARGO_AUDIT_VERSION }}-udeps-${{ env.CARGO_UDEPS_VERSION }}-about-${{ env.CARGO_ABOUT_VERSION }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-tools-
+    - name: Install cargo-binstall
+      uses: cargo-bins/cargo-binstall@v1.16.2
     
     - name: Install cargo-deny
-      run: |
-        if ! command -v cargo-deny &> /dev/null; then
-          cargo install --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
-        fi
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
     
     - name: Install cargo-audit
-      run: |
-        if ! command -v cargo-audit &> /dev/null; then
-          cargo install --locked --version ${{ env.CARGO_AUDIT_VERSION }} cargo-audit
-        fi
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_AUDIT_VERSION }} cargo-audit
     
     - name: Install cargo-udeps
-      run: |
-        if ! command -v cargo-udeps &> /dev/null; then
-          cargo install --locked --version ${{ env.CARGO_UDEPS_VERSION }} cargo-udeps
-        fi
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_UDEPS_VERSION }} cargo-udeps
     
     - name: Install cargo-about
-      run: |
-        if ! command -v cargo-about &> /dev/null; then
-          cargo install --locked --version ${{ env.CARGO_ABOUT_VERSION }} cargo-about
-        fi
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_ABOUT_VERSION }} cargo-about
     
     - name: Check formatting
       run: cargo fmt --all -- --check
@@ -127,22 +110,12 @@ jobs:
         rustup update ${{ matrix.rust }}
         rustup default ${{ matrix.rust }}
    
-    - name: Cache cargo-llvm-cov
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.cargo/bin
-          ~/.rustup/toolchains
-        key: ${{ runner.os }}-cargo-llvm-cov-${{ env.CARGO_LLVM_COV_VERSION }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-llvm-cov-
+    - name: Install cargo-binstall
+      uses: cargo-bins/cargo-binstall@v1.16.2
 
     - name: Install cargo-llvm-cov
       shell: bash
-      run: |
-        if ! command -v cargo-llvm-cov &> /dev/null; then
-          cargo install --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
-        fi
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_LLVM_COV_VERSION }} cargo-llvm-cov
 
     - name: Cache cargo registry
       uses: actions/cache@v5
@@ -185,17 +158,12 @@ jobs:
         rustup update 1.89
         rustup default 1.89
     
-    - name: Cache cargo registry
-      uses: actions/cache@v5
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-1.89-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-1.89-cargo-
-    
+    - name: Install cargo-binstall
+      uses: cargo-bins/cargo-binstall@v1.16.2
+
+    - name: Install cargo-deny
+      run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
+
     - name: Check MSRV build
       run: cargo check --verbose
 
@@ -217,9 +185,9 @@ jobs:
         run: |
           apt-get update
           apt-get install -y curl gcc
+
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
-
       - name: Cache cargo-llvm-cov
         uses: actions/cache@v5
         with:
@@ -230,6 +198,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-llvm-cov-
 
+      # cargo-llvm-cov is not available in cargo-binstall yet, so we need to install it manually
       - name: Install cargo-llvm-cov
         shell: bash
         run: |
