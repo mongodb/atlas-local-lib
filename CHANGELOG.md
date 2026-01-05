@@ -1,3 +1,8 @@
+## [0.3.0] - 2026-01-05
+
+### 🚀 Features
+
+- Implement start/stop/pause/unpause/wait for healthy deployment ([#54](https://github.com/mongodb/atlas-local-lib/pull/54))
 ## [0.2.0] - 2025-12-19
 
 ### 🚜 Refactor
