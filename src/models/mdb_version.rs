@@ -90,3 +90,63 @@ impl Display for MongoDBVersion {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_latest() {
+        let version = MongoDBVersion::try_from("latest").unwrap();
+        assert_eq!(version, MongoDBVersion::Latest);
+        assert_eq!(version.to_string(), "latest");
+    }
+
+    #[test]
+    fn test_parse_major() {
+        let version = MongoDBVersion::try_from("8").unwrap();
+        assert_eq!(
+            version,
+            MongoDBVersion::Major(MongoDBVersionMajor { major: 8 })
+        );
+        assert_eq!(version.to_string(), "8");
+    }
+
+    #[test]
+    fn test_parse_major_minor() {
+        let version = MongoDBVersion::try_from("8.1").unwrap();
+        assert_eq!(
+            version,
+            MongoDBVersion::MajorMinor(MongoDBVersionMajorMinor { major: 8, minor: 1 })
+        );
+        assert_eq!(version.to_string(), "8.1");
+    }
+
+    #[test]
+    fn test_parse_major_minor_patch() {
+        let version = MongoDBVersion::try_from("7.3.2").unwrap();
+        assert_eq!(
+            version,
+            MongoDBVersion::MajorMinorPatch(MongoDBVersionMajorMinorPatch {
+                major: 7,
+                minor: 3,
+                patch: 2
+            })
+        );
+        assert_eq!(version.to_string(), "7.3.2");
+    }
+
+    #[test]
+    fn test_parse_invalid() {
+        let result = MongoDBVersion::try_from("invalid");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), PARSE_ERROR_MESSAGE);
+    }
+
+    #[test]
+    fn test_parse_too_many_parts() {
+        let result = MongoDBVersion::try_from("1.2.3.4");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), PARSE_ERROR_MESSAGE);
+    }
+}
