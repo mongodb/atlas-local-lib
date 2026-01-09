@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
     let deployment_name = "lifecycle-demo";
     println!("Creating deployment '{}'...", deployment_name);
     client
-        .create_deployment(&CreateDeploymentOptions {
+        .create_deployment(CreateDeploymentOptions {
             name: Some(deployment_name.to_string()),
             wait_until_healthy: Some(true),
             ..Default::default()

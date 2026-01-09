@@ -15,7 +15,9 @@ mod stop_deployment;
 mod unpause_deployment;
 mod watch_deployment;
 
-pub use create_deployment::CreateDeploymentError;
+pub use create_deployment::{
+    CreateDeploymentError, CreateDeploymentProgress, CreateDeploymentStepOutcome,
+};
 pub use delete_deployment::DeleteDeploymentError;
 pub use get_connection_string::GetConnectionStringError;
 pub use get_deployment::GetDeploymentError;
@@ -38,6 +40,7 @@ pub use watch_deployment::WatchDeploymentError;
 ///
 /// See the [module-level documentation](crate) for a complete example of creating
 /// a new client instance.
+#[derive(Clone)]
 pub struct Client<D = Docker> {
     docker: D,
 }

@@ -1,8 +1,16 @@
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use bollard::{
     errors::Error::DockerResponseServerError,
     query_parameters::{CreateContainerOptions, StartContainerOptions},
     secret::ContainerCreateBody,
 };
+use futures::future::Fuse;
+use futures_util::FutureExt;
+use tokio::sync::oneshot::{self, Receiver, Sender, error::RecvError};
 
 use crate::{
     GetDeploymentError,
@@ -31,33 +39,75 @@ pub enum CreateDeploymentError {
     GetDeploymentError(GetDeploymentError),
     #[error("Error when waiting for deployment to become healthy: {0}")]
     WatchDeployment(#[from] WatchDeploymentError),
+    #[error("Error when receiving deployment: {0}")]
+    ReceiveDeployment(#[from] oneshot::error::RecvError),
 }
 
-impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerInspectContainer>
-    Client<D>
+impl<
+    D: DockerPullImage
+        + DockerCreateContainer
+        + DockerStartContainer
+        + DockerInspectContainer
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+> Client<D>
 {
     /// Creates a local Atlas deployment.
-    pub async fn create_deployment(
+    pub fn create_deployment(
         &self,
-        deployment_options: &CreateDeploymentOptions,
+        deployment_options: CreateDeploymentOptions,
+    ) -> CreateDeploymentProgress {
+        let (sender, receiver) = create_progress_pairs();
+        let client = self.clone();
+
+        tokio::spawn(async move {
+            let mut progress: CreateDeploymentProgressSender = sender;
+
+            let result = client
+                .create_deployment_inner(deployment_options, &mut progress)
+                .await;
+
+            progress.set_deployment(result).await;
+        });
+
+        receiver
+    }
+
+    async fn create_deployment_inner(
+        &self,
+        deployment_options: CreateDeploymentOptions,
+        progress: &mut CreateDeploymentProgressSender,
     ) -> Result<Deployment, CreateDeploymentError> {
         // Pull the latest image for Atlas Local
-        self.pull_image(
-            deployment_options
-                .image
-                .as_ref()
-                .unwrap_or(&ATLAS_LOCAL_IMAGE.to_string()),
-            deployment_options
-                .mongodb_version
-                .as_ref()
-                .map_or_else(|| "latest".to_string(), |version| version.to_string())
-                .as_ref(),
-        )
-        .await?;
+        let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
+        if will_pull_image {
+            self.pull_image(
+                deployment_options
+                    .image
+                    .as_ref()
+                    .unwrap_or(&ATLAS_LOCAL_IMAGE.to_string()),
+                deployment_options
+                    .mongodb_version
+                    .as_ref()
+                    .map_or_else(|| "latest".to_string(), |version| version.to_string())
+                    .as_ref(),
+            )
+            .await?;
+        }
+
+        progress
+            .set_pull_image_finished(if will_pull_image {
+                CreateDeploymentStepOutcome::Success
+            } else {
+                CreateDeploymentStepOutcome::Skipped
+            })
+            .await;
 
         // Create the container with the correct configuration
-        let create_container_options: CreateContainerOptions = deployment_options.into();
-        let create_container_config: ContainerCreateBody = deployment_options.into();
+        let create_container_options: CreateContainerOptions = (&deployment_options).into();
+        let create_container_config: ContainerCreateBody = (&deployment_options).into();
 
         // Get the cluster name
         // It is safe to unwrap because CreateContainerOptions::from will generate a random name if none is provided
@@ -77,14 +127,23 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
                 _ => CreateDeploymentError::CreateContainer(err),
             })?;
 
+        progress
+            .set_create_container_finished(CreateDeploymentStepOutcome::Success)
+            .await;
+
         // Start the Atlas Local container
         self.docker
             .start_container(&cluster_name.to_string(), None::<StartContainerOptions>)
             .await
             .map_err(CreateDeploymentError::CreateContainer)?;
 
+        progress
+            .set_start_container_finished(CreateDeploymentStepOutcome::Success)
+            .await;
+
         // Default to waiting for the deployment to be healthy
-        if deployment_options.wait_until_healthy.unwrap_or(true) {
+        let will_wait_for_healthy = deployment_options.wait_until_healthy.unwrap_or(true);
+        if will_wait_for_healthy {
             let watch_options = WatchOptions {
                 timeout_duration: deployment_options.wait_until_healthy_timeout,
                 allow_unhealthy_initial_state: false,
@@ -93,11 +152,192 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
                 .await?;
         }
 
+        progress
+            .set_wait_for_healthy_deployment_finished(if will_wait_for_healthy {
+                CreateDeploymentStepOutcome::Success
+            } else {
+                CreateDeploymentStepOutcome::Skipped
+            })
+            .await;
+
         // Return the deployment details
         self.get_deployment(&cluster_name)
             .await
             .map_err(CreateDeploymentError::GetDeploymentError)
     }
+}
+
+fn create_progress_pairs() -> (CreateDeploymentProgressSender, CreateDeploymentProgress) {
+    let (pull_image_finished, pull_image_finished_receiver) = oneshot::channel();
+    let (create_container_finished, create_container_finished_receiver) = oneshot::channel();
+    let (start_container_finished, start_container_finished_receiver) = oneshot::channel();
+    let (wait_for_healthy_deployment_finished, wait_for_healthy_deployment_finished_receiver) =
+        oneshot::channel();
+    let (deployment, deployment_receiver) = oneshot::channel();
+
+    (
+        CreateDeploymentProgressSender {
+            pull_image_finished: Some(pull_image_finished),
+            create_container_finished: Some(create_container_finished),
+            start_container_finished: Some(start_container_finished),
+            wait_for_healthy_deployment_finished: Some(wait_for_healthy_deployment_finished),
+            deployment,
+        },
+        CreateDeploymentProgress {
+            pull_image_finished: pull_image_finished_receiver.fuse(),
+            create_container_finished: create_container_finished_receiver.fuse(),
+            start_container_finished: start_container_finished_receiver.fuse(),
+            wait_for_healthy_deployment_finished: wait_for_healthy_deployment_finished_receiver
+                .fuse(),
+            deployment: deployment_receiver.fuse(),
+        },
+    )
+}
+
+pub struct CreateDeploymentProgress {
+    pub pull_image_finished: Fuse<Receiver<CreateDeploymentStepOutcome>>,
+    pub create_container_finished: Fuse<Receiver<CreateDeploymentStepOutcome>>,
+    pub start_container_finished: Fuse<Receiver<CreateDeploymentStepOutcome>>,
+    pub wait_for_healthy_deployment_finished: Fuse<Receiver<CreateDeploymentStepOutcome>>,
+    pub deployment: Fuse<Receiver<Result<Deployment, CreateDeploymentError>>>,
+}
+
+impl CreateDeploymentProgress {
+    // Low level function to wait for a result from a receiver
+    fn await_receiver<T>(
+        receiver: &mut Fuse<Receiver<T>>,
+    ) -> impl Future<Output = Result<T, RecvError>> {
+        Pin::new(receiver).into_future()
+    }
+
+    pub async fn wait_for_pull_image_outcome(
+        &mut self,
+    ) -> Result<CreateDeploymentStepOutcome, RecvError> {
+        Self::await_receiver(&mut self.pull_image_finished).await
+    }
+
+    pub async fn wait_for_create_container_outcome(
+        &mut self,
+    ) -> Result<CreateDeploymentStepOutcome, RecvError> {
+        Self::await_receiver(&mut self.create_container_finished).await
+    }
+
+    pub async fn wait_for_start_container_outcome(
+        &mut self,
+    ) -> Result<CreateDeploymentStepOutcome, RecvError> {
+        Self::await_receiver(&mut self.start_container_finished).await
+    }
+
+    pub async fn wait_for_wait_for_healthy_deployment_outcome(
+        &mut self,
+    ) -> Result<CreateDeploymentStepOutcome, RecvError> {
+        Self::await_receiver(&mut self.wait_for_healthy_deployment_finished).await
+    }
+
+    pub async fn wait_for_deployment_outcome(
+        &mut self,
+    ) -> Result<Deployment, CreateDeploymentError> {
+        // We use the Future implementation to wait for the deployment outcome
+        self.await
+    }
+}
+
+impl Future for CreateDeploymentProgress {
+    type Output = Result<Deployment, CreateDeploymentError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match Pin::new(&mut self.deployment).poll(cx) {
+            Poll::Ready(Ok(result)) => Poll::Ready(result),
+            Poll::Ready(Err(error)) => {
+                Poll::Ready(Err(CreateDeploymentError::ReceiveDeployment(error)))
+            }
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+struct CreateDeploymentProgressSender {
+    pull_image_finished: Option<Sender<CreateDeploymentStepOutcome>>,
+    create_container_finished: Option<Sender<CreateDeploymentStepOutcome>>,
+    start_container_finished: Option<Sender<CreateDeploymentStepOutcome>>,
+    wait_for_healthy_deployment_finished: Option<Sender<CreateDeploymentStepOutcome>>,
+    deployment: Sender<Result<Deployment, CreateDeploymentError>>,
+}
+
+impl CreateDeploymentProgressSender {
+    // Send the outcome to a sender if present
+    // Returns true if the outcome was sent, false if the sender was not present
+    async fn send_outcome(
+        sender: &mut Option<Sender<CreateDeploymentStepOutcome>>,
+        outcome: CreateDeploymentStepOutcome,
+    ) -> bool {
+        if let Some(sender) = sender.take() {
+            // An error occurs when there is not receiver, this is expected behavior that is safe to ignore
+            if sender.send(outcome).is_ok() {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    async fn set_pull_image_finished(&mut self, outcome: CreateDeploymentStepOutcome) {
+        Self::send_outcome(&mut self.pull_image_finished, outcome).await;
+    }
+
+    async fn set_create_container_finished(&mut self, outcome: CreateDeploymentStepOutcome) {
+        Self::send_outcome(&mut self.create_container_finished, outcome).await;
+    }
+
+    async fn set_start_container_finished(&mut self, outcome: CreateDeploymentStepOutcome) {
+        Self::send_outcome(&mut self.start_container_finished, outcome).await;
+    }
+
+    async fn set_wait_for_healthy_deployment_finished(
+        &mut self,
+        outcome: CreateDeploymentStepOutcome,
+    ) {
+        Self::send_outcome(&mut self.wait_for_healthy_deployment_finished, outcome).await;
+    }
+
+    /// Set the deployment, this is the last step and consumes the sender
+    async fn set_deployment(mut self, result: Result<Deployment, CreateDeploymentError>) {
+        // To ensure that all steps are marked as either success, failure, or skipped
+        // We loop through all steps and send skipped if no message was sent to the channel yet (we can only send one message to a channel, so it's safe to just send skipped to all channels)
+        // In case of an error, we mark the first step that has not been marked as success as failure, mark the rest as skipped
+        let mut outcome = if result.is_err() {
+            CreateDeploymentStepOutcome::Failure
+        } else {
+            CreateDeploymentStepOutcome::Skipped
+        };
+
+        // Helper function to send the outcome to a sender if present and mark the next steps as skipped if the outcome was sent
+        let send_failure_or_skipped =
+            async |outcome: &mut CreateDeploymentStepOutcome,
+                   sender: &mut Option<Sender<CreateDeploymentStepOutcome>>| {
+                if Self::send_outcome(sender, *outcome).await {
+                    // If the outcome was sent this means that the step was not successful
+                    // So the next steps should be marked as skipped
+                    *outcome = CreateDeploymentStepOutcome::Skipped;
+                }
+            };
+
+        // All steps in order of execution
+        send_failure_or_skipped(&mut outcome, &mut self.pull_image_finished).await;
+        send_failure_or_skipped(&mut outcome, &mut self.create_container_finished).await;
+        send_failure_or_skipped(&mut outcome, &mut self.start_container_finished).await;
+        send_failure_or_skipped(&mut outcome, &mut self.wait_for_healthy_deployment_finished).await;
+
+        // An error occurs when there is not receiver, this is expected behavior that is safe to ignore
+        _ = self.deployment.send(result);
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum CreateDeploymentStepOutcome {
+    Success,
+    Skipped,
+    Failure,
 }
 
 #[cfg(test)]
@@ -119,6 +359,10 @@ mod tests {
 
     mock! {
         Docker {}
+
+        impl Clone for Docker {
+            fn clone(&self) -> Self;
+        }
 
         impl DockerPullImage for Docker {
             async fn pull_image(&self, image: &str, tag: &str) -> Result<(), BollardError>;
@@ -335,7 +579,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_ok());
@@ -361,7 +605,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -399,7 +643,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -439,7 +683,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -487,7 +731,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -547,7 +791,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -618,7 +862,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_ok());
@@ -675,7 +919,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_ok());
@@ -733,7 +977,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -797,7 +1041,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -863,7 +1107,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -929,7 +1173,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
