@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bollard::Docker;
 
 mod create_deployment;
@@ -40,9 +42,8 @@ pub use watch_deployment::WatchDeploymentError;
 ///
 /// See the [module-level documentation](crate) for a complete example of creating
 /// a new client instance.
-#[derive(Clone)]
 pub struct Client<D = Docker> {
-    docker: D,
+    docker: Arc<D>,
 }
 
 impl<D> Client<D> {
@@ -60,6 +61,16 @@ impl<D> Client<D> {
     ///
     /// See the [module-level documentation](crate) for usage examples.    
     pub fn new(docker: D) -> Client<D> {
-        Client { docker }
+        Client {
+            docker: Arc::new(docker),
+        }
+    }
+}
+
+impl<D> Clone for Client<D> {
+    fn clone(&self) -> Self {
+        Client {
+            docker: self.docker.clone(),
+        }
     }
 }

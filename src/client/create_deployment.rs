@@ -48,7 +48,6 @@ impl<
         + DockerCreateContainer
         + DockerStartContainer
         + DockerInspectContainer
-        + Clone
         + Send
         + Sync
         + 'static,
@@ -359,10 +358,6 @@ mod tests {
 
     mock! {
         Docker {}
-
-        impl Clone for Docker {
-            fn clone(&self) -> Self;
-        }
 
         impl DockerPullImage for Docker {
             async fn pull_image(&self, image: &str, tag: &str) -> Result<(), BollardError>;
