@@ -1,6 +1,8 @@
 #![cfg(feature = "e2e-tests")]
 use atlas_local::{
-    Client, client::CreateDeploymentStepOutcome, models::{CreateDeploymentOptions, LogsOptions, MongoDBPortBinding, Tail, WatchOptions}
+    Client,
+    client::CreateDeploymentStepOutcome,
+    models::{CreateDeploymentOptions, LogsOptions, MongoDBPortBinding, Tail, WatchOptions},
 };
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
@@ -69,15 +71,40 @@ async fn test_e2e_smoke_test() {
         mongodb_initdb_root_password: Some(password.to_string()),
         ..Default::default()
     };
-    
-    let mut create_deployment_progress = client
-        .create_deployment(deployment1);
 
-    assert_eq!(CreateDeploymentStepOutcome::Success, create_deployment_progress.wait_for_pull_image_outcome().await.expect("pull image should resolve"));
-    assert_eq!(CreateDeploymentStepOutcome::Success, create_deployment_progress.wait_for_create_container_outcome().await.expect("create container should resolve"));
-    assert_eq!(CreateDeploymentStepOutcome::Success, create_deployment_progress.wait_for_start_container_outcome().await.expect("start container should resolve"));
-    assert_eq!(CreateDeploymentStepOutcome::Success, create_deployment_progress.wait_for_wait_for_healthy_deployment_outcome().await.expect("wait for healthy deployment should resolve"));
-    create_deployment_progress.await.expect("create deployment should succeed");
+    let mut create_deployment_progress = client.create_deployment(deployment1);
+
+    assert_eq!(
+        CreateDeploymentStepOutcome::Success,
+        create_deployment_progress
+            .wait_for_pull_image_outcome()
+            .await
+            .expect("pull image should resolve")
+    );
+    assert_eq!(
+        CreateDeploymentStepOutcome::Success,
+        create_deployment_progress
+            .wait_for_create_container_outcome()
+            .await
+            .expect("create container should resolve")
+    );
+    assert_eq!(
+        CreateDeploymentStepOutcome::Success,
+        create_deployment_progress
+            .wait_for_start_container_outcome()
+            .await
+            .expect("start container should resolve")
+    );
+    assert_eq!(
+        CreateDeploymentStepOutcome::Success,
+        create_deployment_progress
+            .wait_for_wait_for_healthy_deployment_outcome()
+            .await
+            .expect("wait for healthy deployment should resolve")
+    );
+    create_deployment_progress
+        .await
+        .expect("create deployment should succeed");
 
     // Count deployments and verify a deployment was created
     let deployments = client
