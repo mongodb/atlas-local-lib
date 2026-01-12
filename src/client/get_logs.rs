@@ -8,7 +8,7 @@ use futures_util::{StreamExt, pin_mut};
 #[derive(Debug, thiserror::Error)]
 pub enum GetLogsError {
     #[error("Failed to get container logs: {0}")]
-    ContainerLogs(#[from] bollard::errors::Error),
+    ContainerLogs(String),
 }
 
 impl<D: DockerLogContainer> Client<D> {
@@ -58,7 +58,6 @@ impl<D: DockerLogContainer> Client<D> {
 mod tests {
     use super::*;
     use crate::models::LogsOptions;
-    use bollard::errors::Error as BollardError;
     use futures_util::{Stream, stream};
     use mockall::mock;
 
@@ -70,7 +69,7 @@ mod tests {
                 &'a self,
                 container_id: &str,
                 options: Option<bollard::query_parameters::LogsOptions>,
-            ) -> impl Stream<Item = Result<bollard::container::LogOutput, bollard::errors::Error>>;
+            ) -> impl Stream<Item = Result<bollard::container::LogOutput, String>>;
         }
     }
 
@@ -122,14 +121,7 @@ mod tests {
                 container_id == "nonexistent-container" && options.is_none()
             })
             .times(1)
-            .returning(|_, _| {
-                Box::pin(stream::iter(vec![Err(
-                    BollardError::DockerResponseServerError {
-                        status_code: 404,
-                        message: "No such container".to_string(),
-                    },
-                )]))
-            });
+            .returning(|_, _| Box::pin(stream::iter(vec![Err("No such container".to_string())])));
 
         let client = Client::new(mock_docker);
 

@@ -12,14 +12,14 @@ use bollard::{
         ContainerCreateBody, ContainerCreateResponse, ContainerInspectResponse, ContainerSummary,
     },
 };
-use futures_util::{Stream, StreamExt};
+use futures_util::{Stream, StreamExt, TryStreamExt};
 
 pub trait DockerInspectContainer {
     fn inspect_container(
         &self,
         container_id: &str,
         options: Option<InspectContainerOptions>,
-    ) -> impl Future<Output = Result<ContainerInspectResponse, Error>>;
+    ) -> impl Future<Output = Result<ContainerInspectResponse, Error>> + Send;
 }
 
 impl DockerInspectContainer for Docker {
@@ -36,7 +36,7 @@ pub trait DockerListContainers {
     fn list_containers(
         &self,
         options: Option<ListContainersOptions>,
-    ) -> impl Future<Output = Result<Vec<ContainerSummary>, Error>>;
+    ) -> impl Future<Output = Result<Vec<ContainerSummary>, Error>> + Send;
 }
 
 impl DockerListContainers for Docker {
@@ -49,7 +49,7 @@ impl DockerListContainers for Docker {
 }
 
 pub trait DockerPullImage {
-    fn pull_image(&self, image: &str, tag: &str) -> impl Future<Output = Result<(), Error>>;
+    fn pull_image(&self, image: &str, tag: &str) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 impl DockerPullImage for Docker {
@@ -77,7 +77,7 @@ pub trait DockerStopContainer {
         &self,
         container_id: &str,
         options: Option<StopContainerOptions>,
-    ) -> impl Future<Output = Result<(), Error>>;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 impl DockerStopContainer for Docker {
@@ -95,7 +95,7 @@ pub trait DockerRemoveContainer {
         &self,
         container_id: &str,
         options: Option<RemoveContainerOptions>,
-    ) -> impl Future<Output = Result<(), Error>>;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 impl DockerRemoveContainer for Docker {
@@ -113,7 +113,7 @@ pub trait DockerCreateContainer {
         &self,
         options: Option<CreateContainerOptions>,
         config: ContainerCreateBody,
-    ) -> impl Future<Output = Result<ContainerCreateResponse, Error>>;
+    ) -> impl Future<Output = Result<ContainerCreateResponse, Error>> + Send;
 }
 
 impl DockerCreateContainer for Docker {
@@ -131,7 +131,7 @@ pub trait DockerStartContainer {
         &self,
         container_id: &str,
         options: Option<StartContainerOptions>,
-    ) -> impl Future<Output = Result<(), Error>>;
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 impl DockerStartContainer for Docker {
@@ -145,7 +145,8 @@ impl DockerStartContainer for Docker {
 }
 
 pub trait DockerPauseContainer {
-    fn pause_container(&self, container_id: &str) -> impl Future<Output = Result<(), Error>>;
+    fn pause_container(&self, container_id: &str)
+    -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 impl DockerPauseContainer for Docker {
@@ -155,7 +156,10 @@ impl DockerPauseContainer for Docker {
 }
 
 pub trait DockerUnpauseContainer {
-    fn unpause_container(&self, container_id: &str) -> impl Future<Output = Result<(), Error>>;
+    fn unpause_container(
+        &self,
+        container_id: &str,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 impl DockerUnpauseContainer for Docker {
@@ -169,7 +173,7 @@ pub trait RunCommandInContainer {
         &self,
         container_id: &str,
         command: Vec<String>,
-    ) -> impl Future<Output = Result<CommandOutput, RunCommandInContainerError>>;
+    ) -> impl Future<Output = Result<CommandOutput, RunCommandInContainerError>> + Send;
 }
 
 pub struct CommandOutput {
@@ -253,7 +257,7 @@ pub trait DockerLogContainer {
         &'a self,
         container_id: &'a str,
         options: Option<LogsOptions>,
-    ) -> impl Stream<Item = Result<LogOutput, Error>> + 'a;
+    ) -> impl Stream<Item = Result<LogOutput, String>> + 'a;
 }
 
 impl DockerLogContainer for Docker {
@@ -261,7 +265,7 @@ impl DockerLogContainer for Docker {
         &'a self,
         container_id: &'a str,
         options: Option<LogsOptions>,
-    ) -> impl Stream<Item = Result<LogOutput, Error>> + 'a {
-        self.logs(container_id, options)
+    ) -> impl Stream<Item = Result<LogOutput, String>> + 'a {
+        self.logs(container_id, options).map_err(|e| e.to_string())
     }
 }

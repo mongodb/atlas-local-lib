@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::new(docker);
 
     // Create a deployment
-    client.create_deployment(&CreateDeploymentOptions::default()).await?;
+    client.create_deployment(CreateDeploymentOptions::default()).await?;
 
     // List the running deployments
     let deployments = client.list_deployments().await.unwrap();

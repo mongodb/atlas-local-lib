@@ -3,6 +3,7 @@ use bollard::{
     query_parameters::{CreateContainerOptions, StartContainerOptions},
     secret::ContainerCreateBody,
 };
+use tokio::sync::oneshot;
 
 use crate::{
     GetDeploymentError,
@@ -14,6 +15,11 @@ use crate::{
 };
 
 use super::{PullImageError, WatchDeploymentError};
+
+mod progress;
+
+pub use progress::{CreateDeploymentProgress, CreateDeploymentStepOutcome};
+use progress::{CreateDeploymentProgressSender, create_progress_pairs};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateDeploymentError {
@@ -31,33 +37,81 @@ pub enum CreateDeploymentError {
     GetDeploymentError(GetDeploymentError),
     #[error("Error when waiting for deployment to become healthy: {0}")]
     WatchDeployment(#[from] WatchDeploymentError),
+    #[error("Error when receiving deployment: {0}")]
+    ReceiveDeployment(#[from] oneshot::error::RecvError),
 }
 
-impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerInspectContainer>
-    Client<D>
+impl<
+    D: DockerPullImage
+        + DockerCreateContainer
+        + DockerStartContainer
+        + DockerInspectContainer
+        + Send
+        + Sync
+        + 'static,
+> Client<D>
 {
     /// Creates a local Atlas deployment.
-    pub async fn create_deployment(
+    pub fn create_deployment(
         &self,
-        deployment_options: &CreateDeploymentOptions,
+        deployment_options: CreateDeploymentOptions,
+    ) -> CreateDeploymentProgress {
+        let (sender, receiver) = create_progress_pairs();
+        let client = self.clone();
+
+        // Spawn the deployment creation in a background task.
+        // Errors from `create_deployment_inner` are forwarded to the receiver via the progress channel.
+        // This code cannot panic: the crate denies unwrap/expect/panic usage (see lib.rs),
+        // and any errors from `create_deployment_inner` are captured in the `Result` and sent
+        // to the receiver through `progress.finalize_deployment()`.
+        tokio::spawn(async move {
+            let mut progress: CreateDeploymentProgressSender = sender;
+
+            let result = client
+                .create_deployment_inner(deployment_options, &mut progress)
+                .await;
+
+            // Forward the result (success or error) to the receiver via the channel.
+            // The caller can await the returned `CreateDeploymentProgress` to receive this result.
+            progress.finalize_deployment(result).await;
+        });
+
+        receiver
+    }
+
+    async fn create_deployment_inner(
+        &self,
+        deployment_options: CreateDeploymentOptions,
+        progress: &mut CreateDeploymentProgressSender,
     ) -> Result<Deployment, CreateDeploymentError> {
         // Pull the latest image for Atlas Local
-        self.pull_image(
-            deployment_options
-                .image
-                .as_ref()
-                .unwrap_or(&ATLAS_LOCAL_IMAGE.to_string()),
-            deployment_options
-                .mongodb_version
-                .as_ref()
-                .map_or_else(|| "latest".to_string(), |version| version.to_string())
-                .as_ref(),
-        )
-        .await?;
+        let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
+        if will_pull_image {
+            self.pull_image(
+                deployment_options
+                    .image
+                    .as_ref()
+                    .unwrap_or(&ATLAS_LOCAL_IMAGE.to_string()),
+                deployment_options
+                    .mongodb_version
+                    .as_ref()
+                    .map_or_else(|| "latest".to_string(), |version| version.to_string())
+                    .as_ref(),
+            )
+            .await?;
+        }
+
+        progress
+            .set_pull_image_finished(if will_pull_image {
+                CreateDeploymentStepOutcome::Success
+            } else {
+                CreateDeploymentStepOutcome::Skipped
+            })
+            .await;
 
         // Create the container with the correct configuration
-        let create_container_options: CreateContainerOptions = deployment_options.into();
-        let create_container_config: ContainerCreateBody = deployment_options.into();
+        let create_container_options: CreateContainerOptions = (&deployment_options).into();
+        let create_container_config: ContainerCreateBody = (&deployment_options).into();
 
         // Get the cluster name
         // It is safe to unwrap because CreateContainerOptions::from will generate a random name if none is provided
@@ -77,14 +131,23 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
                 _ => CreateDeploymentError::CreateContainer(err),
             })?;
 
+        progress
+            .set_create_container_finished(CreateDeploymentStepOutcome::Success)
+            .await;
+
         // Start the Atlas Local container
         self.docker
             .start_container(&cluster_name.to_string(), None::<StartContainerOptions>)
             .await
             .map_err(CreateDeploymentError::CreateContainer)?;
 
+        progress
+            .set_start_container_finished(CreateDeploymentStepOutcome::Success)
+            .await;
+
         // Default to waiting for the deployment to be healthy
-        if deployment_options.wait_until_healthy.unwrap_or(true) {
+        let will_wait_for_healthy = deployment_options.wait_until_healthy.unwrap_or(true);
+        if will_wait_for_healthy {
             let watch_options = WatchOptions {
                 timeout_duration: deployment_options.wait_until_healthy_timeout,
                 allow_unhealthy_initial_state: false,
@@ -92,6 +155,14 @@ impl<D: DockerPullImage + DockerCreateContainer + DockerStartContainer + DockerI
             self.wait_for_healthy_deployment(&cluster_name, watch_options)
                 .await?;
         }
+
+        progress
+            .set_wait_for_healthy_deployment_finished(if will_wait_for_healthy {
+                CreateDeploymentStepOutcome::Success
+            } else {
+                CreateDeploymentStepOutcome::Skipped
+            })
+            .await;
 
         // Return the deployment details
         self.get_deployment(&cluster_name)
@@ -335,7 +406,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_ok());
@@ -361,7 +432,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -399,7 +470,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -439,7 +510,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -487,7 +558,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -547,7 +618,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -618,7 +689,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_ok());
@@ -675,7 +746,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_ok());
@@ -733,7 +804,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -797,7 +868,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -863,7 +934,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());
@@ -929,7 +1000,7 @@ mod tests {
         let client = Client::new(mock_docker);
 
         // Act
-        let result = client.create_deployment(&options).await;
+        let result = client.create_deployment(options).await;
 
         // Assert
         assert!(result.is_err());

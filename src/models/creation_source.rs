@@ -5,6 +5,7 @@ pub enum CreationSource {
     AtlasCLI,
     Container,
     MCPServer,
+    AtlasLocal,
     Unknown(String),
 }
 
@@ -14,6 +15,7 @@ impl From<&str> for CreationSource {
             "ATLASCLI" => CreationSource::AtlasCLI,
             "CONTAINER" => CreationSource::Container,
             "MCPSERVER" => CreationSource::MCPServer,
+            "ATLAS_LOCAL" => CreationSource::AtlasLocal,
             unknown => CreationSource::Unknown(unknown.to_string()),
         }
     }
@@ -25,6 +27,7 @@ impl Display for CreationSource {
             CreationSource::AtlasCLI => write!(f, "ATLASCLI"),
             CreationSource::Container => write!(f, "CONTAINER"),
             CreationSource::MCPServer => write!(f, "MCPSERVER"),
+            CreationSource::AtlasLocal => write!(f, "ATLAS_LOCAL"),
             CreationSource::Unknown(s) => write!(f, "{}", s),
         }
     }
@@ -77,6 +80,12 @@ mod tests {
     }
 
     #[test]
+    fn test_creation_source_from_atlas_local() {
+        let source = CreationSource::from("ATLAS_LOCAL");
+        assert_eq!(source, CreationSource::AtlasLocal);
+    }
+
+    #[test]
     fn test_creation_source_from_unknown() {
         let source = CreationSource::from("some_unknown_source");
         assert_eq!(
@@ -101,6 +110,12 @@ mod tests {
     fn test_creation_source_to_string_mcp_server() {
         let source = CreationSource::MCPServer;
         assert_eq!(source.to_string(), "MCPSERVER");
+    }
+
+    #[test]
+    fn test_creation_source_to_string_atlas_local() {
+        let source = CreationSource::AtlasLocal;
+        assert_eq!(source.to_string(), "ATLAS_LOCAL");
     }
 
     #[test]

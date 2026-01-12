@@ -4,7 +4,6 @@ use bollard::{
 };
 use maplit::hashmap;
 use rand::Rng;
-use semver::Version;
 use std::{time::Duration, vec};
 
 use crate::models::{
@@ -13,11 +12,10 @@ use crate::models::{
     ENV_VAR_MONGODB_INITDB_ROOT_USERNAME, ENV_VAR_MONGODB_INITDB_ROOT_USERNAME_FILE,
     ENV_VAR_MONGODB_LOAD_SAMPLE_DATA, ENV_VAR_MONGOT_LOG_FILE, ENV_VAR_RUNNER_LOG_FILE,
     ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL, LOCAL_DEPLOYMENT_LABEL_KEY,
-    LOCAL_DEPLOYMENT_LABEL_VALUE,
+    LOCAL_DEPLOYMENT_LABEL_VALUE, MongoDBVersion,
 };
 use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
 pub const ATLAS_LOCAL_IMAGE: &str = "quay.io/mongodb/mongodb-atlas-local";
-pub const ATLAS_LOCAL_VERSION_TAG: Version = Version::new(8, 0, 0);
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -27,7 +25,8 @@ pub struct CreateDeploymentOptions {
 
     // Image details
     pub image: Option<String>,
-    pub mongodb_version: Option<Version>,
+    pub skip_pull_image: Option<bool>,
+    pub mongodb_version: Option<MongoDBVersion>,
 
     // Creation Options
     pub wait_until_healthy: Option<bool>,
@@ -211,7 +210,8 @@ mod tests {
         let create_deployment_options = CreateDeploymentOptions {
             name: Some("deployment_name".to_string()),
             image: Some(ATLAS_LOCAL_IMAGE.to_string()),
-            mongodb_version: Some(ATLAS_LOCAL_VERSION_TAG),
+            skip_pull_image: Some(false),
+            mongodb_version: Some(MongoDBVersion::Latest),
             wait_until_healthy: Some(true),
             wait_until_healthy_timeout: Some(Duration::from_secs(60)),
             creation_source: Some(CreationSource::Container),
@@ -236,7 +236,7 @@ mod tests {
         // Assert all fields are set correctly
         assert_eq!(
             container_create_body.image,
-            Some("quay.io/mongodb/mongodb-atlas-local:8.0.0".to_string())
+            Some("quay.io/mongodb/mongodb-atlas-local:latest".to_string())
         );
         assert_eq!(
             container_create_body

@@ -9,7 +9,7 @@ async fn main() -> Result<()> {
 
     let deployment_options = CreateDeploymentOptions::default();
     let deployment = client
-        .create_deployment(&deployment_options)
+        .create_deployment(deployment_options)
         .await
         .context("creating deployment")?;
 

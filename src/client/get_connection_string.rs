@@ -48,7 +48,7 @@ impl<D: DockerInspectContainer + RunCommandInContainer> crate::client::Client<D>
 
         // Try to get the MongoDB root username
         let mongodb_root_username = get_mongodb_secret(
-            &self.docker,
+            self.docker.as_ref(),
             &deployment,
             |d| d.mongodb_initdb_root_username.as_deref(),
             |d| d.mongodb_initdb_root_username_file.as_deref(),
@@ -58,7 +58,7 @@ impl<D: DockerInspectContainer + RunCommandInContainer> crate::client::Client<D>
 
         // Try to get the MongoDB root password
         let mongodb_root_password = get_mongodb_secret(
-            &self.docker,
+            self.docker.as_ref(),
             &deployment,
             |d| d.mongodb_initdb_root_password.as_deref(),
             |d| d.mongodb_initdb_root_password_file.as_deref(),

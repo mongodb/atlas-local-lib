@@ -15,7 +15,7 @@ async fn main() -> Result<()> {
         ..Default::default()
     };
     let deployment = client
-        .create_deployment(&deployment1)
+        .create_deployment(deployment1)
         .await
         .context("creating deployment local 1234")?;
 
@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     );
 
     let deployment2 = client
-        .create_deployment(&CreateDeploymentOptions::default())
+        .create_deployment(CreateDeploymentOptions::default())
         .await
         .context("creating default deployment")?;
 
