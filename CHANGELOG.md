@@ -1,3 +1,8 @@
+## [0.4.0] - 2026-01-12
+
+### 🚀 Features
+
+- Make it possible to follow createDeployment progress ([#63](https://github.com/mongodb/atlas-local-lib/pull/63))
 ## [0.3.0] - 2026-01-05
 
 ### 🚀 Features
