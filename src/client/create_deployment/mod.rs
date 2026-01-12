@@ -59,6 +59,11 @@ impl<
         let (sender, receiver) = create_progress_pairs();
         let client = self.clone();
 
+        // Spawn the deployment creation in a background task.
+        // Errors from `create_deployment_inner` are forwarded to the receiver via the progress channel.
+        // This code cannot panic: the crate denies unwrap/expect/panic usage (see lib.rs),
+        // and any errors from `create_deployment_inner` are captured in the `Result` and sent
+        // to the receiver through `progress.finalize_deployment()`.
         tokio::spawn(async move {
             let mut progress: CreateDeploymentProgressSender = sender;
 
@@ -66,6 +71,8 @@ impl<
                 .create_deployment_inner(deployment_options, &mut progress)
                 .await;
 
+            // Forward the result (success or error) to the receiver via the channel.
+            // The caller can await the returned `CreateDeploymentProgress` to receive this result.
             progress.finalize_deployment(result).await;
         });
 
