@@ -3,7 +3,7 @@ use bollard::{
     secret::{ContainerCreateBody, HostConfig, PortBinding},
 };
 use maplit::hashmap;
-use rand::Rng;
+use rand::RngExt;
 use std::{time::Duration, vec};
 
 use crate::models::{
