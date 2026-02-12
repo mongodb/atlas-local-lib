@@ -11,7 +11,10 @@ use crate::{
     docker::{
         DockerCreateContainer, DockerInspectContainer, DockerPullImage, DockerStartContainer,
     },
-    models::{ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, WatchOptions},
+    models::{
+        ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, WatchOptions,
+        mongodb_image_tag_from,
+    },
 };
 
 use super::{PullImageError, WatchDeploymentError};
@@ -84,19 +87,20 @@ impl<
         deployment_options: CreateDeploymentOptions,
         progress: &mut CreateDeploymentProgressSender,
     ) -> Result<Deployment, CreateDeploymentError> {
-        // Pull the latest image for Atlas Local
+        // Pull the image for Atlas Local if requested
         let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
         if will_pull_image {
+            let tag = mongodb_image_tag_from(
+                deployment_options.use_preview_tag,
+                deployment_options.mongodb_version.as_ref(),
+            );
+
             self.pull_image(
                 deployment_options
                     .image
                     .as_ref()
                     .unwrap_or(&ATLAS_LOCAL_IMAGE.to_string()),
-                deployment_options
-                    .mongodb_version
-                    .as_ref()
-                    .map_or_else(|| "latest".to_string(), |version| version.to_string())
-                    .as_ref(),
+                tag.as_str(),
             )
             .await?;
         }
@@ -175,6 +179,7 @@ impl<
 mod tests {
     use super::*;
     use crate::client::WatchDeploymentError;
+    use crate::models::ATLAS_LOCAL_PREVIEW_TAG;
     use bollard::{
         errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
@@ -371,6 +376,63 @@ mod tests {
             .with(
                 mockall::predicate::eq(ATLAS_LOCAL_IMAGE),
                 mockall::predicate::eq("latest"),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_create_container()
+            .times(1)
+            .returning(|_, _| {
+                Ok(ContainerCreateResponse {
+                    id: "container_id".to_string(),
+                    warnings: vec![],
+                })
+            });
+
+        mock_docker
+            .expect_start_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<StartContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_inspect_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<InspectContainerOptions>),
+            )
+            .times(2)
+            .returning(|_, _| Ok(create_test_container_inspect_response()));
+
+        let client = Client::new(mock_docker);
+
+        // Act
+        let result = client.create_deployment(options).await;
+
+        // Assert
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_deployment_pulls_preview_tag_when_use_preview_tag_true() {
+        // Arrange
+        let mut mock_docker = MockDocker::new();
+        let options = CreateDeploymentOptions {
+            name: Some("test-deployment".to_string()),
+            use_preview_tag: Some(true),
+            ..Default::default()
+        };
+
+        // Set up expectations - pull_image should be called with preview tag
+        mock_docker
+            .expect_pull_image()
+            .with(
+                mockall::predicate::eq(ATLAS_LOCAL_IMAGE),
+                mockall::predicate::eq(ATLAS_LOCAL_PREVIEW_TAG),
             )
             .times(1)
             .returning(|_, _| Ok(()));
