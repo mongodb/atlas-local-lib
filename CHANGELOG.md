@@ -1,3 +1,8 @@
+## [0.4.2] - 2026-02-12
+
+### 🚀 Features
+
+- Add use_preview_tag option to create deployment options ([#72](https://github.com/mongodb/atlas-local-lib/pull/72))
 ## [0.4.0] - 2026-01-12
 
 ### 🚀 Features
