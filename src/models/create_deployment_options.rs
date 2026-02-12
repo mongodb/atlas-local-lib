@@ -18,6 +18,24 @@ use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
 pub const ATLAS_LOCAL_IMAGE: &str = "quay.io/mongodb/mongodb-atlas-local";
 pub const ATLAS_LOCAL_PREVIEW_TAG: &str = "preview";
 
+/// Compute the MongoDB image tag from optional preview flag and optional version.
+///
+/// - When `is_preview` is `Some(true)`, returns the preview tag.
+/// - Otherwise, returns the stringified `mongodb_version` if present.
+/// - Falls back to `"latest"` when no version is provided.
+pub fn mongodb_image_tag_from(
+    is_preview: Option<bool>,
+    mongodb_version: Option<&MongoDBVersion>,
+) -> String {
+    if is_preview == Some(true) {
+        ATLAS_LOCAL_PREVIEW_TAG.to_string()
+    } else if let Some(version) = mongodb_version {
+        version.to_string()
+    } else {
+        "latest".to_string()
+    }
+}
+
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CreateDeploymentOptions {
@@ -173,16 +191,10 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             .clone()
             .unwrap_or(ATLAS_LOCAL_IMAGE.to_string());
 
-        let tag = deployment_options
-            .use_preview_tag
-            .and_then(|b| b.then(|| ATLAS_LOCAL_PREVIEW_TAG.to_string()))
-            .or_else(|| {
-                deployment_options
-                    .mongodb_version
-                    .as_ref()
-                    .map(|v| v.to_string())
-            })
-            .unwrap_or_else(|| "latest".to_string());
+        let tag = mongodb_image_tag_from(
+            deployment_options.use_preview_tag,
+            deployment_options.mongodb_version.as_ref(),
+        );
 
         let image = Some(format!("{image_string}:{tag}"));
 

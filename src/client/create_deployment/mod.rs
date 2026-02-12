@@ -12,8 +12,8 @@ use crate::{
         DockerCreateContainer, DockerInspectContainer, DockerPullImage, DockerStartContainer,
     },
     models::{
-        ATLAS_LOCAL_IMAGE, ATLAS_LOCAL_PREVIEW_TAG, CreateDeploymentOptions, Deployment,
-        WatchOptions,
+        ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, WatchOptions,
+        mongodb_image_tag_from,
     },
 };
 
@@ -87,20 +87,14 @@ impl<
         deployment_options: CreateDeploymentOptions,
         progress: &mut CreateDeploymentProgressSender,
     ) -> Result<Deployment, CreateDeploymentError> {
-        // Pull the latest image for Atlas Local
-        let tag = deployment_options
-            .use_preview_tag
-            .and_then(|b| b.then(|| ATLAS_LOCAL_PREVIEW_TAG.to_string()))
-            .or_else(|| {
-                deployment_options
-                    .mongodb_version
-                    .as_ref()
-                    .map(|v| v.to_string())
-            })
-            .unwrap_or_else(|| "latest".to_string());
-
+        // Pull the image for Atlas Local if requested
         let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
         if will_pull_image {
+            let tag = mongodb_image_tag_from(
+                deployment_options.use_preview_tag,
+                deployment_options.mongodb_version.as_ref(),
+            );
+
             self.pull_image(
                 deployment_options
                     .image
@@ -185,6 +179,7 @@ impl<
 mod tests {
     use super::*;
     use crate::client::WatchDeploymentError;
+    use crate::models::ATLAS_LOCAL_PREVIEW_TAG;
     use bollard::{
         errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
