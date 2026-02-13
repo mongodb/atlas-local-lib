@@ -1,3 +1,8 @@
+## [0.5.0] - 2026-02-13
+
+### 🚀 Features
+
+- Add voyage api key and move preview to mod_version enum ([#73](https://github.com/mongodb/atlas-local-lib/pull/73))
 ## [0.4.2] - 2026-02-12
 
 ### 🚀 Features
