@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MongoDBVersion {
     Latest,
+    Preview,
     Major(MongoDBVersionMajor),
     MajorMinor(MongoDBVersionMajorMinor),
     MajorMinorPatch(MongoDBVersionMajorMinorPatch),
@@ -46,6 +47,11 @@ impl TryFrom<&str> for MongoDBVersion {
             return Ok(MongoDBVersion::Latest);
         }
 
+        // Special case for preview version.
+        if s == "preview" {
+            return Ok(MongoDBVersion::Preview);
+        }
+
         // Split the version string by '.' and parse each part as a u8.
         // If that fails, return the PARSE_ERROR_MESSAGE.
         let parts = s
@@ -78,6 +84,7 @@ impl Display for MongoDBVersion {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             MongoDBVersion::Latest => write!(f, "latest"),
+            MongoDBVersion::Preview => write!(f, "preview"),
             MongoDBVersion::Major(major) => write!(f, "{}", major.major),
             MongoDBVersion::MajorMinor(major_minor) => {
                 write!(f, "{}.{}", major_minor.major, major_minor.minor)
@@ -100,6 +107,13 @@ mod tests {
         let version = MongoDBVersion::try_from("latest").unwrap();
         assert_eq!(version, MongoDBVersion::Latest);
         assert_eq!(version.to_string(), "latest");
+    }
+
+    #[test]
+    fn test_parse_preview() {
+        let version = MongoDBVersion::try_from("preview").unwrap();
+        assert_eq!(version, MongoDBVersion::Preview);
+        assert_eq!(version.to_string(), "preview");
     }
 
     #[test]
