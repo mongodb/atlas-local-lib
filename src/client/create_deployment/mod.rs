@@ -11,10 +11,7 @@ use crate::{
     docker::{
         DockerCreateContainer, DockerInspectContainer, DockerPullImage, DockerStartContainer,
     },
-    models::{
-        ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, WatchOptions,
-        mongodb_image_tag_from,
-    },
+    models::{ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, WatchOptions},
 };
 
 use super::{PullImageError, WatchDeploymentError};
@@ -90,10 +87,11 @@ impl<
         // Pull the image for Atlas Local if requested
         let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
         if will_pull_image {
-            let tag = mongodb_image_tag_from(
-                deployment_options.use_preview_tag,
-                deployment_options.mongodb_version.as_ref(),
-            );
+            let tag = deployment_options
+                .mongodb_version
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_else(|| "latest".to_string());
 
             self.pull_image(
                 deployment_options
@@ -179,7 +177,7 @@ impl<
 mod tests {
     use super::*;
     use crate::client::WatchDeploymentError;
-    use crate::models::ATLAS_LOCAL_PREVIEW_TAG;
+    use crate::models::{ATLAS_LOCAL_PREVIEW_TAG, MongoDBVersion};
     use bollard::{
         errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
@@ -418,12 +416,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_deployment_pulls_preview_tag_when_use_preview_tag_true() {
+    async fn test_create_deployment_pulls_preview_tag_when_mongodb_version_preview() {
         // Arrange
         let mut mock_docker = MockDocker::new();
         let options = CreateDeploymentOptions {
             name: Some("test-deployment".to_string()),
-            use_preview_tag: Some(true),
+            mongodb_version: Some(MongoDBVersion::Preview),
             ..Default::default()
         };
 

@@ -18,24 +18,6 @@ use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
 pub const ATLAS_LOCAL_IMAGE: &str = "quay.io/mongodb/mongodb-atlas-local";
 pub const ATLAS_LOCAL_PREVIEW_TAG: &str = "preview";
 
-/// Compute the MongoDB image tag from optional preview flag and optional version.
-///
-/// - When `is_preview` is `Some(true)`, returns the preview tag.
-/// - Otherwise, returns the stringified `mongodb_version` if present.
-/// - Falls back to `"latest"` when no version is provided.
-pub fn mongodb_image_tag_from(
-    is_preview: Option<bool>,
-    mongodb_version: Option<&MongoDBVersion>,
-) -> String {
-    if is_preview == Some(true) {
-        ATLAS_LOCAL_PREVIEW_TAG.to_string()
-    } else if let Some(version) = mongodb_version {
-        version.to_string()
-    } else {
-        "latest".to_string()
-    }
-}
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CreateDeploymentOptions {
@@ -46,7 +28,6 @@ pub struct CreateDeploymentOptions {
     pub image: Option<String>,
     pub skip_pull_image: Option<bool>,
     pub mongodb_version: Option<MongoDBVersion>,
-    pub use_preview_tag: Option<bool>,
 
     // Creation Options
     pub wait_until_healthy: Option<bool>,
@@ -196,10 +177,11 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             .clone()
             .unwrap_or(ATLAS_LOCAL_IMAGE.to_string());
 
-        let tag = mongodb_image_tag_from(
-            deployment_options.use_preview_tag,
-            deployment_options.mongodb_version.as_ref(),
-        );
+        let tag = deployment_options
+            .mongodb_version
+            .as_ref()
+            .map(ToString::to_string)
+            .unwrap_or_else(|| "latest".to_string());
 
         let image = Some(format!("{image_string}:{tag}"));
 
@@ -237,7 +219,6 @@ mod tests {
             image: Some(ATLAS_LOCAL_IMAGE.to_string()),
             skip_pull_image: Some(false),
             mongodb_version: Some(MongoDBVersion::Latest),
-            use_preview_tag: Some(false),
             wait_until_healthy: Some(true),
             wait_until_healthy_timeout: Some(Duration::from_secs(60)),
             creation_source: Some(CreationSource::Container),
@@ -421,31 +402,12 @@ mod tests {
         assert!(options.do_not_track.is_none());
         assert!(options.telemetry_base_url.is_none());
         assert!(options.mongodb_port_binding.is_none());
-        assert!(options.use_preview_tag.is_none());
     }
 
     #[test]
     fn test_into_container_create_body_preview_tag() {
         let create_deployment_options = CreateDeploymentOptions {
-            use_preview_tag: Some(true),
-            ..Default::default()
-        };
-
-        let container_create_body: ContainerCreateBody =
-            ContainerCreateBody::from(&create_deployment_options);
-
-        assert_eq!(
-            container_create_body.image,
-            Some(format!("{ATLAS_LOCAL_IMAGE}:{ATLAS_LOCAL_PREVIEW_TAG}"))
-        );
-    }
-
-    #[test]
-    fn test_into_container_create_body_preview_tag_takes_precedence_over_version() {
-        // When use_preview_tag is Some(true), preview tag is used even if mongodb_version is set
-        let create_deployment_options = CreateDeploymentOptions {
-            use_preview_tag: Some(true),
-            mongodb_version: Some(MongoDBVersion::Latest),
+            mongodb_version: Some(MongoDBVersion::Preview),
             ..Default::default()
         };
 
