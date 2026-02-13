@@ -11,7 +11,7 @@ use crate::models::{
     ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD, ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD_FILE,
     ENV_VAR_MONGODB_INITDB_ROOT_USERNAME, ENV_VAR_MONGODB_INITDB_ROOT_USERNAME_FILE,
     ENV_VAR_MONGODB_LOAD_SAMPLE_DATA, ENV_VAR_MONGOT_LOG_FILE, ENV_VAR_RUNNER_LOG_FILE,
-    ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL, LOCAL_DEPLOYMENT_LABEL_KEY,
+    ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL, ENV_VAR_VOYAGE_API_KEY, LOCAL_DEPLOYMENT_LABEL_KEY,
     LOCAL_DEPLOYMENT_LABEL_VALUE, MongoDBVersion,
 };
 use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
@@ -60,6 +60,7 @@ pub struct CreateDeploymentOptions {
     pub mongodb_initdb_root_password: Option<String>,
     pub mongodb_initdb_root_username_file: Option<String>,
     pub mongodb_initdb_root_username: Option<String>,
+    pub voyage_api_key: Option<String>,
     pub load_sample_data: Option<bool>,
 
     // Logging
@@ -152,6 +153,10 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
                     .as_ref(),
             ),
             (
+                ENV_VAR_VOYAGE_API_KEY,
+                deployment_options.voyage_api_key.as_ref(),
+            ),
+            (
                 ENV_VAR_MONGOT_LOG_FILE,
                 deployment_options.mongot_log_file.as_ref(),
             ),
@@ -242,6 +247,7 @@ mod tests {
             mongodb_initdb_root_password: Some("password123".to_string()),
             mongodb_initdb_root_username_file: Some("/run/secrets/username".to_string()),
             mongodb_initdb_root_username: Some("admin".to_string()),
+            voyage_api_key: Some("voyage-api-key".to_string()),
             load_sample_data: Some(true),
             mongot_log_file: Some("/tmp/mongot.log".to_string()),
             runner_log_file: Some("/tmp/runner.log".to_string()),
@@ -299,7 +305,8 @@ mod tests {
             "{}=https://telemetry.example.com",
             ENV_VAR_TELEMETRY_BASE_URL
         )));
-        assert_eq!(env_vars.len(), 11);
+        assert!(env_vars.contains(&format!("{}=voyage-api-key", ENV_VAR_VOYAGE_API_KEY)));
+        assert_eq!(env_vars.len(), 12);
 
         let host_config = container_create_body.host_config.unwrap();
         let port_bindings = host_config.port_bindings.unwrap();
@@ -407,6 +414,7 @@ mod tests {
         assert!(options.mongodb_initdb_root_password.is_none());
         assert!(options.mongodb_initdb_root_username_file.is_none());
         assert!(options.mongodb_initdb_root_username.is_none());
+        assert!(options.voyage_api_key.is_none());
         assert!(options.load_sample_data.is_none());
         assert!(options.mongot_log_file.is_none());
         assert!(options.runner_log_file.is_none());

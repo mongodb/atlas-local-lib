@@ -15,6 +15,7 @@ pub const ENV_VAR_MONGOT_LOG_FILE: &str = "MONGOT_LOG_FILE";
 pub const ENV_VAR_DO_NOT_TRACK: &str = "DO_NOT_TRACK";
 pub const ENV_VAR_TELEMETRY_BASE_URL: &str = "TELEMETRY_BASE_URL";
 pub const ENV_VAR_MONGODB_LOAD_SAMPLE_DATA: &str = "MONGODB_LOAD_SAMPLE_DATA";
+pub const ENV_VAR_VOYAGE_API_KEY: &str = "VOYAGE_API_KEY";
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -38,6 +39,8 @@ pub struct EnvironmentVariables {
     pub telemetry_base_url: Option<String>,
 
     pub mongodb_load_sample_data: Option<String>,
+
+    pub voyage_api_key: Option<String>,
 }
 
 impl From<&ContainerInspectResponse> for EnvironmentVariables {
@@ -77,6 +80,7 @@ impl From<&ContainerInspectResponse> for EnvironmentVariables {
         environment_variables.telemetry_base_url = get_value(&env, ENV_VAR_TELEMETRY_BASE_URL);
         environment_variables.mongodb_load_sample_data =
             get_value(&env, ENV_VAR_MONGODB_LOAD_SAMPLE_DATA);
+        environment_variables.voyage_api_key = get_value(&env, ENV_VAR_VOYAGE_API_KEY);
 
         environment_variables
     }
@@ -169,6 +173,7 @@ mod tests {
                 ENV_VAR_TELEMETRY_BASE_URL
             ),
             format!("{}=true", ENV_VAR_MONGODB_LOAD_SAMPLE_DATA),
+            format!("{}=voyage-api-key", ENV_VAR_VOYAGE_API_KEY),
         ];
 
         let container_response = ContainerInspectResponse {
@@ -214,6 +219,7 @@ mod tests {
             Some("https://telemetry.example.com".to_string())
         );
         assert_eq!(env_vars.mongodb_load_sample_data, Some("true".to_string()));
+        assert_eq!(env_vars.voyage_api_key, Some("voyage-api-key".to_string()));
     }
 
     #[test]

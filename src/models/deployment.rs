@@ -35,6 +35,7 @@ pub struct Deployment {
     pub mongodb_initdb_root_username_file: Option<String>,
     pub mongodb_initdb_root_username: Option<String>,
     pub mongodb_load_sample_data: Option<bool>,
+    pub voyage_api_key: Option<String>,
 
     // Logging
     pub mongot_log_file: Option<String>,
@@ -101,6 +102,7 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             mongot_log_file,
             do_not_track,
             telemetry_base_url,
+            voyage_api_key,
         } = container_environment_variables;
 
         Ok(Self {
@@ -127,6 +129,7 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             mongodb_initdb_root_username_file,
             mongodb_initdb_root_username,
             mongodb_load_sample_data: mongodb_load_sample_data.map(is_seeding_true),
+            voyage_api_key,
 
             // Logging
             mongot_log_file,
@@ -199,6 +202,7 @@ mod tests {
             "MONGOT_LOG_FILE=/tmp/mongot.log".to_string(),
             "TELEMETRY_BASE_URL=https://telemetry.example.com".to_string(),
             "MONGODB_LOAD_SAMPLE_DATA=true".to_string(),
+            "VOYAGE_API_KEY=voyage-api-key".to_string(),
         ];
 
         // Create a mount for local seed location
@@ -294,6 +298,10 @@ mod tests {
             Some("https://telemetry.example.com".to_string())
         );
         assert_eq!(deployment.mongodb_load_sample_data, Some(true));
+        assert_eq!(
+            deployment.voyage_api_key,
+            Some("voyage-api-key".to_string())
+        );
     }
 
     #[test]
