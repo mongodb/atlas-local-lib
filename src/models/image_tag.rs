@@ -13,7 +13,8 @@ pub enum ImageTag {
 }
 
 const PARSE_ERROR: &str = "Invalid image tag: expected 'preview', 'latest', semver (e.g. 8.2.4), or semver+datestamp (e.g. 8.2.4-20260217T084055Z)";
-const DATASTAMP_ERROR: &str = "Invalid datestamp: expected format YYYYMMDDTHHMMSSZ (e.g. 20260217T084055Z)";
+const DATASTAMP_ERROR: &str =
+    "Invalid datestamp: expected format YYYYMMDDTHHMMSSZ (e.g. 20260217T084055Z)";
 
 /// Validates the datestamp suffix for `SemverDatestamp`: `YYYYMMDDTHHMMSSZ` (8 digits, `T`, 6 digits, `Z`), matching Go `\d{8}T\d{6}Z`.
 fn is_valid_datestamp(s: &str) -> bool {
@@ -119,7 +120,7 @@ mod tests {
     #[test]
     fn semver_datestamp_invalid_datestamp_rejected() {
         // Wrong length
-        assert!(ImageTag::try_from("8.2.4-20260217T08405").is_err());   // too short
+        assert!(ImageTag::try_from("8.2.4-20260217T08405").is_err()); // too short
         assert!(ImageTag::try_from("8.2.4-20260217T0840550Z").is_err()); // too long
         // Missing T
         assert!(ImageTag::try_from("8.2.4-20260217084055Z").is_err());
