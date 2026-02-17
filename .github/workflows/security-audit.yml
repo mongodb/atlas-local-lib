@@ -40,7 +40,7 @@ jobs:
           ${{ runner.os }}-audit-cargo-
     
     - name: Install cargo-binstall
-      uses: cargo-bins/cargo-binstall@v1.17.4
+      uses: cargo-bins/cargo-binstall@v1.17.5
 
     - name: Install cargo-deny
       run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
