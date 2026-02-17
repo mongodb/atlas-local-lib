@@ -1,3 +1,8 @@
+## [0.6.0] - 2026-02-17
+
+### 🚀 Features
+
+- Add ImageTag enum and use it in CreateDeploymentOptions ([#76](https://github.com/mongodb/atlas-local-lib/pull/76))
 ## [0.5.0] - 2026-02-13
 
 ### 🚀 Features
