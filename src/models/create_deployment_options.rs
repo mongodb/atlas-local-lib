@@ -11,12 +11,11 @@ use crate::models::{
     ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD, ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD_FILE,
     ENV_VAR_MONGODB_INITDB_ROOT_USERNAME, ENV_VAR_MONGODB_INITDB_ROOT_USERNAME_FILE,
     ENV_VAR_MONGODB_LOAD_SAMPLE_DATA, ENV_VAR_MONGOT_LOG_FILE, ENV_VAR_RUNNER_LOG_FILE,
-    ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL, ENV_VAR_VOYAGE_API_KEY, LOCAL_DEPLOYMENT_LABEL_KEY,
-    LOCAL_DEPLOYMENT_LABEL_VALUE, MongoDBVersion,
+    ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL, ENV_VAR_VOYAGE_API_KEY, ImageTag,
+    LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
 };
 use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
 pub const ATLAS_LOCAL_IMAGE: &str = "quay.io/mongodb/mongodb-atlas-local";
-pub const ATLAS_LOCAL_PREVIEW_TAG: &str = "preview";
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -27,7 +26,7 @@ pub struct CreateDeploymentOptions {
     // Image details
     pub image: Option<String>,
     pub skip_pull_image: Option<bool>,
-    pub mongodb_version: Option<MongoDBVersion>,
+    pub image_tag: Option<ImageTag>,
 
     // Creation Options
     pub wait_until_healthy: Option<bool>,
@@ -178,7 +177,7 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             .unwrap_or(ATLAS_LOCAL_IMAGE.to_string());
 
         let tag = deployment_options
-            .mongodb_version
+            .image_tag
             .as_ref()
             .map(ToString::to_string)
             .unwrap_or_else(|| "latest".to_string());
@@ -218,7 +217,7 @@ mod tests {
             name: Some("deployment_name".to_string()),
             image: Some(ATLAS_LOCAL_IMAGE.to_string()),
             skip_pull_image: Some(false),
-            mongodb_version: Some(MongoDBVersion::Latest),
+            image_tag: Some(ImageTag::Latest),
             wait_until_healthy: Some(true),
             wait_until_healthy_timeout: Some(Duration::from_secs(60)),
             creation_source: Some(CreationSource::Container),
@@ -385,7 +384,7 @@ mod tests {
         // All fields should be None by default
         assert!(options.name.is_none());
         assert!(options.image.is_none());
-        assert!(options.mongodb_version.is_none());
+        assert!(options.image_tag.is_none());
         assert!(options.wait_until_healthy.is_none());
         assert!(options.wait_until_healthy_timeout.is_none());
         assert!(options.creation_source.is_none());
@@ -407,7 +406,7 @@ mod tests {
     #[test]
     fn test_into_container_create_body_preview_tag() {
         let create_deployment_options = CreateDeploymentOptions {
-            mongodb_version: Some(MongoDBVersion::Preview),
+            image_tag: Some(ImageTag::Preview),
             ..Default::default()
         };
 
@@ -416,7 +415,7 @@ mod tests {
 
         assert_eq!(
             container_create_body.image,
-            Some(format!("{ATLAS_LOCAL_IMAGE}:{ATLAS_LOCAL_PREVIEW_TAG}"))
+            Some(format!("{ATLAS_LOCAL_IMAGE}:preview"))
         );
     }
 }
