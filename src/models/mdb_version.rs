@@ -3,8 +3,6 @@ use std::fmt::{Display, Formatter};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MongoDBVersion {
-    Latest,
-    Preview,
     Major(MongoDBVersionMajor),
     MajorMinor(MongoDBVersionMajorMinor),
     MajorMinorPatch(MongoDBVersionMajorMinorPatch),
@@ -31,27 +29,17 @@ pub struct MongoDBVersionMajorMinorPatch {
     pub patch: u8,
 }
 
-const PARSE_ERROR_MESSAGE: &str = "Invalid MongoDB version format. Expected format: <major>[.<minor>[.<patch>]] or 'latest'. Some examples: 8, 8.2, 8.2.1, latest";
+const PARSE_ERROR_MESSAGE: &str = "Invalid MongoDB version format. Expected format: <major>[.<minor>[.<patch>]]. Some examples: 8, 8.2, 8.2.1";
 
 /// Parse a MongoDB version string into a MongoDBVersion enum.
 ///
-/// Expected format: <major>[.<minor>[.<patch>]] or 'latest'.
-/// Some examples: 8, 8.2, 8.2.1, latest    
+/// Expected format: <major>[.<minor>[.<patch>]].
+/// Some examples: 8, 8.2, 8.2.1
 ///
 impl TryFrom<&str> for MongoDBVersion {
     type Error = String;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        // Special case for latest version.
-        if s == "latest" {
-            return Ok(MongoDBVersion::Latest);
-        }
-
-        // Special case for preview version.
-        if s == "preview" {
-            return Ok(MongoDBVersion::Preview);
-        }
-
         // Split the version string by '.' and parse each part as a u8.
         // If that fails, return the PARSE_ERROR_MESSAGE.
         let parts = s
@@ -83,8 +71,6 @@ impl TryFrom<&str> for MongoDBVersion {
 impl Display for MongoDBVersion {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            MongoDBVersion::Latest => write!(f, "latest"),
-            MongoDBVersion::Preview => write!(f, "preview"),
             MongoDBVersion::Major(major) => write!(f, "{}", major.major),
             MongoDBVersion::MajorMinor(major_minor) => {
                 write!(f, "{}.{}", major_minor.major, major_minor.minor)
@@ -101,20 +87,6 @@ impl Display for MongoDBVersion {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_parse_latest() {
-        let version = MongoDBVersion::try_from("latest").unwrap();
-        assert_eq!(version, MongoDBVersion::Latest);
-        assert_eq!(version.to_string(), "latest");
-    }
-
-    #[test]
-    fn test_parse_preview() {
-        let version = MongoDBVersion::try_from("preview").unwrap();
-        assert_eq!(version, MongoDBVersion::Preview);
-        assert_eq!(version.to_string(), "preview");
-    }
 
     #[test]
     fn test_parse_major() {

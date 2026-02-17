@@ -88,7 +88,7 @@ impl<
         let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
         if will_pull_image {
             let tag = deployment_options
-                .mongodb_version
+                .image_tag
                 .as_ref()
                 .map(ToString::to_string)
                 .unwrap_or_else(|| "latest".to_string());
@@ -177,7 +177,7 @@ impl<
 mod tests {
     use super::*;
     use crate::client::WatchDeploymentError;
-    use crate::models::{ATLAS_LOCAL_PREVIEW_TAG, MongoDBVersion};
+    use crate::models::ImageTag;
     use bollard::{
         errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
@@ -416,12 +416,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_create_deployment_pulls_preview_tag_when_mongodb_version_preview() {
+    async fn test_create_deployment_pulls_preview_tag_when_image_tag_preview() {
         // Arrange
         let mut mock_docker = MockDocker::new();
         let options = CreateDeploymentOptions {
             name: Some("test-deployment".to_string()),
-            mongodb_version: Some(MongoDBVersion::Preview),
+            image_tag: Some(ImageTag::Preview),
             ..Default::default()
         };
 
@@ -430,7 +430,7 @@ mod tests {
             .expect_pull_image()
             .with(
                 mockall::predicate::eq(ATLAS_LOCAL_IMAGE),
-                mockall::predicate::eq(ATLAS_LOCAL_PREVIEW_TAG),
+                mockall::predicate::eq("preview"),
             )
             .times(1)
             .returning(|_, _| Ok(()));
