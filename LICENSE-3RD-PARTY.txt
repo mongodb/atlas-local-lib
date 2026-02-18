@@ -1292,15 +1292,15 @@ OVERVIEW OF LICENSES:
 -----------------------------------------------------------------------------
                         Apache License 2.0
         applies to: 
-        - futures-channel 0.3.31 (https://github.com/rust-lang/futures-rs)
-        - futures-core 0.3.31 (https://github.com/rust-lang/futures-rs)
-        - futures-executor 0.3.31 (https://github.com/rust-lang/futures-rs)
-        - futures-io 0.3.31 (https://github.com/rust-lang/futures-rs)
-        - futures-macro 0.3.31 (https://github.com/rust-lang/futures-rs)
-        - futures-sink 0.3.31 (https://github.com/rust-lang/futures-rs)
-        - futures-task 0.3.31 (https://github.com/rust-lang/futures-rs)
-        - futures-util 0.3.31 (https://github.com/rust-lang/futures-rs)
-        - futures 0.3.31 (https://github.com/rust-lang/futures-rs)
+        - futures-channel 0.3.32 (https://github.com/rust-lang/futures-rs)
+        - futures-core 0.3.32 (https://github.com/rust-lang/futures-rs)
+        - futures-executor 0.3.32 (https://github.com/rust-lang/futures-rs)
+        - futures-io 0.3.32 (https://github.com/rust-lang/futures-rs)
+        - futures-macro 0.3.32 (https://github.com/rust-lang/futures-rs)
+        - futures-sink 0.3.32 (https://github.com/rust-lang/futures-rs)
+        - futures-task 0.3.32 (https://github.com/rust-lang/futures-rs)
+        - futures-util 0.3.32 (https://github.com/rust-lang/futures-rs)
+        - futures 0.3.32 (https://github.com/rust-lang/futures-rs)
 -----------------------------------------------------------------------------
 
                               Apache License
