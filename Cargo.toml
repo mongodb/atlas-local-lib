@@ -45,7 +45,7 @@ tokio = { version = "1.49", features = ["time"] }
 typed-builder = "0.23.2"
 
 [dev-dependencies]
-anyhow = "1.0.101"
+anyhow = "1.0.102"
 mockall = "0.14.0"
 pretty_assertions = "1.4.1"
 serde_json = "1.0.149"
