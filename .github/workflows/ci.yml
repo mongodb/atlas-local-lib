@@ -140,7 +140,7 @@ jobs:
     - name: Upload coverage report
       env:
         COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-      uses: coverallsapp/github-action@v2.3.6
+      uses: coverallsapp/github-action@v2.3.7
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path-to-lcov: unit-tests.lcov
@@ -213,7 +213,7 @@ jobs:
         run: cargo llvm-cov --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests --lcov --output-path=e2e-tests.lcov
 
       - name: Upload coverage report
-        uses: coverallsapp/github-action@v2.3.6
+        uses: coverallsapp/github-action@v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path-to-lcov: e2e-tests.lcov
@@ -228,7 +228,7 @@ jobs:
       - name: Send coverage
         env:
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-        uses: coverallsapp/github-action@v2.3.6
+        uses: coverallsapp/github-action@v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           parallel-finished: true
