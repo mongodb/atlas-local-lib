@@ -3526,7 +3526,7 @@ limitations under the License.
 -----------------------------------------------------------------------------
                         Apache License 2.0
         applies to: 
-        - chrono 0.4.43 (https://github.com/chronotope/chrono)
+        - chrono 0.4.44 (https://github.com/chronotope/chrono)
 -----------------------------------------------------------------------------
 
 Rust-chrono is dual-licensed under The MIT License [1] and
