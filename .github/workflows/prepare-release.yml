@@ -1,0 +1,85 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      exact_version:
+        description: 'Exact version override (e.g., 1.0.0). Leave empty to use bump type.'
+        required: false
+        type: string
+
+run-name: "Prepare release: ${{ inputs.exact_version || inputs.bump }}"
+
+permissions:
+  contents: read
+
+jobs:
+  update-version:
+    name: Update Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set Apix Bot token
+        id: app-token
+        uses: mongodb/apix-action/token@6c3fde402c21942fa46cde003f190c2b23c59530
+        with:
+          app-id: ${{ secrets.APIXBOT_APP_ID }}
+          private-key: ${{ secrets.APIXBOT_APP_PEM }}
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-unknown-linux-gnu
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.17.6
+      - name: Install cargo-edit to update Cargo.toml version
+        run: cargo binstall --no-confirm --locked cargo-edit
+      - name: Install cargo tools for license verification
+        run: cargo binstall --no-confirm --locked cargo-about
+      - name: Update Cargo.toml version
+        id: set-version
+        env:
+          EXACT_VERSION: ${{ github.event.inputs.exact_version }}
+          BUMP: ${{ github.event.inputs.bump }}
+        run: |
+          if [ -n "$EXACT_VERSION" ]; then
+            cargo set-version "$EXACT_VERSION"
+          else
+            cargo set-version --bump "$BUMP"
+          fi
+          VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Update third-party licenses
+        run: cargo about generate about.hbs > LICENSE-3RD-PARTY.txt
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --tag ${{ steps.set-version.outputs.version }} --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+      - name: Commit version changes
+        env:
+          GIT_USER_NAME: ${{ steps.app-token.outputs.user-name }}
+          GIT_USER_EMAIL: ${{ steps.app-token.outputs.user-email }}
+          VERSION: ${{ steps.set-version.outputs.version }}
+        run: |
+          git config --global user.name "$GIT_USER_NAME"
+          git config --global user.email "$GIT_USER_EMAIL"
+          git add Cargo.toml Cargo.lock CHANGELOG.md LICENSE-3RD-PARTY.txt
+          git commit -m "chore(release): prepare for $VERSION"
+          git tag "v$VERSION"
+          git push
+          git push --tags
