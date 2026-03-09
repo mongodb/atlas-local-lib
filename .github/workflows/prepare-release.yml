@@ -3,20 +3,13 @@ name: Prepare Release
 on:
   workflow_dispatch:
     inputs:
-      bump:
-        description: 'Version bump type'
+      version:
+        description: 'Exact version (e.g., 1.0.0) or one of: major, minor, patch'
         required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-      exact_version:
-        description: 'Exact version override (e.g., 1.0.0). Leave empty to use bump type.'
-        required: false
+        default: 'patch'
         type: string
 
-run-name: "Prepare release: ${{ inputs.exact_version || inputs.bump }}"
+run-name: "Prepare release: ${{ inputs.version }}"
 
 permissions:
   contents: read
@@ -50,14 +43,16 @@ jobs:
       - name: Update Cargo.toml version
         id: set-version
         env:
-          EXACT_VERSION: ${{ github.event.inputs.exact_version }}
-          BUMP: ${{ github.event.inputs.bump }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          if [ -n "$EXACT_VERSION" ]; then
-            cargo set-version "$EXACT_VERSION"
-          else
-            cargo set-version --bump "$BUMP"
-          fi
+          case "$INPUT_VERSION" in
+            major|minor|patch)
+              cargo set-version --bump "$INPUT_VERSION"
+              ;;
+            *)
+              cargo set-version "$INPUT_VERSION"
+              ;;
+          esac
           VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Update third-party licenses
