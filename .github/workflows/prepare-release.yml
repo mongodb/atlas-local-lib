@@ -19,6 +19,16 @@ jobs:
     name: Update Version
     runs-on: ubuntu-latest
     steps:
+      - name: Validate version input
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          if [[ "$INPUT_VERSION" =~ ^(major|minor|patch)$ ]] || [[ "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Valid version input: $INPUT_VERSION"
+          else
+            echo "::error::Invalid version input '$INPUT_VERSION'. Must be 'major', 'minor', 'patch', or a semver version (e.g., 1.2.3)."
+            exit 1
+          fi
       - name: Set Apix Bot token
         id: app-token
         uses: mongodb/apix-action/token@6c3fde402c21942fa46cde003f190c2b23c59530
