@@ -448,7 +448,7 @@ OVERVIEW OF LICENSES:
 -----------------------------------------------------------------------------
                         Apache License 2.0
         applies to: 
-        - bollard 0.20.1 (https://github.com/fussybeaver/bollard)
+        - bollard 0.20.2 (https://github.com/fussybeaver/bollard)
         - hyper-named-pipe 0.1.0 (https://github.com/fussybeaver/hyper-named-pipe)
 -----------------------------------------------------------------------------
 
@@ -4241,7 +4241,7 @@ SOFTWARE.
                         MIT License
         applies to: 
         - tokio-util 0.7.16 (https://github.com/tokio-rs/tokio)
-        - tokio 1.49.0 (https://github.com/tokio-rs/tokio)
+        - tokio 1.50.0 (https://github.com/tokio-rs/tokio)
 -----------------------------------------------------------------------------
 
 MIT License
