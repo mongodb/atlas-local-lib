@@ -16,10 +16,17 @@ jobs:
       github.repository == 'mongodb/atlas-local-lib' &&
       github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
+      - name: Set Apix Bot token
+        id: app-token
+        uses: mongodb/apix-action/token@6c3fde402c21942fa46cde003f190c2b23c59530
+        with:
+          app-id: ${{ secrets.APIXBOT_APP_ID }}
+          private-key: ${{ secrets.APIXBOT_APP_PEM }}
+
       - name: Checkout PR
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
 
@@ -56,8 +63,8 @@ jobs:
           
           # Check if there are changes to commit
           if ! git diff --quiet LICENSE-3RD-PARTY.txt; then
-            git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git config --local user.name "github-actions[bot]"
+            git config --local user.email "${{ steps.app-token.outputs.user-email }}"
+            git config --local user.name "${{ steps.app-token.outputs.user-name }}"
             git add LICENSE-3RD-PARTY.txt
             git commit -m "chore(deps): update LICENSE-3RD-PARTY.txt"
             git push
@@ -71,11 +78,11 @@ jobs:
         run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
       
       - name: Enable auto-merge for Dependabot PR
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor' || contains(steps.metadata.outputs.dependency-names, 'security') || steps.metadata.outputs.package-ecosystem == 'github_actions'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
