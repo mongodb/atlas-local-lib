@@ -1,3 +1,14 @@
+## [0.6.1] - 2026-04-17
+
+### 🚀 Features
+
+- Reject image field when it includes a tag ([#99](https://github.com/mongodb/atlas-local-lib/pull/99))
+
+### ⚙️ Miscellaneous Tasks
+
+- Improve release workflow ([#83](https://github.com/mongodb/atlas-local-lib/pull/83))
+- Use apix-bot instead of github actions to update dependabot PRs ([#96](https://github.com/mongodb/atlas-local-lib/pull/96))
+- Update CODEOWNERS to apix-devtools ([#98](https://github.com/mongodb/atlas-local-lib/pull/98))
 ## [0.6.0] - 2026-02-17
 
 ### 🚀 Features
