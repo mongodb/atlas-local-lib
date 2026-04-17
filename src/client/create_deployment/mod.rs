@@ -88,10 +88,10 @@ impl<
         deployment_options: CreateDeploymentOptions,
         progress: &mut CreateDeploymentProgressSender,
     ) -> Result<Deployment, CreateDeploymentError> {
-        if let Some(image) = &deployment_options.image {
-            if image.contains(':') {
-                return Err(CreateDeploymentError::InvalidImage(image.clone()));
-            }
+        if let Some(image) = &deployment_options.image
+            && image.contains(':')
+        {
+            return Err(CreateDeploymentError::InvalidImage(image.clone()));
         }
 
         // Pull the image for Atlas Local if requested
