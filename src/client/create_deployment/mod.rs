@@ -39,6 +39,8 @@ pub enum CreateDeploymentError {
     WatchDeployment(#[from] WatchDeploymentError),
     #[error("Error when receiving deployment: {0}")]
     ReceiveDeployment(#[from] oneshot::error::RecvError),
+    #[error("Image must not include a tag. Use the `image_tag` field to specify a tag. Got: \"{0}\"")]
+    InvalidImage(String),
 }
 
 impl<
@@ -84,6 +86,12 @@ impl<
         deployment_options: CreateDeploymentOptions,
         progress: &mut CreateDeploymentProgressSender,
     ) -> Result<Deployment, CreateDeploymentError> {
+        if let Some(image) = &deployment_options.image {
+            if image.contains(':') {
+                return Err(CreateDeploymentError::InvalidImage(image.clone()));
+            }
+        }
+
         // Pull the image for Atlas Local if requested
         let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
         if will_pull_image {
@@ -1008,6 +1016,92 @@ mod tests {
             }
             _ => panic!("Expected WatchDeployment error"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_create_deployment_rejects_image_with_tag() {
+        let mock_docker = MockDocker::new();
+        let options = CreateDeploymentOptions {
+            image: Some("mongo:6.0".to_string()),
+            ..Default::default()
+        };
+
+        let client = Client::new(mock_docker);
+        let result = client.create_deployment(options).await;
+
+        assert!(matches!(
+            result.unwrap_err(),
+            CreateDeploymentError::InvalidImage(img) if img == "mongo:6.0"
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_create_deployment_rejects_image_with_latest_tag() {
+        let mock_docker = MockDocker::new();
+        let options = CreateDeploymentOptions {
+            image: Some("quay.io/mongodb/mongodb-atlas-local:latest".to_string()),
+            ..Default::default()
+        };
+
+        let client = Client::new(mock_docker);
+        let result = client.create_deployment(options).await;
+
+        assert!(matches!(
+            result.unwrap_err(),
+            CreateDeploymentError::InvalidImage(img) if img == "quay.io/mongodb/mongodb-atlas-local:latest"
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_create_deployment_accepts_image_without_tag() {
+        let mut mock_docker = MockDocker::new();
+        let options = CreateDeploymentOptions {
+            name: Some("test-deployment".to_string()),
+            image: Some("quay.io/mongodb/mongodb-atlas-local".to_string()),
+            ..Default::default()
+        };
+
+        mock_docker
+            .expect_pull_image()
+            .with(
+                mockall::predicate::eq("quay.io/mongodb/mongodb-atlas-local"),
+                mockall::predicate::eq("latest"),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_create_container()
+            .times(1)
+            .returning(|_, _| {
+                Ok(ContainerCreateResponse {
+                    id: "container_id".to_string(),
+                    warnings: vec![],
+                })
+            });
+
+        mock_docker
+            .expect_start_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<StartContainerOptions>),
+            )
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        mock_docker
+            .expect_inspect_container()
+            .with(
+                mockall::predicate::eq("test-deployment"),
+                mockall::predicate::eq(None::<InspectContainerOptions>),
+            )
+            .times(2)
+            .returning(|_, _| Ok(create_test_container_inspect_response()));
+
+        let client = Client::new(mock_docker);
+        let result = client.create_deployment(options).await;
+
+        assert!(result.is_ok());
     }
 
     #[tokio::test]
