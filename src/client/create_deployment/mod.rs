@@ -39,7 +39,9 @@ pub enum CreateDeploymentError {
     WatchDeployment(#[from] WatchDeploymentError),
     #[error("Error when receiving deployment: {0}")]
     ReceiveDeployment(#[from] oneshot::error::RecvError),
-    #[error("Image must not include a tag. Use the `image_tag` field to specify a tag. Got: \"{0}\"")]
+    #[error(
+        "Image must not include a tag. Use the `image_tag` field to specify a tag. Got: \"{0}\""
+    )]
     InvalidImage(String),
 }
 
