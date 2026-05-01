@@ -1,4 +1,4 @@
-use bollard::secret::ContainerInspectResponse;
+use bollard::models::ContainerInspectResponse;
 use semver::Version;
 
 use crate::models::{MongodbType, ParseMongodbTypeError};
@@ -81,7 +81,7 @@ impl TryFrom<&ContainerInspectResponse> for LocalDeploymentLabels {
 
 #[cfg(test)]
 mod tests {
-    use bollard::secret::ContainerConfig;
+    use bollard::models::ContainerConfig;
 
     use super::*;
 

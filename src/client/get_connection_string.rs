@@ -3,7 +3,7 @@ use crate::{
     docker::{DockerInspectContainer, RunCommandInContainer, RunCommandInContainerError},
     models::MongoDBPortBinding,
 };
-use bollard::secret::PortBinding;
+use bollard::models::PortBinding;
 
 use super::GetDeploymentError;
 
@@ -107,7 +107,7 @@ mod tests {
     use bollard::{
         errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
-        secret::{
+        models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
         },
     };
@@ -246,7 +246,7 @@ mod tests {
                 status: Some(ContainerStateStatusEnum::RUNNING),
                 ..Default::default()
             }),
-            network_settings: Some(bollard::secret::NetworkSettings {
+            network_settings: Some(bollard::models::NetworkSettings {
                 ports: Some(hashmap! {}), // No port mappings
                 ..Default::default()
             }),

@@ -1,5 +1,5 @@
 use bollard::query_parameters::InspectContainerOptions;
-use bollard::secret::HealthStatusEnum;
+use bollard::models::HealthStatusEnum;
 use tokio::time;
 
 use crate::{client::Client, docker::DockerInspectContainer, models::WatchOptions};
@@ -114,7 +114,7 @@ mod tests {
     use super::*;
     use bollard::{
         errors::Error as BollardError,
-        secret::{
+        models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
             HealthStatusEnum,
         },
@@ -150,7 +150,7 @@ mod tests {
             }),
             state: Some(ContainerState {
                 status: Some(ContainerStateStatusEnum::RUNNING),
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::HEALTHY),
                     ..Default::default()
                 }),
@@ -174,7 +174,7 @@ mod tests {
                 ..Default::default()
             }),
             state: Some(ContainerState {
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::UNHEALTHY),
                     ..Default::default()
                 }),
@@ -198,7 +198,7 @@ mod tests {
                 ..Default::default()
             }),
             state: Some(ContainerState {
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::STARTING),
                     ..Default::default()
                 }),

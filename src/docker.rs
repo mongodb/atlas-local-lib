@@ -8,7 +8,7 @@ use bollard::{
         ListContainersOptions, LogsOptions, RemoveContainerOptions, StartContainerOptions,
         StopContainerOptions,
     },
-    secret::{
+    models::{
         ContainerCreateBody, ContainerCreateResponse, ContainerInspectResponse, ContainerSummary,
     },
 };

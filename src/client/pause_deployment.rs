@@ -36,7 +36,7 @@ mod tests {
     use super::*;
     use bollard::{
         errors::Error as BollardError, query_parameters::InspectContainerOptions,
-        secret::ContainerInspectResponse,
+        models::ContainerInspectResponse,
     };
     use mockall::mock;
 
@@ -57,7 +57,7 @@ mod tests {
     }
 
     fn create_test_container_inspect_response() -> ContainerInspectResponse {
-        use bollard::secret::{ContainerConfig, ContainerState, ContainerStateStatusEnum};
+        use bollard::models::{ContainerConfig, ContainerState, ContainerStateStatusEnum};
         use std::collections::HashMap;
 
         let mut labels = HashMap::new();

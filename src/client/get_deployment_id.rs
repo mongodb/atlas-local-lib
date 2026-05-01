@@ -84,7 +84,7 @@ mod tests {
     use bollard::{
         errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
-        secret::{
+        models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
         },
     };
