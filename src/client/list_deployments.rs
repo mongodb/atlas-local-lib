@@ -50,11 +50,11 @@ mod tests {
     use crate::models::{MongodbType, State};
     use bollard::{
         errors::Error as BollardError,
-        query_parameters::{InspectContainerOptions, ListContainersOptions},
         models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
             ContainerSummary,
         },
+        query_parameters::{InspectContainerOptions, ListContainersOptions},
     };
     use mockall::mock;
     use std::collections::HashMap;

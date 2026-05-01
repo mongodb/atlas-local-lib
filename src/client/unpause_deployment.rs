@@ -35,8 +35,8 @@ impl<D: DockerUnpauseContainer + DockerInspectContainer> Client<D> {
 mod tests {
     use super::*;
     use bollard::{
-        errors::Error as BollardError, query_parameters::InspectContainerOptions,
-        models::ContainerInspectResponse,
+        errors::Error as BollardError, models::ContainerInspectResponse,
+        query_parameters::InspectContainerOptions,
     };
     use mockall::mock;
 

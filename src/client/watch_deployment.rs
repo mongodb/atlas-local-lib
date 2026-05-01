@@ -1,5 +1,5 @@
-use bollard::query_parameters::InspectContainerOptions;
 use bollard::models::HealthStatusEnum;
+use bollard::query_parameters::InspectContainerOptions;
 use tokio::time;
 
 use crate::{client::Client, docker::DockerInspectContainer, models::WatchOptions};
