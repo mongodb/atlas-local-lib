@@ -41,7 +41,7 @@ mod tests {
     use crate::models::{CreationSource, MongodbType, State};
     use bollard::{
         errors::Error as BollardError,
-        secret::{
+        models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
         },
     };

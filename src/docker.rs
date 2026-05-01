@@ -3,13 +3,13 @@ use bollard::{
     container::LogOutput,
     errors::Error,
     exec::{CreateExecOptions, StartExecOptions, StartExecResults},
+    models::{
+        ContainerCreateBody, ContainerCreateResponse, ContainerInspectResponse, ContainerSummary,
+    },
     query_parameters::{
         CreateContainerOptions, CreateImageOptionsBuilder, InspectContainerOptions,
         ListContainersOptions, LogsOptions, RemoveContainerOptions, StartContainerOptions,
         StopContainerOptions,
-    },
-    secret::{
-        ContainerCreateBody, ContainerCreateResponse, ContainerInspectResponse, ContainerSummary,
     },
 };
 use futures_util::{Stream, StreamExt, TryStreamExt};

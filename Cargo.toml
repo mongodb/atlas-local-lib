@@ -31,7 +31,7 @@ e2e-tests = []
 serde = ["dep:serde", "semver/serde"]
 
 [dependencies]
-bollard = "0.20.1"
+bollard = "0.20"
 bytes = "1.11"
 chrono = "0.4.44"
 futures = "0.3.32"

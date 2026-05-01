@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use bollard::secret::{ContainerInspectResponse, PortBinding};
+use bollard::models::{ContainerInspectResponse, PortBinding};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -154,7 +154,7 @@ impl From<&MongoDBPortBinding> for PortBinding {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bollard::secret::NetworkSettings;
+    use bollard::models::NetworkSettings;
     use serde_json::json;
     use std::collections::HashMap;
 

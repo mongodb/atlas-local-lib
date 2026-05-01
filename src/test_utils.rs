@@ -1,4 +1,4 @@
-use bollard::secret::{
+use bollard::models::{
     ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
 };
 use maplit::hashmap;
@@ -23,10 +23,10 @@ pub fn create_container_inspect_response_with_auth(port: u16) -> ContainerInspec
             status: Some(ContainerStateStatusEnum::RUNNING),
             ..Default::default()
         }),
-        network_settings: Some(bollard::secret::NetworkSettings {
+        network_settings: Some(bollard::models::NetworkSettings {
             ports: Some(hashmap! {
                 "27017/tcp".to_string() => Some(vec![
-                    bollard::secret::PortBinding {
+                    bollard::models::PortBinding {
                         host_ip: Some("127.0.0.1".to_string()),
                         host_port: Some(port.to_string()),
                     }
@@ -54,10 +54,10 @@ pub fn create_container_inspect_response_no_auth(port: u16) -> ContainerInspectR
             status: Some(ContainerStateStatusEnum::RUNNING),
             ..Default::default()
         }),
-        network_settings: Some(bollard::secret::NetworkSettings {
+        network_settings: Some(bollard::models::NetworkSettings {
             ports: Some(hashmap! {
                 "27017/tcp".to_string() => Some(vec![
-                    bollard::secret::PortBinding {
+                    bollard::models::PortBinding {
                         host_ip: Some("127.0.0.1".to_string()),
                         host_port: Some(port.to_string()),
                     }

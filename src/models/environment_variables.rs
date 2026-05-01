@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bollard::secret::ContainerInspectResponse;
+use bollard::models::ContainerInspectResponse;
 
 use crate::models::CreationSource;
 
@@ -96,7 +96,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bollard::secret::{ContainerConfig, ContainerInspectResponse};
+    use bollard::models::{ContainerConfig, ContainerInspectResponse};
 
     #[test]
     fn test_from_container_inspect_response_no_config() {

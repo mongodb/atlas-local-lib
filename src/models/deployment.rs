@@ -1,4 +1,4 @@
-use bollard::secret::ContainerInspectResponse;
+use bollard::models::ContainerInspectResponse;
 use semver::Version;
 
 use crate::models::{
@@ -176,7 +176,7 @@ fn is_seeding_true(value: impl AsRef<str>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bollard::secret::{
+    use bollard::models::{
         ContainerConfig, ContainerState, ContainerStateStatusEnum, MountPoint, NetworkSettings,
         PortBinding,
     };
