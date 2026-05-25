@@ -20,3 +20,17 @@ impl fmt::Display for ContainerHealthStatus {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_display() {
+        assert_eq!(ContainerHealthStatus::Empty.to_string(), "empty");
+        assert_eq!(ContainerHealthStatus::Healthy.to_string(), "healthy");
+        assert_eq!(ContainerHealthStatus::Unhealthy.to_string(), "unhealthy");
+        assert_eq!(ContainerHealthStatus::None.to_string(), "none");
+        assert_eq!(ContainerHealthStatus::Starting.to_string(), "starting");
+    }
+}

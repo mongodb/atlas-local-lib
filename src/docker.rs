@@ -335,6 +335,164 @@ impl RunCommandInContainer for Docker {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_docker_error_from_bollard_not_modified() {
+        let err = bollard::errors::Error::DockerResponseServerError {
+            status_code: 304,
+            message: "Not Modified".to_string(),
+        };
+        assert_eq!(DockerError::from(err), DockerError::NotModified);
+    }
+
+    #[test]
+    fn test_docker_error_from_bollard_bad_request() {
+        let err = bollard::errors::Error::DockerResponseServerError {
+            status_code: 400,
+            message: "Bad Request".to_string(),
+        };
+        assert_eq!(DockerError::from(err), DockerError::BadRequest);
+    }
+
+    #[test]
+    fn test_docker_error_from_bollard_unauthorized() {
+        let err = bollard::errors::Error::DockerResponseServerError {
+            status_code: 401,
+            message: "Unauthorized".to_string(),
+        };
+        assert_eq!(DockerError::from(err), DockerError::Unauthorized);
+    }
+
+    #[test]
+    fn test_docker_error_from_bollard_forbidden() {
+        let err = bollard::errors::Error::DockerResponseServerError {
+            status_code: 403,
+            message: "Forbidden".to_string(),
+        };
+        assert_eq!(DockerError::from(err), DockerError::Forbidden);
+    }
+
+    #[test]
+    fn test_docker_error_from_bollard_not_found() {
+        let err = bollard::errors::Error::DockerResponseServerError {
+            status_code: 404,
+            message: "Not Found".to_string(),
+        };
+        assert_eq!(DockerError::from(err), DockerError::NotFound);
+    }
+
+    #[test]
+    fn test_docker_error_from_bollard_conflict() {
+        let err = bollard::errors::Error::DockerResponseServerError {
+            status_code: 409,
+            message: "Conflict".to_string(),
+        };
+        assert_eq!(DockerError::from(err), DockerError::Conflict);
+    }
+
+    #[test]
+    fn test_docker_error_from_bollard_server_error() {
+        let err = bollard::errors::Error::DockerResponseServerError {
+            status_code: 500,
+            message: "Internal Server Error".to_string(),
+        };
+        assert_eq!(DockerError::from(err), DockerError::ServerError);
+    }
+
+    #[test]
+    fn test_docker_error_from_bollard_other_status_code() {
+        let err = bollard::errors::Error::DockerResponseServerError {
+            status_code: 503,
+            message: "Service Unavailable".to_string(),
+        };
+        assert_eq!(
+            DockerError::from(err),
+            DockerError::Other {
+                status_code: Some(503),
+                message: "Service Unavailable".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_docker_error_from_bollard_non_server_error() {
+        let err = bollard::errors::Error::RequestTimeoutError;
+        let result = DockerError::from(err);
+        assert!(matches!(
+            result,
+            DockerError::Other {
+                status_code: None,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn test_docker_error_display() {
+        assert_eq!(DockerError::NotModified.to_string(), "resource not modified");
+        assert_eq!(DockerError::BadRequest.to_string(), "bad request");
+        assert_eq!(DockerError::Unauthorized.to_string(), "unauthorized");
+        assert_eq!(DockerError::Forbidden.to_string(), "forbidden");
+        assert_eq!(DockerError::NotFound.to_string(), "not found");
+        assert_eq!(DockerError::Conflict.to_string(), "conflict");
+        assert_eq!(
+            DockerError::ServerError.to_string(),
+            "internal server error"
+        );
+        assert_eq!(
+            DockerError::Other {
+                status_code: Some(503),
+                message: "oops".to_string(),
+            }
+            .to_string(),
+            "docker error (status Some(503)): oops"
+        );
+    }
+
+    #[test]
+    fn test_container_health_status_from_bollard_empty() {
+        assert_eq!(
+            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::EMPTY),
+            ContainerHealthStatus::Empty
+        );
+    }
+
+    #[test]
+    fn test_container_health_status_from_bollard_healthy() {
+        assert_eq!(
+            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::HEALTHY),
+            ContainerHealthStatus::Healthy
+        );
+    }
+
+    #[test]
+    fn test_container_health_status_from_bollard_unhealthy() {
+        assert_eq!(
+            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::UNHEALTHY),
+            ContainerHealthStatus::Unhealthy
+        );
+    }
+
+    #[test]
+    fn test_container_health_status_from_bollard_none() {
+        assert_eq!(
+            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::NONE),
+            ContainerHealthStatus::None
+        );
+    }
+
+    #[test]
+    fn test_container_health_status_from_bollard_starting() {
+        assert_eq!(
+            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::STARTING),
+            ContainerHealthStatus::Starting
+        );
+    }
+}
+
 pub trait DockerLogContainer {
     fn logs<'a>(
         &'a self,
