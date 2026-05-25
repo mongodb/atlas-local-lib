@@ -143,9 +143,7 @@ mod tests {
             )
             .times(1)
             .returning(|_, _| {
-                Err(DockerError::NotFound {
-                    message: "No such container".to_string(),
-                })
+                Err(DockerError::NotFound)
             });
 
         let client = Client::new(mock_docker);

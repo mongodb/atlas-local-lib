@@ -121,9 +121,7 @@ mod tests {
             .expect_inspect_container()
             .times(1)
             .returning(|_, _| {
-                Err(DockerError::NotFound {
-                    message: "No such container".to_string(),
-                })
+                Err(DockerError::NotFound)
             });
 
         let client = Client::new(mock_docker);
@@ -154,9 +152,7 @@ mod tests {
             .expect_pause_container()
             .times(1)
             .returning(|_| {
-                Err(DockerError::ServerError {
-                    message: "Internal Server Error".to_string(),
-                })
+                Err(DockerError::ServerError)
             });
 
         let client = Client::new(mock_docker);

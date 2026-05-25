@@ -137,7 +137,7 @@ impl<
             .create_container(Some(create_container_options), create_container_config)
             .await
             .map_err(|err| match err {
-                DockerError::Conflict { .. } => {
+                DockerError::Conflict => {
                     CreateDeploymentError::ContainerAlreadyExists(cluster_name.to_string())
                 }
                 _ => CreateDeploymentError::CreateContainer(err),
@@ -493,9 +493,7 @@ mod tests {
 
         // Set up expectations
         mock_docker.expect_pull_image().times(1).returning(|_, _| {
-            Err(DockerError::ServerError {
-                message: "Internal Server Error".to_string(),
-            })
+            Err(DockerError::ServerError)
         });
 
         let client = Client::new(mock_docker);
@@ -530,9 +528,7 @@ mod tests {
             .expect_create_container()
             .times(1)
             .returning(|_, _| {
-                Err(DockerError::Conflict {
-                    message: "Conflict".to_string(),
-                })
+                Err(DockerError::Conflict)
             });
 
         let client = Client::new(mock_docker);
@@ -569,9 +565,7 @@ mod tests {
             .expect_create_container()
             .times(1)
             .returning(|_, _| {
-                Err(DockerError::ServerError {
-                    message: "Internal Server Error".to_string(),
-                })
+                Err(DockerError::ServerError)
             });
 
         let client = Client::new(mock_docker);
@@ -616,9 +610,7 @@ mod tests {
             .expect_start_container()
             .times(1)
             .returning(|_, _| {
-                Err(DockerError::ServerError {
-                    message: "Internal Server Error".to_string(),
-                })
+                Err(DockerError::ServerError)
             });
 
         let client = Client::new(mock_docker);

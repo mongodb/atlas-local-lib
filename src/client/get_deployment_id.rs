@@ -329,9 +329,7 @@ mod tests {
             )
             .times(1)
             .returning(|_, _| {
-                Err(DockerError::NotFound {
-                    message: "No such container".to_string(),
-                })
+                Err(DockerError::NotFound)
             });
 
         let client = Client::new(mock_docker);
@@ -379,9 +377,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::CreateExec(
-                    DockerError::ServerError {
-                        message: "Failed to read file".to_string(),
-                    },
+                    DockerError::ServerError
                 ))
             });
 
@@ -430,9 +426,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::StartExec(
-                    DockerError::ServerError {
-                        message: "Failed to start exec".to_string(),
-                    },
+                    DockerError::ServerError
                 ))
             });
 
@@ -593,9 +587,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::GetOutputError(
-                    DockerError::ServerError {
-                        message: "Failed to get output".to_string(),
-                    },
+                    DockerError::ServerError
                 ))
             });
 

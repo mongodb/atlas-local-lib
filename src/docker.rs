@@ -17,20 +17,20 @@ use crate::models::ContainerHealthStatus;
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum DockerError {
-    #[error("resource not modified: {message}")]
-    NotModified { message: String },
-    #[error("bad request: {message}")]
-    BadRequest { message: String },
-    #[error("unauthorized: {message}")]
-    Unauthorized { message: String },
-    #[error("forbidden: {message}")]
-    Forbidden { message: String },
-    #[error("not found: {message}")]
-    NotFound { message: String },
-    #[error("conflict: {message}")]
-    Conflict { message: String },
-    #[error("internal server error: {message}")]
-    ServerError { message: String },
+    #[error("resource not modified")]
+    NotModified,
+    #[error("bad request")]
+    BadRequest,
+    #[error("unauthorized")]
+    Unauthorized,
+    #[error("forbidden")]
+    Forbidden,
+    #[error("not found")]
+    NotFound,
+    #[error("conflict")]
+    Conflict,
+    #[error("internal server error")]
+    ServerError,
     #[error("docker error (status {status_code:?}): {message}")]
     Other {
         status_code: Option<u16>,
@@ -41,22 +41,21 @@ pub enum DockerError {
 impl From<bollard::errors::Error> for DockerError {
     fn from(err: bollard::errors::Error) -> Self {
         match err {
-            bollard::errors::Error::DockerResponseServerError {
-                status_code,
-                message,
-            } => match status_code {
-                304 => DockerError::NotModified { message },
-                400 => DockerError::BadRequest { message },
-                401 => DockerError::Unauthorized { message },
-                403 => DockerError::Forbidden { message },
-                404 => DockerError::NotFound { message },
-                409 => DockerError::Conflict { message },
-                500 => DockerError::ServerError { message },
-                _ => DockerError::Other {
-                    status_code: Some(status_code),
-                    message,
-                },
-            },
+            bollard::errors::Error::DockerResponseServerError { status_code, message } => {
+                match status_code {
+                    304 => DockerError::NotModified,
+                    400 => DockerError::BadRequest,
+                    401 => DockerError::Unauthorized,
+                    403 => DockerError::Forbidden,
+                    404 => DockerError::NotFound,
+                    409 => DockerError::Conflict,
+                    500 => DockerError::ServerError,
+                    _ => DockerError::Other {
+                        status_code: Some(status_code),
+                        message,
+                    },
+                }
+            }
             _ => DockerError::Other {
                 status_code: None,
                 message: err.to_string(),
