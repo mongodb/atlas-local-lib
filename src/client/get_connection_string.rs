@@ -94,6 +94,7 @@ fn format_connection_string(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::docker::DockerError;
     use crate::{
         client::Client,
         docker::{
@@ -104,7 +105,6 @@ mod tests {
             create_container_inspect_response_no_auth, create_container_inspect_response_with_auth,
         },
     };
-    use crate::docker::DockerError;
     use bollard::{
         query_parameters::InspectContainerOptions,
         secret::{
@@ -205,9 +205,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::NotFound)
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
         let container_id_or_name = "nonexistent-deployment".to_string();

@@ -41,21 +41,22 @@ pub enum DockerError {
 impl From<bollard::errors::Error> for DockerError {
     fn from(err: bollard::errors::Error) -> Self {
         match err {
-            bollard::errors::Error::DockerResponseServerError { status_code, message } => {
-                match status_code {
-                    304 => DockerError::NotModified,
-                    400 => DockerError::BadRequest,
-                    401 => DockerError::Unauthorized,
-                    403 => DockerError::Forbidden,
-                    404 => DockerError::NotFound,
-                    409 => DockerError::Conflict,
-                    500 => DockerError::ServerError,
-                    _ => DockerError::Other {
-                        status_code: Some(status_code),
-                        message,
-                    },
-                }
-            }
+            bollard::errors::Error::DockerResponseServerError {
+                status_code,
+                message,
+            } => match status_code {
+                304 => DockerError::NotModified,
+                400 => DockerError::BadRequest,
+                401 => DockerError::Unauthorized,
+                403 => DockerError::Forbidden,
+                404 => DockerError::NotFound,
+                409 => DockerError::Conflict,
+                500 => DockerError::ServerError,
+                _ => DockerError::Other {
+                    status_code: Some(status_code),
+                    message,
+                },
+            },
             _ => DockerError::Other {
                 status_code: None,
                 message: err.to_string(),

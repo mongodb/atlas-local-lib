@@ -47,7 +47,10 @@ impl<D: DockerListContainers + DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{docker::DockerError, models::{MongodbType, State}};
+    use crate::{
+        docker::DockerError,
+        models::{MongodbType, State},
+    };
     use bollard::{
         query_parameters::{InspectContainerOptions, ListContainersOptions},
         secret::{
@@ -200,9 +203,7 @@ mod tests {
         mock_docker
             .expect_list_containers()
             .times(1)
-            .returning(|_| {
-                Err(DockerError::ServerError)
-            });
+            .returning(|_| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
@@ -237,9 +238,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::NotFound)
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
 

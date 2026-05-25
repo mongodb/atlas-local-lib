@@ -129,9 +129,7 @@ mod tests {
         mock_docker
             .expect_inspect_container()
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::NotFound)
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
 
@@ -160,9 +158,7 @@ mod tests {
         mock_docker
             .expect_stop_container()
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::ServerError)
-            });
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 

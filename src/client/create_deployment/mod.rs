@@ -492,9 +492,10 @@ mod tests {
         };
 
         // Set up expectations
-        mock_docker.expect_pull_image().times(1).returning(|_, _| {
-            Err(DockerError::ServerError)
-        });
+        mock_docker
+            .expect_pull_image()
+            .times(1)
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
@@ -527,9 +528,7 @@ mod tests {
         mock_docker
             .expect_create_container()
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::Conflict)
-            });
+            .returning(|_, _| Err(DockerError::Conflict));
 
         let client = Client::new(mock_docker);
 
@@ -564,9 +563,7 @@ mod tests {
         mock_docker
             .expect_create_container()
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::ServerError)
-            });
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
@@ -609,9 +606,7 @@ mod tests {
         mock_docker
             .expect_start_container()
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::ServerError)
-            });
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 

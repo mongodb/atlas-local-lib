@@ -73,9 +73,7 @@ mod tests {
                 mockall::predicate::eq("invalid-tag"),
             )
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::NotFound)
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
 

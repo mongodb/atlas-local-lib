@@ -80,8 +80,8 @@ impl<D: DockerInspectContainer + RunCommandInContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{client::get_deployment::GetDeploymentError, docker::CommandOutput};
     use crate::docker::DockerError;
+    use crate::{client::get_deployment::GetDeploymentError, docker::CommandOutput};
     use bollard::{
         query_parameters::InspectContainerOptions,
         secret::{
@@ -328,9 +328,7 @@ mod tests {
                 eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::NotFound)
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
 
@@ -377,7 +375,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::CreateExec(
-                    DockerError::ServerError
+                    DockerError::ServerError,
                 ))
             });
 
@@ -426,7 +424,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::StartExec(
-                    DockerError::ServerError
+                    DockerError::ServerError,
                 ))
             });
 
@@ -587,7 +585,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::GetOutputError(
-                    DockerError::ServerError
+                    DockerError::ServerError,
                 ))
             });
 

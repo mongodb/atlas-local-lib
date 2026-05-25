@@ -45,9 +45,7 @@ impl<D: DockerStopContainer + DockerRemoveContainer + DockerInspectContainer> Cl
 mod tests {
     use super::*;
     use crate::docker::DockerError;
-    use bollard::{
-        query_parameters::InspectContainerOptions, secret::ContainerInspectResponse,
-    };
+    use bollard::{query_parameters::InspectContainerOptions, secret::ContainerInspectResponse};
     use mockall::mock;
 
     mock! {
@@ -156,9 +154,7 @@ mod tests {
         mock_docker
             .expect_inspect_container()
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::NotFound)
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
 
@@ -187,9 +183,7 @@ mod tests {
         mock_docker
             .expect_stop_container()
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::ServerError)
-            });
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
@@ -223,9 +217,7 @@ mod tests {
         mock_docker
             .expect_remove_container()
             .times(1)
-            .returning(|_, _| {
-                Err(DockerError::ServerError)
-            });
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
