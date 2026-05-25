@@ -1,19 +1,22 @@
 use bollard::query_parameters::InspectContainerOptions;
-use bollard::secret::HealthStatusEnum;
 use tokio::time;
 
-use crate::{client::Client, docker::DockerInspectContainer, models::WatchOptions};
+use crate::{
+    client::Client,
+    docker::{DockerError, DockerInspectContainer},
+    models::{ContainerHealthStatus, WatchOptions},
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum WatchDeploymentError {
     #[error("Failed to inspect container: {0}")]
-    ContainerInspect(#[from] bollard::errors::Error),
+    ContainerInspect(#[from] DockerError),
     #[error("Timeout while waiting for container {deployment_name} to become healthy")]
     Timeout { deployment_name: String },
     #[error("Deployment {deployment_name} is not healthy [status: {status}]")]
     UnhealthyDeployment {
         deployment_name: String,
-        status: HealthStatusEnum,
+        status: ContainerHealthStatus,
     },
 }
 
@@ -75,7 +78,7 @@ impl<D: DockerInspectContainer> Client<D> {
     ) -> Result<(), WatchDeploymentError> {
         // Loop until the container is healthy
         loop {
-            let mut status = self
+            let mut status: ContainerHealthStatus = self
                 .docker
                 .inspect_container(deployment_name, None::<InspectContainerOptions>)
                 .await
@@ -83,22 +86,25 @@ impl<D: DockerInspectContainer> Client<D> {
                 .state
                 .and_then(|s| s.health)
                 .and_then(|h| h.status)
+                .map(ContainerHealthStatus::from)
                 .ok_or_else(|| WatchDeploymentError::UnhealthyDeployment {
                     deployment_name: deployment_name.to_string(),
-                    status: HealthStatusEnum::NONE,
+                    status: ContainerHealthStatus::None,
                 })?;
 
             // If allow_unhealthy_initial_state is set then we handle it as a starting state
-            if options.allow_unhealthy_initial_state && status == HealthStatusEnum::UNHEALTHY {
-                status = HealthStatusEnum::STARTING;
+            if options.allow_unhealthy_initial_state && status == ContainerHealthStatus::Unhealthy {
+                status = ContainerHealthStatus::Starting;
             }
 
             match status {
-                HealthStatusEnum::HEALTHY => return Ok(()),
-                HealthStatusEnum::STARTING => {
+                ContainerHealthStatus::Healthy => return Ok(()),
+                ContainerHealthStatus::Starting => {
                     time::sleep(std::time::Duration::from_secs(1)).await;
                 }
-                HealthStatusEnum::NONE | HealthStatusEnum::EMPTY | HealthStatusEnum::UNHEALTHY => {
+                ContainerHealthStatus::None
+                | ContainerHealthStatus::Empty
+                | ContainerHealthStatus::Unhealthy => {
                     return Err(WatchDeploymentError::UnhealthyDeployment {
                         deployment_name: deployment_name.to_string(),
                         status,
@@ -112,12 +118,10 @@ impl<D: DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bollard::{
-        errors::Error as BollardError,
-        secret::{
-            ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
-            HealthStatusEnum,
-        },
+    use crate::docker::DockerError;
+    use bollard::secret::{
+        ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
+        HealthStatusEnum,
     };
     use maplit::hashmap;
     use mockall::mock;
@@ -131,7 +135,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
-            ) -> Result<ContainerInspectResponse, BollardError>;
+            ) -> Result<ContainerInspectResponse, DockerError>;
         }
     }
 
@@ -402,7 +406,7 @@ mod tests {
                 status,
             } => {
                 assert_eq!(deployment_name, "test-deployment");
-                assert_eq!(status, HealthStatusEnum::NONE);
+                assert_eq!(status, ContainerHealthStatus::None);
             }
             _ => panic!("Expected UnhealthyDeployment error"),
         }
@@ -438,7 +442,7 @@ mod tests {
                 status,
             } => {
                 assert_eq!(deployment_name, "test-deployment");
-                assert_eq!(status, HealthStatusEnum::NONE);
+                assert_eq!(status, ContainerHealthStatus::None);
             }
             _ => panic!("Expected UnhealthyDeployment error"),
         }
@@ -458,8 +462,7 @@ mod tests {
             )
             .times(1)
             .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 404,
+                Err(DockerError::NotFound {
                     message: "No such container".to_string(),
                 })
             });

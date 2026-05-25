@@ -34,17 +34,15 @@ impl<D: DockerPauseContainer + DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bollard::{
-        errors::Error as BollardError, query_parameters::InspectContainerOptions,
-        secret::ContainerInspectResponse,
-    };
+    use crate::docker::DockerError;
+    use bollard::{query_parameters::InspectContainerOptions, secret::ContainerInspectResponse};
     use mockall::mock;
 
     mock! {
         Docker {}
 
         impl DockerPauseContainer for Docker {
-            async fn pause_container(&self, container_id: &str) -> Result<(), BollardError>;
+            async fn pause_container(&self, container_id: &str) -> Result<(), DockerError>;
         }
 
         impl DockerInspectContainer for Docker {
@@ -52,7 +50,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
-            ) -> Result<ContainerInspectResponse, BollardError>;
+            ) -> Result<ContainerInspectResponse, DockerError>;
         }
     }
 
@@ -123,8 +121,7 @@ mod tests {
             .expect_inspect_container()
             .times(1)
             .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 404,
+                Err(DockerError::NotFound {
                     message: "No such container".to_string(),
                 })
             });
@@ -157,8 +154,7 @@ mod tests {
             .expect_pause_container()
             .times(1)
             .returning(|_| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 500,
+                Err(DockerError::ServerError {
                     message: "Internal Server Error".to_string(),
                 })
             });

@@ -2,14 +2,14 @@ use bollard::query_parameters::InspectContainerOptions;
 
 use crate::{
     client::Client,
-    docker::DockerInspectContainer,
+    docker::{DockerError, DockerInspectContainer},
     models::{Deployment, IntoDeploymentError},
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum GetDeploymentError {
     #[error("Failed to inspect container: {0}")]
-    ContainerInspect(#[from] bollard::errors::Error),
+    ContainerInspect(#[from] DockerError),
     #[error("The container is not a local Atlas deployment: {0}")]
     IntoDeployment(#[from] IntoDeploymentError),
 }
@@ -38,12 +38,12 @@ impl<D: DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{CreationSource, MongodbType, State};
-    use bollard::{
-        errors::Error as BollardError,
-        secret::{
-            ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
-        },
+    use crate::{
+        docker::DockerError,
+        models::{CreationSource, MongodbType, State},
+    };
+    use bollard::secret::{
+        ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
     };
     use maplit::hashmap;
     use mockall::mock;
@@ -58,7 +58,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
-            ) -> Result<ContainerInspectResponse, BollardError>;
+            ) -> Result<ContainerInspectResponse, DockerError>;
         }
     }
 
@@ -143,8 +143,7 @@ mod tests {
             )
             .times(1)
             .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 404,
+                Err(DockerError::NotFound {
                     message: "No such container".to_string(),
                 })
             });

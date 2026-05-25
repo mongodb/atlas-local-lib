@@ -104,8 +104,8 @@ mod tests {
             create_container_inspect_response_no_auth, create_container_inspect_response_with_auth,
         },
     };
+    use crate::docker::DockerError;
     use bollard::{
-        errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
         secret::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
@@ -122,7 +122,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
-            ) -> Result<ContainerInspectResponse, BollardError>;
+            ) -> Result<ContainerInspectResponse, DockerError>;
         }
 
         impl RunCommandInContainer for Docker {
@@ -206,8 +206,7 @@ mod tests {
             )
             .times(1)
             .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 404,
+                Err(DockerError::NotFound {
                     message: "No such container".to_string(),
                 })
             });

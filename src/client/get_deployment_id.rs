@@ -81,8 +81,8 @@ impl<D: DockerInspectContainer + RunCommandInContainer> Client<D> {
 mod tests {
     use super::*;
     use crate::{client::get_deployment::GetDeploymentError, docker::CommandOutput};
+    use crate::docker::DockerError;
     use bollard::{
-        errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
         secret::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
@@ -99,7 +99,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
-            ) -> Result<ContainerInspectResponse, BollardError>;
+            ) -> Result<ContainerInspectResponse, DockerError>;
         }
 
         impl RunCommandInContainer for Docker {
@@ -329,8 +329,7 @@ mod tests {
             )
             .times(1)
             .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 404,
+                Err(DockerError::NotFound {
                     message: "No such container".to_string(),
                 })
             });
@@ -380,8 +379,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::CreateExec(
-                    BollardError::DockerResponseServerError {
-                        status_code: 500,
+                    DockerError::ServerError {
                         message: "Failed to read file".to_string(),
                     },
                 ))
@@ -432,8 +430,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::StartExec(
-                    BollardError::DockerResponseServerError {
-                        status_code: 500,
+                    DockerError::ServerError {
                         message: "Failed to start exec".to_string(),
                     },
                 ))
@@ -596,8 +593,7 @@ mod tests {
             .times(1)
             .returning(|_, _| {
                 Err(RunCommandInContainerError::GetOutputError(
-                    BollardError::DockerResponseServerError {
-                        status_code: 500,
+                    DockerError::ServerError {
                         message: "Failed to get output".to_string(),
                     },
                 ))
