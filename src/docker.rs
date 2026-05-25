@@ -432,7 +432,10 @@ mod tests {
 
     #[test]
     fn test_docker_error_display() {
-        assert_eq!(DockerError::NotModified.to_string(), "resource not modified");
+        assert_eq!(
+            DockerError::NotModified.to_string(),
+            "resource not modified"
+        );
         assert_eq!(DockerError::BadRequest.to_string(), "bad request");
         assert_eq!(DockerError::Unauthorized.to_string(), "unauthorized");
         assert_eq!(DockerError::Forbidden.to_string(), "forbidden");
