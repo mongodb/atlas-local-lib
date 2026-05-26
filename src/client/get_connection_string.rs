@@ -106,10 +106,10 @@ mod tests {
         },
     };
     use bollard::{
-        query_parameters::InspectContainerOptions,
         models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
         },
+        query_parameters::InspectContainerOptions,
     };
     use maplit::hashmap;
     use mockall::mock;

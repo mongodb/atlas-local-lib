@@ -1,6 +1,6 @@
 use bollard::{
-    query_parameters::{CreateContainerOptions, StartContainerOptions},
     models::ContainerCreateBody,
+    query_parameters::{CreateContainerOptions, StartContainerOptions},
 };
 use tokio::sync::oneshot;
 
@@ -190,11 +190,11 @@ mod tests {
     use crate::docker::DockerError;
     use crate::models::{ContainerHealthStatus, ImageTag};
     use bollard::{
-        query_parameters::InspectContainerOptions,
         models::{
             ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState,
             ContainerStateStatusEnum, HealthStatusEnum,
         },
+        query_parameters::InspectContainerOptions,
     };
     use maplit::hashmap;
     use mockall::mock;
