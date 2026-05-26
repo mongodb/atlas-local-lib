@@ -1,3 +1,8 @@
+## [0.7.1] - 2026-05-26
+
+### 🚀 Features
+
+- Add bollard feature with re-export and Client convenience constructors ([#108](https://github.com/mongodb/atlas-local-lib/pull/108))
 ## [0.7.0] - 2026-05-26
 
 ### 🚀 Features
