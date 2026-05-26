@@ -1,5 +1,4 @@
 use bollard::{
-    errors::Error::DockerResponseServerError,
     query_parameters::{CreateContainerOptions, StartContainerOptions},
     secret::ContainerCreateBody,
 };
@@ -9,7 +8,8 @@ use crate::{
     GetDeploymentError,
     client::Client,
     docker::{
-        DockerCreateContainer, DockerInspectContainer, DockerPullImage, DockerStartContainer,
+        DockerCreateContainer, DockerError, DockerInspectContainer, DockerPullImage,
+        DockerStartContainer,
     },
     models::{ATLAS_LOCAL_IMAGE, CreateDeploymentOptions, Deployment, WatchOptions},
 };
@@ -24,13 +24,13 @@ use progress::{CreateDeploymentProgressSender, create_progress_pairs};
 #[derive(Debug, thiserror::Error)]
 pub enum CreateDeploymentError {
     #[error("Failed to create container: {0}")]
-    CreateContainer(bollard::errors::Error),
+    CreateContainer(DockerError),
     #[error(transparent)]
     PullImage(#[from] PullImageError),
     #[error("Container already exists: {0}")]
     ContainerAlreadyExists(String),
     #[error("Failed to check status of started container: {0}")]
-    ContainerInspect(bollard::errors::Error),
+    ContainerInspect(DockerError),
     #[error("Created Deployment {0} is not healthy")]
     UnhealthyDeployment(String),
     #[error("Unable to get details for Deployment: {0}")]
@@ -137,9 +137,9 @@ impl<
             .create_container(Some(create_container_options), create_container_config)
             .await
             .map_err(|err| match err {
-                DockerResponseServerError {
-                    status_code: 409, ..
-                } => CreateDeploymentError::ContainerAlreadyExists(cluster_name.to_string()),
+                DockerError::Conflict => {
+                    CreateDeploymentError::ContainerAlreadyExists(cluster_name.to_string())
+                }
                 _ => CreateDeploymentError::CreateContainer(err),
             })?;
 
@@ -187,9 +187,9 @@ impl<
 mod tests {
     use super::*;
     use crate::client::WatchDeploymentError;
-    use crate::models::ImageTag;
+    use crate::docker::DockerError;
+    use crate::models::{ContainerHealthStatus, ImageTag};
     use bollard::{
-        errors::Error as BollardError,
         query_parameters::InspectContainerOptions,
         secret::{
             ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState,
@@ -205,7 +205,7 @@ mod tests {
         Docker {}
 
         impl DockerPullImage for Docker {
-            async fn pull_image(&self, image: &str, tag: &str) -> Result<(), BollardError>;
+            async fn pull_image(&self, image: &str, tag: &str) -> Result<(), DockerError>;
         }
 
         impl DockerCreateContainer for Docker {
@@ -213,7 +213,7 @@ mod tests {
                 &self,
                 options: Option<CreateContainerOptions>,
                 config: ContainerCreateBody,
-            ) -> Result<ContainerCreateResponse, BollardError>;
+            ) -> Result<ContainerCreateResponse, DockerError>;
         }
 
         impl DockerStartContainer for Docker {
@@ -221,7 +221,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<StartContainerOptions>,
-            ) -> Result<(), BollardError>;
+            ) -> Result<(), DockerError>;
         }
 
         impl DockerInspectContainer for Docker {
@@ -229,7 +229,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
-            ) -> Result<ContainerInspectResponse, BollardError>;
+            ) -> Result<ContainerInspectResponse, DockerError>;
         }
     }
 
@@ -492,12 +492,10 @@ mod tests {
         };
 
         // Set up expectations
-        mock_docker.expect_pull_image().times(1).returning(|_, _| {
-            Err(BollardError::DockerResponseServerError {
-                status_code: 500,
-                message: "Internal Server Error".to_string(),
-            })
-        });
+        mock_docker
+            .expect_pull_image()
+            .times(1)
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
@@ -530,12 +528,7 @@ mod tests {
         mock_docker
             .expect_create_container()
             .times(1)
-            .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 409,
-                    message: "Conflict".to_string(),
-                })
-            });
+            .returning(|_, _| Err(DockerError::Conflict));
 
         let client = Client::new(mock_docker);
 
@@ -570,12 +563,7 @@ mod tests {
         mock_docker
             .expect_create_container()
             .times(1)
-            .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 500,
-                    message: "Internal Server Error".to_string(),
-                })
-            });
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
@@ -618,12 +606,7 @@ mod tests {
         mock_docker
             .expect_start_container()
             .times(1)
-            .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 500,
-                    message: "Internal Server Error".to_string(),
-                })
-            });
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
@@ -948,7 +931,7 @@ mod tests {
                 status,
             }) => {
                 assert_eq!(deployment_name, "test-deployment");
-                assert_eq!(status, HealthStatusEnum::NONE);
+                assert_eq!(status, ContainerHealthStatus::None);
             }
             _ => panic!("Expected WatchDeployment error"),
         }
@@ -1014,7 +997,7 @@ mod tests {
                 status,
             }) => {
                 assert_eq!(deployment_name, "test-deployment");
-                assert_eq!(status, HealthStatusEnum::NONE);
+                assert_eq!(status, ContainerHealthStatus::None);
             }
             _ => panic!("Expected WatchDeployment error"),
         }
@@ -1166,7 +1149,7 @@ mod tests {
                 status,
             }) => {
                 assert_eq!(deployment_name, "test-deployment");
-                assert_eq!(status, HealthStatusEnum::NONE);
+                assert_eq!(status, ContainerHealthStatus::None);
             }
             _ => panic!("Expected WatchDeployment error"),
         }

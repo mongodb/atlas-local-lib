@@ -1,8 +1,11 @@
-use crate::{client::Client, docker::DockerPullImage};
+use crate::{
+    client::Client,
+    docker::{DockerError, DockerPullImage},
+};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 #[error("Failed to pull image: {0}")]
-pub struct PullImageError(#[from] bollard::errors::Error);
+pub struct PullImageError(#[from] DockerError);
 
 impl<D: DockerPullImage> Client<D> {
     /// Pulls the Atlas Local image.
@@ -20,14 +23,14 @@ impl<D: DockerPullImage> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bollard::errors::Error as BollardError;
+    use crate::docker::DockerError;
     use mockall::mock;
 
     mock! {
         Docker {}
 
         impl DockerPullImage for Docker {
-            async fn pull_image(&self, image: &str, tag: &str) -> Result<(), BollardError>;
+            async fn pull_image(&self, image: &str, tag: &str) -> Result<(), DockerError>;
         }
     }
 
@@ -70,12 +73,7 @@ mod tests {
                 mockall::predicate::eq("invalid-tag"),
             )
             .times(1)
-            .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 404,
-                    message: "Tag not found".to_string(),
-                })
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
 

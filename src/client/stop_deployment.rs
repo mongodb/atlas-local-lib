@@ -36,10 +36,8 @@ impl<D: DockerStopContainer + DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bollard::{
-        errors::Error as BollardError, query_parameters::InspectContainerOptions,
-        secret::ContainerInspectResponse,
-    };
+    use crate::docker::DockerError;
+    use bollard::{query_parameters::InspectContainerOptions, secret::ContainerInspectResponse};
     use mockall::mock;
 
     mock! {
@@ -50,7 +48,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<StopContainerOptions>,
-            ) -> Result<(), BollardError>;
+            ) -> Result<(), DockerError>;
         }
 
         impl DockerInspectContainer for Docker {
@@ -58,7 +56,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
-            ) -> Result<ContainerInspectResponse, BollardError>;
+            ) -> Result<ContainerInspectResponse, DockerError>;
         }
     }
 
@@ -131,12 +129,7 @@ mod tests {
         mock_docker
             .expect_inspect_container()
             .times(1)
-            .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 404,
-                    message: "No such container".to_string(),
-                })
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
 
@@ -165,12 +158,7 @@ mod tests {
         mock_docker
             .expect_stop_container()
             .times(1)
-            .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 500,
-                    message: "Internal Server Error".to_string(),
-                })
-            });
+            .returning(|_, _| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 

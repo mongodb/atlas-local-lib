@@ -1,3 +1,4 @@
+mod container_health_status;
 mod create_deployment_options;
 mod creation_source;
 mod deployment;
@@ -12,6 +13,7 @@ mod port_binding;
 mod state;
 mod watch_options;
 
+pub use container_health_status::*;
 pub use create_deployment_options::*;
 pub use creation_source::*;
 pub use deployment::*;

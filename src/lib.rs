@@ -15,3 +15,5 @@ pub use client::{
     Client, CreateDeploymentError, DeleteDeploymentError, GetConnectionStringError,
     GetDeploymentError, GetDeploymentIdError, GetLogsError, PullImageError,
 };
+pub use docker::DockerError;
+pub use models::ContainerHealthStatus;

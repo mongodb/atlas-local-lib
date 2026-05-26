@@ -47,9 +47,11 @@ impl<D: DockerListContainers + DockerInspectContainer> Client<D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{MongodbType, State};
+    use crate::{
+        docker::DockerError,
+        models::{MongodbType, State},
+    };
     use bollard::{
-        errors::Error as BollardError,
         query_parameters::{InspectContainerOptions, ListContainersOptions},
         secret::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
@@ -66,7 +68,7 @@ mod tests {
             async fn list_containers(
                 &self,
                 options: Option<ListContainersOptions>,
-            ) -> Result<Vec<ContainerSummary>, BollardError>;
+            ) -> Result<Vec<ContainerSummary>, DockerError>;
         }
 
         impl DockerInspectContainer for Docker {
@@ -74,7 +76,7 @@ mod tests {
                 &self,
                 container_id: &str,
                 options: Option<InspectContainerOptions>,
-            ) -> Result<ContainerInspectResponse, BollardError>;
+            ) -> Result<ContainerInspectResponse, DockerError>;
         }
     }
 
@@ -201,12 +203,7 @@ mod tests {
         mock_docker
             .expect_list_containers()
             .times(1)
-            .returning(|_| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 500,
-                    message: "Internal Server Error".to_string(),
-                })
-            });
+            .returning(|_| Err(DockerError::ServerError));
 
         let client = Client::new(mock_docker);
 
@@ -241,12 +238,7 @@ mod tests {
                 mockall::predicate::eq(None::<InspectContainerOptions>),
             )
             .times(1)
-            .returning(|_, _| {
-                Err(BollardError::DockerResponseServerError {
-                    status_code: 404,
-                    message: "No such container".to_string(),
-                })
-            });
+            .returning(|_, _| Err(DockerError::NotFound));
 
         let client = Client::new(mock_docker);
 
