@@ -26,9 +26,10 @@ include = [
 ]
 
 [features]
-default = ["serde"]
+default = ["serde", "bollard"]
 e2e-tests = []
 serde = ["dep:serde", "semver/serde"]
+bollard = []
 
 [dependencies]
 bollard = "0.21.0"

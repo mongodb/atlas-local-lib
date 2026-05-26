@@ -1,11 +1,9 @@
 use anyhow::{Context, Result};
 use atlas_local::Client;
-use bollard::Docker;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let docker = Docker::connect_with_socket_defaults().context("connecting to docker")?;
-    let client = Client::new(docker);
+    let client = Client::connect_with_socket_defaults().context("connecting to docker")?;
 
     let deployments = client
         .list_deployments()
