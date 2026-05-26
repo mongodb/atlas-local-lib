@@ -7,7 +7,7 @@ use bollard::{
         ListContainersOptions, LogsOptions, RemoveContainerOptions, StartContainerOptions,
         StopContainerOptions,
     },
-    secret::{
+    models::{
         ContainerCreateBody, ContainerCreateResponse, ContainerInspectResponse, ContainerSummary,
     },
 };
@@ -65,14 +65,14 @@ impl From<bollard::errors::Error> for DockerError {
     }
 }
 
-impl From<bollard::secret::HealthStatusEnum> for ContainerHealthStatus {
-    fn from(status: bollard::secret::HealthStatusEnum) -> Self {
+impl From<bollard::models::HealthStatusEnum> for ContainerHealthStatus {
+    fn from(status: bollard::models::HealthStatusEnum) -> Self {
         match status {
-            bollard::secret::HealthStatusEnum::EMPTY => ContainerHealthStatus::Empty,
-            bollard::secret::HealthStatusEnum::HEALTHY => ContainerHealthStatus::Healthy,
-            bollard::secret::HealthStatusEnum::UNHEALTHY => ContainerHealthStatus::Unhealthy,
-            bollard::secret::HealthStatusEnum::NONE => ContainerHealthStatus::None,
-            bollard::secret::HealthStatusEnum::STARTING => ContainerHealthStatus::Starting,
+            bollard::models::HealthStatusEnum::EMPTY => ContainerHealthStatus::Empty,
+            bollard::models::HealthStatusEnum::HEALTHY => ContainerHealthStatus::Healthy,
+            bollard::models::HealthStatusEnum::UNHEALTHY => ContainerHealthStatus::Unhealthy,
+            bollard::models::HealthStatusEnum::NONE => ContainerHealthStatus::None,
+            bollard::models::HealthStatusEnum::STARTING => ContainerHealthStatus::Starting,
         }
     }
 }
@@ -458,7 +458,7 @@ mod tests {
     #[test]
     fn test_container_health_status_from_bollard_empty() {
         assert_eq!(
-            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::EMPTY),
+            ContainerHealthStatus::from(bollard::models::HealthStatusEnum::EMPTY),
             ContainerHealthStatus::Empty
         );
     }
@@ -466,7 +466,7 @@ mod tests {
     #[test]
     fn test_container_health_status_from_bollard_healthy() {
         assert_eq!(
-            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::HEALTHY),
+            ContainerHealthStatus::from(bollard::models::HealthStatusEnum::HEALTHY),
             ContainerHealthStatus::Healthy
         );
     }
@@ -474,7 +474,7 @@ mod tests {
     #[test]
     fn test_container_health_status_from_bollard_unhealthy() {
         assert_eq!(
-            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::UNHEALTHY),
+            ContainerHealthStatus::from(bollard::models::HealthStatusEnum::UNHEALTHY),
             ContainerHealthStatus::Unhealthy
         );
     }
@@ -482,7 +482,7 @@ mod tests {
     #[test]
     fn test_container_health_status_from_bollard_none() {
         assert_eq!(
-            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::NONE),
+            ContainerHealthStatus::from(bollard::models::HealthStatusEnum::NONE),
             ContainerHealthStatus::None
         );
     }
@@ -490,7 +490,7 @@ mod tests {
     #[test]
     fn test_container_health_status_from_bollard_starting() {
         assert_eq!(
-            ContainerHealthStatus::from(bollard::secret::HealthStatusEnum::STARTING),
+            ContainerHealthStatus::from(bollard::models::HealthStatusEnum::STARTING),
             ContainerHealthStatus::Starting
         );
     }

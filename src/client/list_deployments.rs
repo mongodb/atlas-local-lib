@@ -53,7 +53,7 @@ mod tests {
     };
     use bollard::{
         query_parameters::{InspectContainerOptions, ListContainersOptions},
-        secret::{
+        models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
             ContainerSummary,
         },

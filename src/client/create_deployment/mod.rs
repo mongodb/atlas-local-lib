@@ -1,6 +1,6 @@
 use bollard::{
     query_parameters::{CreateContainerOptions, StartContainerOptions},
-    secret::ContainerCreateBody,
+    models::ContainerCreateBody,
 };
 use tokio::sync::oneshot;
 
@@ -191,7 +191,7 @@ mod tests {
     use crate::models::{ContainerHealthStatus, ImageTag};
     use bollard::{
         query_parameters::InspectContainerOptions,
-        secret::{
+        models::{
             ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState,
             ContainerStateStatusEnum, HealthStatusEnum,
         },
@@ -248,7 +248,7 @@ mod tests {
             }),
             state: Some(ContainerState {
                 status: Some(ContainerStateStatusEnum::RUNNING),
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::HEALTHY),
                     ..Default::default()
                 }),
@@ -272,7 +272,7 @@ mod tests {
                 ..Default::default()
             }),
             state: Some(ContainerState {
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::UNHEALTHY),
                     ..Default::default()
                 }),
@@ -296,7 +296,7 @@ mod tests {
                 ..Default::default()
             }),
             state: Some(ContainerState {
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::STARTING),
                     ..Default::default()
                 }),
@@ -359,7 +359,7 @@ mod tests {
                 ..Default::default()
             }),
             state: Some(ContainerState {
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: None,
                     ..Default::default()
                 }),

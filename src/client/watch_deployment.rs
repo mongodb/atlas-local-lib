@@ -119,7 +119,7 @@ impl<D: DockerInspectContainer> Client<D> {
 mod tests {
     use super::*;
     use crate::docker::DockerError;
-    use bollard::secret::{
+    use bollard::models::{
         ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
         HealthStatusEnum,
     };
@@ -154,7 +154,7 @@ mod tests {
             }),
             state: Some(ContainerState {
                 status: Some(ContainerStateStatusEnum::RUNNING),
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::HEALTHY),
                     ..Default::default()
                 }),
@@ -178,7 +178,7 @@ mod tests {
                 ..Default::default()
             }),
             state: Some(ContainerState {
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::UNHEALTHY),
                     ..Default::default()
                 }),
@@ -202,7 +202,7 @@ mod tests {
                 ..Default::default()
             }),
             state: Some(ContainerState {
-                health: Some(bollard::secret::Health {
+                health: Some(bollard::models::Health {
                     status: Some(HealthStatusEnum::STARTING),
                     ..Default::default()
                 }),

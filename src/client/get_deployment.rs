@@ -42,7 +42,7 @@ mod tests {
         docker::DockerError,
         models::{CreationSource, MongodbType, State},
     };
-    use bollard::secret::{
+    use bollard::models::{
         ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
     };
     use maplit::hashmap;

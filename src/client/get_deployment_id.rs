@@ -84,7 +84,7 @@ mod tests {
     use crate::{client::get_deployment::GetDeploymentError, docker::CommandOutput};
     use bollard::{
         query_parameters::InspectContainerOptions,
-        secret::{
+        models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
         },
     };
