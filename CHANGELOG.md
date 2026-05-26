@@ -1,3 +1,8 @@
+## [0.7.0] - 2026-05-26
+
+### 🚀 Features
+
+- Stop leaking bollard error types in public API ([#107](https://github.com/mongodb/atlas-local-lib/pull/107))
 ## [0.6.1] - 2026-04-17
 
 ### 🚀 Features
