@@ -52,11 +52,11 @@ mod tests {
         models::{MongodbType, State},
     };
     use bollard::{
-        query_parameters::{InspectContainerOptions, ListContainersOptions},
-        secret::{
+        models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
             ContainerSummary,
         },
+        query_parameters::{InspectContainerOptions, ListContainersOptions},
     };
     use mockall::mock;
     use std::collections::HashMap;

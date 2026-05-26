@@ -83,10 +83,10 @@ mod tests {
     use crate::docker::DockerError;
     use crate::{client::get_deployment::GetDeploymentError, docker::CommandOutput};
     use bollard::{
-        query_parameters::InspectContainerOptions,
-        secret::{
+        models::{
             ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
         },
+        query_parameters::InspectContainerOptions,
     };
     use maplit::hashmap;
     use mockall::{mock, predicate::eq};

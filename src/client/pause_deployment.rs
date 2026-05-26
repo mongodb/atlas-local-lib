@@ -35,7 +35,7 @@ impl<D: DockerPauseContainer + DockerInspectContainer> Client<D> {
 mod tests {
     use super::*;
     use crate::docker::DockerError;
-    use bollard::{query_parameters::InspectContainerOptions, secret::ContainerInspectResponse};
+    use bollard::{models::ContainerInspectResponse, query_parameters::InspectContainerOptions};
     use mockall::mock;
 
     mock! {
@@ -55,7 +55,7 @@ mod tests {
     }
 
     fn create_test_container_inspect_response() -> ContainerInspectResponse {
-        use bollard::secret::{ContainerConfig, ContainerState, ContainerStateStatusEnum};
+        use bollard::models::{ContainerConfig, ContainerState, ContainerStateStatusEnum};
         use std::collections::HashMap;
 
         let mut labels = HashMap::new();

@@ -1,6 +1,6 @@
 use bollard::{
+    models::{ContainerCreateBody, HostConfig, PortBinding},
     query_parameters::CreateContainerOptions,
-    secret::{ContainerCreateBody, HostConfig, PortBinding},
 };
 use maplit::hashmap;
 use rand::RngExt;

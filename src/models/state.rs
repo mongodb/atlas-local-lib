@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use bollard::secret::{ContainerInspectResponse, ContainerStateStatusEnum};
+use bollard::models::{ContainerInspectResponse, ContainerStateStatusEnum};
 
 /// The state of the container (from the Docker API)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,6 +57,7 @@ impl TryFrom<&ContainerStateStatusEnum> for State {
             ContainerStateStatusEnum::EMPTY => {
                 return Err(FromContainerStateStatusEnumError::EmptyState);
             }
+            ContainerStateStatusEnum::STOPPING => State::Exited,
         })
     }
 }
@@ -169,7 +170,7 @@ mod tests {
 
     #[test]
     fn test_try_from_container_inspect_response_success() {
-        use bollard::secret::ContainerState;
+        use bollard::models::ContainerState;
 
         // Test successful conversion with a valid state
         let container_state = ContainerState {
@@ -198,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_try_from_container_inspect_response_missing_status() {
-        use bollard::secret::ContainerState;
+        use bollard::models::ContainerState;
 
         // Test error case when state exists but status is None
         let container_inspect = ContainerInspectResponse {
@@ -213,7 +214,7 @@ mod tests {
 
     #[test]
     fn test_try_from_container_inspect_response_empty_status() {
-        use bollard::secret::ContainerState;
+        use bollard::models::ContainerState;
 
         // Test error case when status is EMPTY
         let container_state = ContainerState {
