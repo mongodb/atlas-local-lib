@@ -67,6 +67,23 @@ impl<D> Client<D> {
     }
 }
 
+#[cfg(feature = "bollard")]
+impl Client<bollard::Docker> {
+    /// Creates a new client by connecting to Docker using the default connection method.
+    ///
+    /// Equivalent to calling `Client::new(Docker::connect_with_defaults()?)`.
+    pub fn connect_with_defaults() -> Result<Self, bollard::errors::Error> {
+        Ok(Client::new(bollard::Docker::connect_with_defaults()?))
+    }
+
+    /// Creates a new client by connecting to Docker via the default Unix socket.
+    ///
+    /// Equivalent to calling `Client::new(Docker::connect_with_socket_defaults()?)`.
+    pub fn connect_with_socket_defaults() -> Result<Self, bollard::errors::Error> {
+        Ok(Client::new(bollard::Docker::connect_with_socket_defaults()?))
+    }
+}
+
 impl<D> Clone for Client<D> {
     fn clone(&self) -> Self {
         Client {

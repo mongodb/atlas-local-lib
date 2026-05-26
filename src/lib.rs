@@ -10,6 +10,9 @@ pub mod models;
 #[cfg(test)]
 pub mod test_utils;
 
+#[cfg(feature = "bollard")]
+pub use bollard;
+
 // Re-export the main types for convenience
 pub use client::{
     Client, CreateDeploymentError, DeleteDeploymentError, GetConnectionStringError,

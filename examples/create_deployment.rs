@@ -1,11 +1,9 @@
 use anyhow::{Context, Result};
 use atlas_local::{Client, models::CreateDeploymentOptions};
-use bollard::Docker;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let docker = Docker::connect_with_defaults().context("connecting to docker")?;
-    let client = Client::new(docker);
+    let client = Client::connect_with_defaults().context("connecting to docker")?;
 
     // Create a deployment with the name local1234 and loaded sample data
     // More details about sample data can be found here: https://docs.mongodb.com/atlas/sample-data/
