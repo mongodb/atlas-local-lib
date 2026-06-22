@@ -3885,7 +3885,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -----------------------------------------------------------------------------
                         MIT License
         applies to: 
-        - bytes 1.11.1 (https://github.com/tokio-rs/bytes)
+        - bytes 1.12.0 (https://github.com/tokio-rs/bytes)
 -----------------------------------------------------------------------------
 
 Copyright (c) 2018 Carl Lerche
