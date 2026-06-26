@@ -1,0 +1,17 @@
+# sync -> mongodb/atlas-local-lib
+# sync -> mongodb/atlas-local-cli
+# sync -> mongodb-js/atlas-local-lib-js
+
+name: Create Jira Ticket for Dependabot PRs
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions: {}
+
+jobs:
+  create-jira:
+    if: github.actor == 'dependabot[bot]'
+    uses: mongodb/apix-action/.github/workflows/_dependabot-jira.yaml@main
+    secrets: inherit
