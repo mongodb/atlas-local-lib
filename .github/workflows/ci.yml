@@ -137,11 +137,8 @@ jobs:
     - name: Generate coverage report
       run: cargo llvm-cov --lib --verbose --lcov --output-path=unit-tests.lcov
     
-    # Recent Homebrew refuses to load formulae from non-official taps unless
-    # they are explicitly trusted. The coverallsapp/github-action installs its
-    # reporter via `brew install coverallsapp/coveralls/coveralls`, which fails
-    # on macOS with "Refusing to load formula ... from untrusted tap". Tap and
-    # trust it here so the action's install step succeeds.
+    # Homebrew will refuse to load formulae from non-official taps unless
+    # they are explicitly trusted.
     - name: Trust coveralls Homebrew tap (macOS)
       if: runner.os == 'macOS'
       run: |
