@@ -138,8 +138,15 @@ jobs:
       run: cargo llvm-cov --lib --verbose --lcov --output-path=unit-tests.lcov
     
     - name: Upload coverage report
+      # continue-on-error: coverage upload is non-critical; a Coveralls/network
+      # failure should not fail the build (all tests already ran).
+      continue-on-error: true
       env:
         COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        # Force Homebrew to install the coveralls formula from a local tap clone
+        # instead of the API. Without this, recent Homebrew refuses the
+        # coverallsapp/coveralls tap as "untrusted" and the macOS job fails.
+        HOMEBREW_NO_INSTALL_FROM_API: "1"
       uses: coverallsapp/github-action@v2.3.6
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -213,6 +220,7 @@ jobs:
         run: cargo llvm-cov --test '*' --workspace --exclude 'src/*' --verbose --features e2e-tests --lcov --output-path=e2e-tests.lcov
 
       - name: Upload coverage report
+        continue-on-error: true
         uses: coverallsapp/github-action@v2.3.6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -226,6 +234,7 @@ jobs:
     needs: [test-matrix, e2e-tests]
     steps:
       - name: Send coverage
+        continue-on-error: true
         env:
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         uses: coverallsapp/github-action@v2.3.6
