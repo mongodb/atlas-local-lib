@@ -137,6 +137,14 @@ jobs:
     - name: Generate coverage report
       run: cargo llvm-cov --lib --verbose --lcov --output-path=unit-tests.lcov
     
+    # Homebrew will refuse to load formulae from non-official taps unless
+    # they are explicitly trusted.
+    - name: Trust coveralls Homebrew tap (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew tap coverallsapp/coveralls
+        brew trust --tap coverallsapp/coveralls
+
     - name: Upload coverage report
       env:
         COVERALLS_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
