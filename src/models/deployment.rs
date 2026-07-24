@@ -3,8 +3,8 @@ use semver::Version;
 
 use crate::models::{
     CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError,
-    GetMongoDBPortBindingError, GetStateError, ImageTag, LocalDeploymentLabels,
-    MongoDBPortBinding, MongodbType, State,
+    GetMongoDBPortBindingError, GetStateError, ImageTag, LocalDeploymentLabels, MongoDBPortBinding,
+    MongodbType, State,
 };
 
 pub const LOCAL_SEED_LOCATION: &str = "/docker-entrypoint-initdb.d";
@@ -329,19 +329,18 @@ mod tests {
             deployment.voyage_api_key,
             Some("voyage-api-key".to_string())
         );
-        assert_eq!(
-            deployment.image,
-            Some(ATLAS_LOCAL_IMAGE.to_string())
-        );
+        assert_eq!(deployment.image, Some(ATLAS_LOCAL_IMAGE.to_string()));
         assert_eq!(
             deployment.image_tag,
-            Some(ImageTag::Semver(crate::models::MongoDBVersion::MajorMinorPatch(
-                crate::models::MongoDBVersionMajorMinorPatch {
-                    major: 8,
-                    minor: 0,
-                    patch: 0,
-                }
-            )))
+            Some(ImageTag::Semver(
+                crate::models::MongoDBVersion::MajorMinorPatch(
+                    crate::models::MongoDBVersionMajorMinorPatch {
+                        major: 8,
+                        minor: 0,
+                        patch: 0,
+                    }
+                )
+            ))
         );
     }
 
@@ -405,7 +404,10 @@ mod tests {
             ..Default::default()
         };
         let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
-        assert_eq!(image, Some("localhost:5000/mongodb-atlas-local".to_string()));
+        assert_eq!(
+            image,
+            Some("localhost:5000/mongodb-atlas-local".to_string())
+        );
         assert_eq!(image_tag, None);
     }
 
@@ -419,13 +421,15 @@ mod tests {
             ..Default::default()
         };
         let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
-        assert_eq!(image, Some("localhost:5000/mongodb-atlas-local".to_string()));
+        assert_eq!(
+            image,
+            Some("localhost:5000/mongodb-atlas-local".to_string())
+        );
         assert_eq!(image_tag, Some(ImageTag::Latest));
     }
 
     #[test]
     fn test_extract_image_and_tag_unparseable_tag_is_none() {
-
         let container_inspect_response = ContainerInspectResponse {
             config: Some(ContainerConfig {
                 image: Some(format!("{ATLAS_LOCAL_IMAGE}:custom-tag")),
