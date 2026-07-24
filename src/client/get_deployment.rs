@@ -112,6 +112,8 @@ mod tests {
                 mongodb_type: MongodbType::Community,
                 mongodb_version: Version::new(8, 0, 0),
                 port_bindings: None,
+                image: None,
+                image_tag: None,
                 creation_source: Some(CreationSource::AtlasCLI),
                 local_seed_location: None,
                 mongodb_initdb_database: None,
