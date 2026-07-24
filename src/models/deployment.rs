@@ -3,7 +3,7 @@ use semver::Version;
 
 use crate::models::{
     CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError,
-    GetMongoDBPortBindingError, GetStateError, LocalDeploymentLabels, MongoDBPortBinding,
+    GetMongoDBPortBindingError, GetStateError, ImageTag, LocalDeploymentLabels, MongoDBPortBinding,
     MongodbType, State,
 };
 
@@ -19,6 +19,8 @@ pub struct Deployment {
     // Docker specific
     pub state: State,
     pub port_bindings: Option<MongoDBPortBinding>,
+    pub image: Option<String>,
+    pub image_tag: Option<ImageTag>,
 
     // MongoDB details (MongoD)
     pub mongodb_type: MongodbType,
@@ -83,6 +85,7 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
         let local_seed_location = extract_local_seed_location(&value);
         let port_bindings = MongoDBPortBinding::try_from(&value)?;
         let state = State::try_from(&value)?;
+        let (image, image_tag) = extract_image_and_tag(&value);
 
         // Deconstruct the labels and environment variables
         let LocalDeploymentLabels {
@@ -113,6 +116,8 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             // Docker specific
             state,
             port_bindings,
+            image,
+            image_tag,
 
             // MongoDB details (MongoD)
             mongodb_type,
@@ -157,6 +162,26 @@ fn extract_local_seed_location(
     mount.source.clone()
 }
 
+/// Split a Docker image reference into the image name and tag, and parse the tag into an `ImageTag`.
+fn extract_image_and_tag(
+    container_inspect_response: &ContainerInspectResponse,
+) -> (Option<String>, Option<ImageTag>) {
+    let Some(image_ref) = container_inspect_response
+        .config
+        .as_ref()
+        .and_then(|c| c.image.as_ref())
+    else {
+        return (None, None);
+    };
+    // A colon only marks a tag if it appears after the last `/`.
+    match image_ref.rsplit_once(':') {
+        Some((image, tag)) if !tag.contains('/') => {
+            (Some(image.to_string()), ImageTag::try_from(tag).ok())
+        }
+        _ => (Some(image_ref.to_string()), None),
+    }
+}
+
 /// Determine if the value is a boolean or an integer that is larger than 0, and return true if it is
 fn is_seeding_true(value: impl AsRef<str>) -> bool {
     let value = value.as_ref();
@@ -176,6 +201,7 @@ fn is_seeding_true(value: impl AsRef<str>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::ATLAS_LOCAL_IMAGE;
     use bollard::models::{
         ContainerConfig, ContainerState, ContainerStateStatusEnum, MountPoint, NetworkSettings,
         PortBinding,
@@ -236,6 +262,7 @@ mod tests {
             config: Some(ContainerConfig {
                 env: Some(env_vars),
                 labels: Some(labels),
+                image: Some(format!("{ATLAS_LOCAL_IMAGE}:8.0.0")),
                 ..Default::default()
             }),
             mounts: Some(vec![mount]),
@@ -302,6 +329,117 @@ mod tests {
             deployment.voyage_api_key,
             Some("voyage-api-key".to_string())
         );
+        assert_eq!(deployment.image, Some(ATLAS_LOCAL_IMAGE.to_string()));
+        assert_eq!(
+            deployment.image_tag,
+            Some(ImageTag::Semver(
+                crate::models::MongoDBVersion::MajorMinorPatch(
+                    crate::models::MongoDBVersionMajorMinorPatch {
+                        major: 8,
+                        minor: 0,
+                        patch: 0,
+                    }
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_extract_image_and_tag_no_config() {
+        let container_inspect_response = ContainerInspectResponse::default();
+        let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
+        assert_eq!(image, None);
+        assert_eq!(image_tag, None);
+    }
+
+    #[test]
+    fn test_extract_image_and_tag_no_image() {
+        let container_inspect_response = ContainerInspectResponse {
+            config: Some(ContainerConfig {
+                image: None,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
+        assert_eq!(image, None);
+        assert_eq!(image_tag, None);
+    }
+
+    #[test]
+    fn test_extract_image_and_tag_latest() {
+        let container_inspect_response = ContainerInspectResponse {
+            config: Some(ContainerConfig {
+                image: Some(format!("{ATLAS_LOCAL_IMAGE}:latest")),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
+        assert_eq!(image, Some(ATLAS_LOCAL_IMAGE.to_string()));
+        assert_eq!(image_tag, Some(ImageTag::Latest));
+    }
+
+    #[test]
+    fn test_extract_image_and_tag_no_tag() {
+        let container_inspect_response = ContainerInspectResponse {
+            config: Some(ContainerConfig {
+                image: Some(ATLAS_LOCAL_IMAGE.to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
+        assert_eq!(image, Some(ATLAS_LOCAL_IMAGE.to_string()));
+        assert_eq!(image_tag, None);
+    }
+
+    #[test]
+    fn test_extract_image_and_tag_registry_port_no_tag() {
+        let container_inspect_response = ContainerInspectResponse {
+            config: Some(ContainerConfig {
+                image: Some("localhost:5000/mongodb-atlas-local".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
+        assert_eq!(
+            image,
+            Some("localhost:5000/mongodb-atlas-local".to_string())
+        );
+        assert_eq!(image_tag, None);
+    }
+
+    #[test]
+    fn test_extract_image_and_tag_registry_port_with_tag() {
+        let container_inspect_response = ContainerInspectResponse {
+            config: Some(ContainerConfig {
+                image: Some("localhost:5000/mongodb-atlas-local:latest".to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
+        assert_eq!(
+            image,
+            Some("localhost:5000/mongodb-atlas-local".to_string())
+        );
+        assert_eq!(image_tag, Some(ImageTag::Latest));
+    }
+
+    #[test]
+    fn test_extract_image_and_tag_unparseable_tag_is_none() {
+        let container_inspect_response = ContainerInspectResponse {
+            config: Some(ContainerConfig {
+                image: Some(format!("{ATLAS_LOCAL_IMAGE}:custom-tag")),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let (image, image_tag) = extract_image_and_tag(&container_inspect_response);
+        assert_eq!(image, Some(ATLAS_LOCAL_IMAGE.to_string()));
+        assert_eq!(image_tag, None);
     }
 
     #[test]
