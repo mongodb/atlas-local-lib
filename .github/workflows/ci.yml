@@ -192,7 +192,7 @@ jobs:
       - name: Install dependencies
         run: |
           apt-get update
-          apt-get install -y curl gcc
+          apt-get install -y curl gcc libc6-dev
 
       - name: Install Rust toolchain
         uses: actions-rust-lang/setup-rust-toolchain@v1
