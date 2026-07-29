@@ -1,0 +1,12 @@
+name: Reopen Jira Ticket on Issue Reopen
+
+on:
+  issues:
+    types: [reopened]
+
+permissions: {}
+
+jobs:
+  reopen-jira:
+    uses: mongodb/apix-action/.github/workflows/_issue-reopened.yaml@main
+    secrets: inherit
