@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use atlas_local::{
     Client,
-    models::{CreateDeploymentOptions, Deployment},
+    models::{CreateDeploymentOptions, Deployment, StartDeploymentOptions},
 };
 
 #[tokio::main]
@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
     // Start the deployment
     println!("Starting deployment '{}'...", deployment_name);
     client
-        .start_deployment(deployment_name)
+        .start_deployment(deployment_name, StartDeploymentOptions::default())
         .await
         .context("starting deployment")?;
 
