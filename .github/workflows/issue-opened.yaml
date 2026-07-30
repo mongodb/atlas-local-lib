@@ -1,0 +1,13 @@
+# synced from apix-actions/.github/workflows/issue-opened.yaml
+name: Create Jira Ticket for New Issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions: {}
+
+jobs:
+  create-jira:
+    uses: mongodb/apix-action/.github/workflows/_issue-opened.yaml@main
+    secrets: inherit
