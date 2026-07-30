@@ -10,6 +10,7 @@ mod logs_options;
 mod mdb_version;
 mod mongodb_type;
 mod port_binding;
+mod start_deployment_options;
 mod state;
 mod watch_options;
 
@@ -25,5 +26,6 @@ pub use logs_options::*;
 pub use mdb_version::*;
 pub use mongodb_type::*;
 pub use port_binding::*;
+pub use start_deployment_options::*;
 pub use state::*;
 pub use watch_options::*;

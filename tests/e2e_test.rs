@@ -2,7 +2,10 @@
 use atlas_local::{
     Client,
     client::CreateDeploymentStepOutcome,
-    models::{CreateDeploymentOptions, LogsOptions, MongoDBPortBinding, Tail, WatchOptions},
+    models::{
+        CreateDeploymentOptions, LogsOptions, MongoDBPortBinding, StartDeploymentOptions, Tail,
+        WatchOptions,
+    },
 };
 use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
 use tokio::runtime::Handle;
@@ -174,21 +177,11 @@ async fn test_e2e_smoke_test() {
         .await
         .expect("Stopping deployment");
 
+    // start_deployment waits for the deployment to become healthy by default
     client
-        .start_deployment(name)
+        .start_deployment(name, StartDeploymentOptions::default())
         .await
         .expect("Starting deployment");
-
-    // Wait for the deployment to become healthy again
-    client
-        .wait_for_healthy_deployment(
-            name,
-            WatchOptions::builder()
-                .allow_unhealthy_initial_state(true)
-                .build(),
-        )
-        .await
-        .expect("Waiting for deployment to become healthy");
 
     // Pause and unpause the deployment
     client
