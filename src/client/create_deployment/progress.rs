@@ -201,6 +201,8 @@ mod tests {
             name: Some("test-deployment".to_string()),
             state: State::Running,
             port_bindings: None,
+            image: None,
+            image_tag: None,
             mongodb_type: MongodbType::Community,
             mongodb_version: Version::new(8, 0, 0),
             creation_source: None,

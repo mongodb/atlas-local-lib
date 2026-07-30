@@ -40,7 +40,7 @@ mod tests {
     use super::*;
     use crate::{
         docker::DockerError,
-        models::{CreationSource, MongodbType, State},
+        models::{ATLAS_LOCAL_IMAGE, CreationSource, ImageTag, MongodbType, State},
     };
     use bollard::models::{
         ContainerConfig, ContainerInspectResponse, ContainerState, ContainerStateStatusEnum,
@@ -76,6 +76,7 @@ mod tests {
                     "mongodb-type".to_string() => "community".to_string(),
                 }),
                 env: Some(vec!["TOOL=ATLASCLI".to_string()]),
+                image: Some(format!("{ATLAS_LOCAL_IMAGE}:latest")),
                 ..Default::default()
             }),
             state: Some(ContainerState {
@@ -112,6 +113,8 @@ mod tests {
                 mongodb_type: MongodbType::Community,
                 mongodb_version: Version::new(8, 0, 0),
                 port_bindings: None,
+                image: Some(ATLAS_LOCAL_IMAGE.to_string()),
+                image_tag: Some(ImageTag::Latest),
                 creation_source: Some(CreationSource::AtlasCLI),
                 local_seed_location: None,
                 mongodb_initdb_database: None,
