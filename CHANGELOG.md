@@ -1,3 +1,19 @@
+## [0.8.0] - 2026-08-18
+
+### 🚀 Features
+
+- Add image and image_tag fields to the Deployment struct ([#125](https://github.com/mongodb/atlas-local-lib/pull/125))
+- [**breaking**] Start_deployment waits for the deployment to become healthy by default ([#127](https://github.com/mongodb/atlas-local-lib/pull/127))
+
+### 🐛 Bug Fixes
+
+- *(CI)* Add needed libc6-dev for failing e2e (CLOUDP-429010) ([#128](https://github.com/mongodb/atlas-local-lib/pull/128))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(CI)* Fixes coverall failing to install ([#121](https://github.com/mongodb/atlas-local-lib/pull/121))
+- Apix-action updates ([#132](https://github.com/mongodb/atlas-local-lib/pull/132))
+- Apix-action updates ([#136](https://github.com/mongodb/atlas-local-lib/pull/136))
 ## [0.7.1] - 2026-05-26
 
 ### 🚀 Features
