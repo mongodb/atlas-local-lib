@@ -13,5 +13,5 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: mongodb/apix-action/.github/workflows/_dependabot-jira.yaml@9ce9e6205a14af111352430e9f9adbea1c75230b # main
+    uses: mongodb/apix-action/.github/workflows/_dependabot-jira.yaml@e5d48b81974f46faf18c2615ae56fd2ff821f8e6 # main
     secrets: inherit
