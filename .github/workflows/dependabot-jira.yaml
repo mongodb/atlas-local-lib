@@ -1,5 +1,5 @@
 # synced from apix-actions/.github/workflows/dependabot-jira.yaml
-name: Create Jira Ticket for Dependabot PRs
+name: Dependabot PR automation
 
 on:
   pull_request:
@@ -8,10 +8,7 @@ on:
 permissions: {}
 
 jobs:
-  create-jira:
+  dependabot:
     if: github.actor == 'dependabot[bot]'
-    permissions:
-      contents: read
-      pull-requests: write
-    uses: mongodb/apix-action/.github/workflows/_dependabot-jira.yaml@e5d48b81974f46faf18c2615ae56fd2ff821f8e6 # main
+    uses: mongodb/apix-action/.github/workflows/_dependabot-jira.yaml@002b807a2bdd00bd5ad222e363352851e17fdfd7 # main
     secrets: inherit
