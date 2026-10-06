@@ -12,5 +12,5 @@ jobs:
     permissions:
       contents: read
       issues: read
-    uses: mongodb/apix-action/.github/workflows/_issue-closed.yaml@069d206b041c55dc22b84e492a0b85899ffb3623 # main
+    uses: mongodb/apix-action/.github/workflows/_issue-closed.yaml@261776f94d51a8be1c2537624564474817d585c6
     secrets: inherit
