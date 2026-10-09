@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Generate release notes
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4
         with:
           config: cliff.toml
           args: --tag ${{ github.ref_name }} --verbose --latest
