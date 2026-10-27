@@ -4,7 +4,7 @@ THIRD PARTY LICENSES
 This file lists the licenses of the projects used in atlas-local-lib.
 
 OVERVIEW OF LICENSES:
-- Apache License 2.0 (120 dependencies)
+- Apache License 2.0 (119 dependencies)
 - MIT License (22 dependencies)
 - Unicode License v3 (19 dependencies)
 
@@ -229,7 +229,6 @@ OVERVIEW OF LICENSES:
         - windows-link 0.2.1 (https://github.com/microsoft/windows-rs)
         - windows-result 0.3.4 (https://github.com/microsoft/windows-rs)
         - windows-strings 0.4.2 (https://github.com/microsoft/windows-rs)
-        - windows-sys 0.59.0 (https://github.com/microsoft/windows-rs)
         - windows-sys 0.61.2 (https://github.com/microsoft/windows-rs)
         - windows-targets 0.52.6 (https://github.com/microsoft/windows-rs)
         - windows_aarch64_gnullvm 0.52.6 (https://github.com/microsoft/windows-rs)
@@ -2375,7 +2374,7 @@ limitations under the License.
         - scopeguard 1.2.0 (https://github.com/bluss/scopeguard)
         - signal-hook-registry 1.4.6 (https://github.com/vorner/signal-hook)
         - smallvec 1.15.1 (https://github.com/servo/rust-smallvec)
-        - socket2 0.6.0 (https://github.com/rust-lang/socket2)
+        - socket2 0.6.5 (https://github.com/rust-lang/socket2)
         - stable_deref_trait 1.2.0 (https://github.com/storyyeller/stable_deref_trait)
         - typed-builder-macro 0.23.2 (https://github.com/idanarye/rust-typed-builder)
         - typed-builder 0.23.2 (https://github.com/idanarye/rust-typed-builder)
@@ -3422,7 +3421,7 @@ limitations under the License.
         - anyhow 1.0.104 (https://github.com/dtolnay/anyhow)
         - bollard-stubs 1.53.1-rc.29.3.1 (https://crates.io/crates/bollard-stubs)
         - itoa 1.0.15 (https://github.com/dtolnay/itoa)
-        - libc 0.2.175 (https://github.com/rust-lang/libc)
+        - libc 0.2.191 (https://github.com/rust-lang/libc)
         - pin-project-lite 0.2.16 (https://github.com/taiki-e/pin-project-lite)
         - proc-macro2 1.0.101 (https://github.com/dtolnay/proc-macro2)
         - quote 1.0.40 (https://github.com/dtolnay/quote)
@@ -3775,7 +3774,7 @@ limitations under the License.
 -----------------------------------------------------------------------------
                         MIT License
         applies to: 
-        - mio 1.0.4 (https://github.com/tokio-rs/mio)
+        - mio 1.2.4 (https://github.com/tokio-rs/mio)
 -----------------------------------------------------------------------------
 
 Copyright (c) 2014 Carl Lerche and other MIO contributors
@@ -4211,7 +4210,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -----------------------------------------------------------------------------
                         MIT License
         applies to: 
-        - tokio-macros 2.6.0 (https://github.com/tokio-rs/tokio)
+        - tokio-macros 2.7.2 (https://github.com/tokio-rs/tokio)
 -----------------------------------------------------------------------------
 
 MIT License
@@ -4242,7 +4241,7 @@ SOFTWARE.
                         MIT License
         applies to: 
         - tokio-util 0.7.16 (https://github.com/tokio-rs/tokio)
-        - tokio 1.50.0 (https://github.com/tokio-rs/tokio)
+        - tokio 1.53.3 (https://github.com/tokio-rs/tokio)
 -----------------------------------------------------------------------------
 
 MIT License
