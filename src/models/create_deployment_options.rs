@@ -7,12 +7,12 @@ use rand::RngExt;
 use std::{time::Duration, vec};
 
 use crate::models::{
-    CreationSource, ENV_VAR_DO_NOT_TRACK, ENV_VAR_MONGODB_INITDB_DATABASE,
-    ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD, ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD_FILE,
-    ENV_VAR_MONGODB_INITDB_ROOT_USERNAME, ENV_VAR_MONGODB_INITDB_ROOT_USERNAME_FILE,
-    ENV_VAR_MONGODB_LOAD_SAMPLE_DATA, ENV_VAR_MONGOT_LOG_FILE, ENV_VAR_RUNNER_LOG_FILE,
-    ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL, ENV_VAR_VOYAGE_API_KEY, ImageTag,
-    LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
+    CreationSource, ENV_VAR_DO_NOT_TRACK, ENV_VAR_EMBEDDING_PROVIDER_ENDPOINT,
+    ENV_VAR_MONGODB_INITDB_DATABASE, ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD,
+    ENV_VAR_MONGODB_INITDB_ROOT_PASSWORD_FILE, ENV_VAR_MONGODB_INITDB_ROOT_USERNAME,
+    ENV_VAR_MONGODB_INITDB_ROOT_USERNAME_FILE, ENV_VAR_MONGODB_LOAD_SAMPLE_DATA,
+    ENV_VAR_MONGOT_LOG_FILE, ENV_VAR_RUNNER_LOG_FILE, ENV_VAR_TELEMETRY_BASE_URL, ENV_VAR_TOOL,
+    ENV_VAR_VOYAGE_API_KEY, ImageTag, LOCAL_DEPLOYMENT_LABEL_KEY, LOCAL_DEPLOYMENT_LABEL_VALUE,
 };
 use crate::models::{MongoDBPortBinding, deployment::LOCAL_SEED_LOCATION};
 pub const ATLAS_LOCAL_IMAGE: &str = "quay.io/mongodb/mongodb-atlas-local";
@@ -41,6 +41,8 @@ pub struct CreateDeploymentOptions {
     pub mongodb_initdb_root_username_file: Option<String>,
     pub mongodb_initdb_root_username: Option<String>,
     pub voyage_api_key: Option<String>,
+    /// Embedding gateway URL forwarded to the container for mongot.
+    pub embedding_provider_endpoint: Option<String>,
     pub load_sample_data: Option<bool>,
 
     // Logging
@@ -137,6 +139,10 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
                 deployment_options.voyage_api_key.as_ref(),
             ),
             (
+                ENV_VAR_EMBEDDING_PROVIDER_ENDPOINT,
+                deployment_options.embedding_provider_endpoint.as_ref(),
+            ),
+            (
                 ENV_VAR_MONGOT_LOG_FILE,
                 deployment_options.mongot_log_file.as_ref(),
             ),
@@ -228,6 +234,7 @@ mod tests {
             mongodb_initdb_root_username_file: Some("/run/secrets/username".to_string()),
             mongodb_initdb_root_username: Some("admin".to_string()),
             voyage_api_key: Some("voyage-api-key".to_string()),
+            embedding_provider_endpoint: Some("https://api.voyageai.com/v1/embeddings".to_string()),
             load_sample_data: Some(true),
             mongot_log_file: Some("/tmp/mongot.log".to_string()),
             runner_log_file: Some("/tmp/runner.log".to_string()),
@@ -286,7 +293,11 @@ mod tests {
             ENV_VAR_TELEMETRY_BASE_URL
         )));
         assert!(env_vars.contains(&format!("{}=voyage-api-key", ENV_VAR_VOYAGE_API_KEY)));
-        assert_eq!(env_vars.len(), 12);
+        assert!(env_vars.contains(&format!(
+            "{}=https://api.voyageai.com/v1/embeddings",
+            ENV_VAR_EMBEDDING_PROVIDER_ENDPOINT
+        )));
+        assert_eq!(env_vars.len(), 13);
 
         let host_config = container_create_body.host_config.unwrap();
         let port_bindings = host_config.port_bindings.unwrap();
@@ -395,6 +406,7 @@ mod tests {
         assert!(options.mongodb_initdb_root_username_file.is_none());
         assert!(options.mongodb_initdb_root_username.is_none());
         assert!(options.voyage_api_key.is_none());
+        assert!(options.embedding_provider_endpoint.is_none());
         assert!(options.load_sample_data.is_none());
         assert!(options.mongot_log_file.is_none());
         assert!(options.runner_log_file.is_none());
