@@ -16,6 +16,7 @@ pub const ENV_VAR_DO_NOT_TRACK: &str = "DO_NOT_TRACK";
 pub const ENV_VAR_TELEMETRY_BASE_URL: &str = "TELEMETRY_BASE_URL";
 pub const ENV_VAR_MONGODB_LOAD_SAMPLE_DATA: &str = "MONGODB_LOAD_SAMPLE_DATA";
 pub const ENV_VAR_VOYAGE_API_KEY: &str = "VOYAGE_API_KEY";
+pub const ENV_VAR_EMBEDDING_PROVIDER_ENDPOINT: &str = "EMBEDDING_PROVIDER_ENDPOINT";
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -41,6 +42,8 @@ pub struct EnvironmentVariables {
     pub mongodb_load_sample_data: Option<String>,
 
     pub voyage_api_key: Option<String>,
+
+    pub embedding_provider_endpoint: Option<String>,
 }
 
 impl From<&ContainerInspectResponse> for EnvironmentVariables {
@@ -81,6 +84,8 @@ impl From<&ContainerInspectResponse> for EnvironmentVariables {
         environment_variables.mongodb_load_sample_data =
             get_value(&env, ENV_VAR_MONGODB_LOAD_SAMPLE_DATA);
         environment_variables.voyage_api_key = get_value(&env, ENV_VAR_VOYAGE_API_KEY);
+        environment_variables.embedding_provider_endpoint =
+            get_value(&env, ENV_VAR_EMBEDDING_PROVIDER_ENDPOINT);
 
         environment_variables
     }
@@ -120,6 +125,7 @@ mod tests {
         assert_eq!(env_vars.do_not_track, None);
         assert_eq!(env_vars.telemetry_base_url, None);
         assert_eq!(env_vars.mongodb_load_sample_data, None);
+        assert_eq!(env_vars.embedding_provider_endpoint, None);
     }
 
     #[test]
@@ -147,6 +153,7 @@ mod tests {
         assert_eq!(env_vars.do_not_track, None);
         assert_eq!(env_vars.telemetry_base_url, None);
         assert_eq!(env_vars.mongodb_load_sample_data, None);
+        assert_eq!(env_vars.embedding_provider_endpoint, None);
     }
 
     #[test]
@@ -174,6 +181,10 @@ mod tests {
             ),
             format!("{}=true", ENV_VAR_MONGODB_LOAD_SAMPLE_DATA),
             format!("{}=voyage-api-key", ENV_VAR_VOYAGE_API_KEY),
+            format!(
+                "{}=https://api.voyageai.com/v1/embeddings",
+                ENV_VAR_EMBEDDING_PROVIDER_ENDPOINT
+            ),
         ];
 
         let container_response = ContainerInspectResponse {
@@ -220,6 +231,10 @@ mod tests {
         );
         assert_eq!(env_vars.mongodb_load_sample_data, Some("true".to_string()));
         assert_eq!(env_vars.voyage_api_key, Some("voyage-api-key".to_string()));
+        assert_eq!(
+            env_vars.embedding_provider_endpoint,
+            Some("https://api.voyageai.com/v1/embeddings".to_string())
+        );
     }
 
     #[test]
@@ -261,6 +276,7 @@ mod tests {
         assert_eq!(env_vars.mongot_log_file, None);
         assert_eq!(env_vars.telemetry_base_url, None);
         assert_eq!(env_vars.mongodb_load_sample_data, None);
+        assert_eq!(env_vars.embedding_provider_endpoint, None);
     }
 
     #[test]

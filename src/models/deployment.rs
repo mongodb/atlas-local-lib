@@ -38,6 +38,8 @@ pub struct Deployment {
     pub mongodb_initdb_root_username: Option<String>,
     pub mongodb_load_sample_data: Option<bool>,
     pub voyage_api_key: Option<String>,
+    /// Embedding gateway URL configured for mongot.
+    pub embedding_provider_endpoint: Option<String>,
 
     // Logging
     pub mongot_log_file: Option<String>,
@@ -106,6 +108,7 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             do_not_track,
             telemetry_base_url,
             voyage_api_key,
+            embedding_provider_endpoint,
         } = container_environment_variables;
 
         Ok(Self {
@@ -135,6 +138,7 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             mongodb_initdb_root_username,
             mongodb_load_sample_data: mongodb_load_sample_data.map(is_seeding_true),
             voyage_api_key,
+            embedding_provider_endpoint,
 
             // Logging
             mongot_log_file,
@@ -229,6 +233,7 @@ mod tests {
             "TELEMETRY_BASE_URL=https://telemetry.example.com".to_string(),
             "MONGODB_LOAD_SAMPLE_DATA=true".to_string(),
             "VOYAGE_API_KEY=voyage-api-key".to_string(),
+            "EMBEDDING_PROVIDER_ENDPOINT=https://api.voyageai.com/v1/embeddings".to_string(),
         ];
 
         // Create a mount for local seed location
@@ -328,6 +333,10 @@ mod tests {
         assert_eq!(
             deployment.voyage_api_key,
             Some("voyage-api-key".to_string())
+        );
+        assert_eq!(
+            deployment.embedding_provider_endpoint,
+            Some("https://api.voyageai.com/v1/embeddings".to_string())
         );
         assert_eq!(deployment.image, Some(ATLAS_LOCAL_IMAGE.to_string()));
         assert_eq!(
