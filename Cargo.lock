@@ -43,6 +43,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "typed-builder",
+ "url",
 ]
 
 [[package]]
