@@ -1,3 +1,35 @@
+## [0.9.0] - 2026-11-02
+
+### 🚀 Features
+
+- [**breaking**] Support embedding provider endpoint ([#202](https://github.com/mongodb/atlas-local-lib/pull/202))
+
+### ⚙️ Miscellaneous Tasks
+
+- Apix-action updates ([#147](https://github.com/mongodb/atlas-local-lib/pull/147))
+- Apix-action updates ([#153](https://github.com/mongodb/atlas-local-lib/pull/153))
+- Apix-action updates ([#166](https://github.com/mongodb/atlas-local-lib/pull/166))
+- Apix-action updates ([#168](https://github.com/mongodb/atlas-local-lib/pull/168))
+- Move third-party license generation into the repository-owned Dependabot post-update hook ([#169](https://github.com/mongodb/atlas-local-lib/pull/169))
+- Fix semver findings in .github/workflows/ci.yml ([#170](https://github.com/mongodb/atlas-local-lib/pull/170))
+- Fix semver findings in .github/workflows/ci.yml ([#171](https://github.com/mongodb/atlas-local-lib/pull/171))
+- Fix semver findings in .github/workflows/ci.yml ([#172](https://github.com/mongodb/atlas-local-lib/pull/172))
+- Fix semver findings in .github/workflows/release.yml ([#175](https://github.com/mongodb/atlas-local-lib/pull/175))
+- Fix semver findings in .github/workflows/prepare-release.yml ([#174](https://github.com/mongodb/atlas-local-lib/pull/174))
+- Fix semver findings in .github/workflows/ci.yml ([#173](https://github.com/mongodb/atlas-local-lib/pull/173))
+- Fix semver findings in .github/workflows/release.yml ([#176](https://github.com/mongodb/atlas-local-lib/pull/176))
+- Fix semver findings in .github/workflows/release.yml ([#177](https://github.com/mongodb/atlas-local-lib/pull/177))
+- Fix semver findings in .github/workflows/security-audit.yml ([#178](https://github.com/mongodb/atlas-local-lib/pull/178))
+- Fix semver findings in .github/workflows/prepare-release.yml ([#179](https://github.com/mongodb/atlas-local-lib/pull/179))
+- Fix semver findings in .github/workflows/release.yml ([#180](https://github.com/mongodb/atlas-local-lib/pull/180))
+- Fix semver findings in .github/workflows/security-audit.yml ([#181](https://github.com/mongodb/atlas-local-lib/pull/181))
+- Fix semver findings in .github/workflows/security-audit.yml ([#182](https://github.com/mongodb/atlas-local-lib/pull/182))
+- Fix semver findings in .github/workflows/security-audit.yml ([#183](https://github.com/mongodb/atlas-local-lib/pull/183))
+- Apix-action updates ([#184](https://github.com/mongodb/atlas-local-lib/pull/184))
+- Apix-action updates ([#185](https://github.com/mongodb/atlas-local-lib/pull/185))
+- Apix-action updates ([#191](https://github.com/mongodb/atlas-local-lib/pull/191))
+- Apix-action updates ([#192](https://github.com/mongodb/atlas-local-lib/pull/192))
+- Apix-action updates ([#193](https://github.com/mongodb/atlas-local-lib/pull/193))
 ## [0.8.0] - 2026-08-18
 
 ### 🚀 Features
