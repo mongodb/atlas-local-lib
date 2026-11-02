@@ -2,7 +2,7 @@ use bollard::models::ContainerInspectResponse;
 use semver::Version;
 
 use crate::models::{
-    CreationSource, EnvironmentVariables, GetLocalDeploymentLabelsError,
+    CreationSource, EmbeddingProviderEndpoint, EnvironmentVariables, GetLocalDeploymentLabelsError,
     GetMongoDBPortBindingError, GetStateError, ImageTag, LocalDeploymentLabels, MongoDBPortBinding,
     MongodbType, State,
 };
@@ -39,7 +39,7 @@ pub struct Deployment {
     pub mongodb_load_sample_data: Option<bool>,
     pub voyage_api_key: Option<String>,
     /// Embedding gateway URL configured for mongot.
-    pub embedding_provider_endpoint: Option<String>,
+    pub embedding_provider_endpoint: Option<EmbeddingProviderEndpoint>,
 
     // Logging
     pub mongot_log_file: Option<String>,
@@ -60,6 +60,8 @@ pub enum IntoDeploymentError {
     MongoDBPortBinding(#[from] GetMongoDBPortBindingError),
     #[error(transparent)]
     State(#[from] GetStateError),
+    #[error("Invalid embedding provider endpoint: {0}")]
+    InvalidEmbeddingProviderEndpoint(String),
 }
 
 impl TryFrom<ContainerInspectResponse> for Deployment {
@@ -110,6 +112,10 @@ impl TryFrom<ContainerInspectResponse> for Deployment {
             voyage_api_key,
             embedding_provider_endpoint,
         } = container_environment_variables;
+        let embedding_provider_endpoint = embedding_provider_endpoint
+            .map(EmbeddingProviderEndpoint::try_from)
+            .transpose()
+            .map_err(IntoDeploymentError::InvalidEmbeddingProviderEndpoint)?;
 
         Ok(Self {
             // Identifiers
@@ -336,7 +342,10 @@ mod tests {
         );
         assert_eq!(
             deployment.embedding_provider_endpoint,
-            Some("https://api.voyageai.com/v1/embeddings".to_string())
+            Some(
+                EmbeddingProviderEndpoint::try_from("https://api.voyageai.com/v1/embeddings")
+                    .unwrap()
+            )
         );
         assert_eq!(deployment.image, Some(ATLAS_LOCAL_IMAGE.to_string()));
         assert_eq!(
