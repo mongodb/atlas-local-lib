@@ -38,7 +38,7 @@ jobs:
           ${{ runner.os }}-cargo-
     
     - name: Install cargo-binstall
-      uses: cargo-bins/cargo-binstall@8a2045612414e945291083f820cd50b4d8fc2218 # v1.26.0
+      uses: cargo-bins/cargo-binstall@851112458b5f28a29e5bc14a690c3f283d9dcc6f # v1.26.2
     
     - name: Install cargo-deny
       run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
@@ -111,7 +111,7 @@ jobs:
         rustup default ${{ matrix.rust }}
    
     - name: Install cargo-binstall
-      uses: cargo-bins/cargo-binstall@8a2045612414e945291083f820cd50b4d8fc2218 # v1.26.0
+      uses: cargo-bins/cargo-binstall@851112458b5f28a29e5bc14a690c3f283d9dcc6f # v1.26.2
 
     - name: Install cargo-llvm-cov
       shell: bash
@@ -167,7 +167,7 @@ jobs:
         rustup default 1.89
     
     - name: Install cargo-binstall
-      uses: cargo-bins/cargo-binstall@8a2045612414e945291083f820cd50b4d8fc2218 # v1.26.0
+      uses: cargo-bins/cargo-binstall@851112458b5f28a29e5bc14a690c3f283d9dcc6f # v1.26.2
 
     - name: Install cargo-deny
       run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_DENY_VERSION }} cargo-deny
