@@ -2169,7 +2169,7 @@ limitations under the License.
         - stable_deref_trait 1.2.0 (https://github.com/storyyeller/stable_deref_trait)
         - typed-builder-macro 0.23.2 (https://github.com/idanarye/rust-typed-builder)
         - typed-builder 0.23.2 (https://github.com/idanarye/rust-typed-builder)
-        - url 2.5.7 (https://github.com/servo/rust-url)
+        - url 2.5.8 (https://github.com/servo/rust-url)
         - wasi 0.11.1+wasi-snapshot-preview1 (https://github.com/bytecodealliance/wasi)
         - wasm-bindgen-backend 0.2.100 (https://github.com/rustwasm/wasm-bindgen/tree/master/crates/backend)
         - wasm-bindgen-macro-support 0.2.100 (https://github.com/rustwasm/wasm-bindgen/tree/master/crates/macro-support)
