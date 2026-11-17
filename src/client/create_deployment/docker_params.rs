@@ -1,10 +1,18 @@
 use bollard::models::HostConfig;
 
+use crate::models::CreationSource;
+
 use super::CreateDeploymentError;
 
 const DOCKER_PARAMS_ENV_VAR: &str = "MONGODB_ATLAS_LOCAL_DOCKER_PARAMS";
 
-pub(super) fn docker_params_from_env() -> Result<Option<HostConfig>, CreateDeploymentError> {
+pub(super) fn docker_params_from_env(
+    creation_source: Option<&CreationSource>,
+) -> Result<Option<HostConfig>, CreateDeploymentError> {
+    if !matches!(creation_source, Some(&CreationSource::AtlasLocal)) {
+        return Ok(None);
+    }
+
     let params = match std::env::var(DOCKER_PARAMS_ENV_VAR) {
         Ok(params) => params,
         Err(std::env::VarError::NotPresent) => return Ok(None),
@@ -39,10 +47,11 @@ fn parse_docker_params(params: Option<&str>) -> Result<Option<HostConfig>, Creat
 #[cfg(test)]
 mod tests {
     use crate::models::{
-        BindingType, CreateDeploymentOptions, LOCAL_SEED_LOCATION, MongoDBPortBinding,
+        BindingType, CreateDeploymentOptions, CreationSource, LOCAL_SEED_LOCATION,
+        MongoDBPortBinding,
     };
 
-    use super::parse_docker_params;
+    use super::{docker_params_from_env, parse_docker_params};
 
     #[test]
     fn parse_docker_params_unset_or_empty() {
@@ -62,6 +71,17 @@ mod tests {
         for params in ["not-json", "[]", "null"] {
             assert!(parse_docker_params(Some(params)).is_err(), "{params}");
         }
+    }
+
+    #[test]
+    fn docker_params_are_ignored_for_other_creation_sources() {
+        for source in [
+            CreationSource::Container,
+            CreationSource::Unknown("PYTHON_LIB".to_string()),
+        ] {
+            assert!(docker_params_from_env(Some(&source)).unwrap().is_none());
+        }
+        assert!(docker_params_from_env(None).unwrap().is_none());
     }
 
     #[test]
