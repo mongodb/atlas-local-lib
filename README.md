@@ -95,6 +95,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 More examples can be found in `examples/*` and ran using `cargo run --example [example-name]`
 
+## Additional Atlas Local container options
+
+When creating a deployment, set `MONGODB_ATLAS_LOCAL_DOCKER_PARAMS` to a JSON object containing additional Docker `HostConfig` properties. For example, to set the `nofile` ulimit when using the non-deprecated Atlas CLI flow:
+
+```bash
+MONGODB_ATLAS_LOCAL_DOCKER_PARAMS='{"Ulimits":[{"Name":"nofile","Soft":64000,"Hard":64000}]}' atlas local setup
+```
+
+Use only properties supported by your Docker Engine and the Bollard version used by this library. Atlas Local continues to manage its MongoDB port binding and optional seed-data mount; values that conflict with those settings are ignored. When the variable is unset or empty, container creation is unchanged.
+
 ## Development
 
 For building, testing, and generating documentation, see the [CONTRIBUTING.md](CONTRIBUTING.md) file which contains detailed instructions for all development commands.
