@@ -77,7 +77,7 @@ mod tests {
         .unwrap()
         .unwrap();
 
-        let request = options.to_container_create_body(host_config);
+        let request = options.to_container_create_body(Some(host_config));
 
         let host_config = request.host_config.unwrap();
         assert!(host_config.ulimits.is_some());

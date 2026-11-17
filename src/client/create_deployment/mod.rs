@@ -127,7 +127,7 @@ impl<
         // Create the container with the correct configuration
         let create_container_options: CreateContainerOptions = (&deployment_options).into();
         let create_container_config =
-            deployment_options.to_container_create_body(additional_host_config.unwrap_or_default());
+            deployment_options.to_container_create_body(additional_host_config);
 
         // Get the cluster name
         // It is safe to unwrap because CreateContainerOptions::from will generate a random name if none is provided
