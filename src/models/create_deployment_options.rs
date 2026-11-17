@@ -74,14 +74,14 @@ impl From<&CreateDeploymentOptions> for CreateContainerOptions {
 
 impl From<&CreateDeploymentOptions> for ContainerCreateBody {
     fn from(deployment_options: &CreateDeploymentOptions) -> Self {
-        deployment_options.to_container_create_body(HostConfig::default())
+        deployment_options.to_container_create_body(None)
     }
 }
 
 impl CreateDeploymentOptions {
     pub(crate) fn to_container_create_body(
         &self,
-        additional_host_config: HostConfig,
+        additional_host_config: Option<HostConfig>,
     ) -> ContainerCreateBody {
         let deployment_options = self;
 
@@ -218,7 +218,7 @@ impl CreateDeploymentOptions {
             host_config: Some(HostConfig {
                 port_bindings: port_bindings_map,
                 binds: volume_bindings_map,
-                ..additional_host_config
+                ..additional_host_config.unwrap_or_default()
             }),
             ..Default::default()
         }
