@@ -1,4 +1,4 @@
-use bollard::models::{ContainerCreateBody, HostConfig};
+use bollard::models::HostConfig;
 
 use super::CreateDeploymentError;
 
@@ -36,28 +36,13 @@ fn parse_docker_params(params: Option<&str>) -> Result<Option<HostConfig>, Creat
         .map_err(|error| CreateDeploymentError::InvalidDockerParams(error.to_string()))
 }
 
-pub(super) fn apply_docker_params(
-    container_config: &mut ContainerCreateBody,
-    additional_host_config: HostConfig,
-) {
-    let atlas_local_host_config = container_config.host_config.take().unwrap_or_default();
-    container_config.host_config = Some(HostConfig {
-        // Atlas Local owns these fields for its database port and optional seed mount.
-        port_bindings: atlas_local_host_config.port_bindings,
-        binds: atlas_local_host_config.binds,
-        ..additional_host_config
-    });
-}
-
 #[cfg(test)]
 mod tests {
-    use bollard::models::ContainerCreateBody;
-
     use crate::models::{
         BindingType, CreateDeploymentOptions, LOCAL_SEED_LOCATION, MongoDBPortBinding,
     };
 
-    use super::{apply_docker_params, parse_docker_params};
+    use super::parse_docker_params;
 
     #[test]
     fn parse_docker_params_unset_or_empty() {
@@ -80,20 +65,19 @@ mod tests {
     }
 
     #[test]
-    fn apply_docker_params_preserves_atlas_local_mounts_and_port_binding() {
+    fn to_container_create_body_merges_options_and_preserves_atlas_local_settings() {
         let options = CreateDeploymentOptions {
             local_seed_location: Some("/host/seed-data".to_string()),
             mongodb_port_binding: Some(MongoDBPortBinding::new(Some(27017), BindingType::Loopback)),
             ..Default::default()
         };
-        let mut request = ContainerCreateBody::from(&options);
         let host_config = parse_docker_params(Some(
             r#"{"Ulimits":[{"Name":"nofile","Soft":64000,"Hard":64000}]}"#,
         ))
         .unwrap()
         .unwrap();
 
-        apply_docker_params(&mut request, host_config);
+        let request = options.to_container_create_body(host_config);
 
         let host_config = request.host_config.unwrap();
         assert!(host_config.ulimits.is_some());
