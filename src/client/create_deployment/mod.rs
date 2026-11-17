@@ -1,4 +1,7 @@
-use bollard::query_parameters::{CreateContainerOptions, StartContainerOptions};
+use bollard::{
+    models::HostConfig,
+    query_parameters::{CreateContainerOptions, StartContainerOptions},
+};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -13,10 +16,8 @@ use crate::{
 
 use super::{PullImageError, WatchDeploymentError};
 
-mod docker_params;
 mod progress;
 
-use docker_params::docker_params_from_env;
 pub use progress::{CreateDeploymentProgress, CreateDeploymentStepOutcome};
 use progress::{CreateDeploymentProgressSender, create_progress_pairs};
 
@@ -42,8 +43,6 @@ pub enum CreateDeploymentError {
         "Image must not include a tag. Use the `image_tag` field to specify a tag. Got: \"{0}\""
     )]
     InvalidImage(String),
-    #[error("Invalid MONGODB_ATLAS_LOCAL_DOCKER_PARAMS: {0}")]
-    InvalidDockerParams(String),
 }
 
 impl<
@@ -61,6 +60,28 @@ impl<
         &self,
         deployment_options: CreateDeploymentOptions,
     ) -> CreateDeploymentProgress {
+        self.create_deployment_with_optional_host_config(deployment_options, None)
+    }
+
+    /// Creates a local Atlas deployment with additional Docker host configuration.
+    ///
+    /// Atlas Local retains ownership of the MongoDB port bindings and seed-data mounts.
+    pub fn create_deployment_with_host_config(
+        &self,
+        deployment_options: CreateDeploymentOptions,
+        additional_host_config: HostConfig,
+    ) -> CreateDeploymentProgress {
+        self.create_deployment_with_optional_host_config(
+            deployment_options,
+            Some(additional_host_config),
+        )
+    }
+
+    fn create_deployment_with_optional_host_config(
+        &self,
+        deployment_options: CreateDeploymentOptions,
+        additional_host_config: Option<HostConfig>,
+    ) -> CreateDeploymentProgress {
         let (sender, receiver) = create_progress_pairs();
         let client = self.clone();
 
@@ -73,7 +94,7 @@ impl<
             let mut progress: CreateDeploymentProgressSender = sender;
 
             let result = client
-                .create_deployment_inner(deployment_options, &mut progress)
+                .create_deployment_inner(deployment_options, additional_host_config, &mut progress)
                 .await;
 
             // Forward the result (success or error) to the receiver via the channel.
@@ -87,6 +108,7 @@ impl<
     async fn create_deployment_inner(
         &self,
         deployment_options: CreateDeploymentOptions,
+        additional_host_config: Option<HostConfig>,
         progress: &mut CreateDeploymentProgressSender,
     ) -> Result<Deployment, CreateDeploymentError> {
         if let Some(image) = &deployment_options.image
@@ -94,9 +116,6 @@ impl<
         {
             return Err(CreateDeploymentError::InvalidImage(image.clone()));
         }
-
-        let additional_host_config =
-            docker_params_from_env(deployment_options.creation_source.as_ref())?;
 
         // Pull the image for Atlas Local if requested
         let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
@@ -395,6 +414,12 @@ mod tests {
 
         mock_docker
             .expect_create_container()
+            .withf(|_, config| {
+                config
+                    .host_config
+                    .as_ref()
+                    .is_some_and(|host_config| host_config.memory == Some(1024))
+            })
             .times(1)
             .returning(|_, _| {
                 Ok(ContainerCreateResponse {
@@ -422,9 +447,15 @@ mod tests {
             .returning(|_, _| Ok(create_test_container_inspect_response()));
 
         let client = Client::new(mock_docker);
+        let additional_host_config = HostConfig {
+            memory: Some(1024),
+            ..Default::default()
+        };
 
         // Act
-        let result = client.create_deployment(options).await;
+        let result = client
+            .create_deployment_with_host_config(options, additional_host_config)
+            .await;
 
         // Assert
         assert!(result.is_ok());
