@@ -1,7 +1,4 @@
-use bollard::{
-    models::ContainerCreateBody,
-    query_parameters::{CreateContainerOptions, StartContainerOptions},
-};
+use bollard::query_parameters::{CreateContainerOptions, StartContainerOptions};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -19,7 +16,7 @@ use super::{PullImageError, WatchDeploymentError};
 mod docker_params;
 mod progress;
 
-use docker_params::{apply_docker_params, docker_params_from_env};
+use docker_params::docker_params_from_env;
 pub use progress::{CreateDeploymentProgress, CreateDeploymentStepOutcome};
 use progress::{CreateDeploymentProgressSender, create_progress_pairs};
 
@@ -129,10 +126,8 @@ impl<
 
         // Create the container with the correct configuration
         let create_container_options: CreateContainerOptions = (&deployment_options).into();
-        let mut create_container_config: ContainerCreateBody = (&deployment_options).into();
-        if let Some(additional_host_config) = additional_host_config {
-            apply_docker_params(&mut create_container_config, additional_host_config);
-        }
+        let create_container_config =
+            deployment_options.to_container_create_body(additional_host_config.unwrap_or_default());
 
         // Get the cluster name
         // It is safe to unwrap because CreateContainerOptions::from will generate a random name if none is provided
@@ -200,8 +195,8 @@ mod tests {
     use crate::models::{ContainerHealthStatus, ImageTag};
     use bollard::{
         models::{
-            ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState,
-            ContainerStateStatusEnum, HealthStatusEnum,
+            ContainerConfig, ContainerCreateBody, ContainerCreateResponse,
+            ContainerInspectResponse, ContainerState, ContainerStateStatusEnum, HealthStatusEnum,
         },
         query_parameters::InspectContainerOptions,
     };
