@@ -95,7 +95,8 @@ impl<
             return Err(CreateDeploymentError::InvalidImage(image.clone()));
         }
 
-        let additional_host_config = docker_params_from_env()?;
+        let additional_host_config =
+            docker_params_from_env(deployment_options.creation_source.as_ref())?;
 
         // Pull the image for Atlas Local if requested
         let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);

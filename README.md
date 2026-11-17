@@ -105,6 +105,8 @@ MONGODB_ATLAS_LOCAL_DOCKER_PARAMS='{"Ulimits":[{"Name":"nofile","Soft":64000,"Ha
 
 Use only properties supported by your Docker Engine and the Bollard version used by this library. Atlas Local continues to manage its MongoDB port binding and optional seed-data mount; values that conflict with those settings are ignored. When the variable is unset or empty, container creation is unchanged.
 
+This variable is honored by the non-deprecated `atlas local setup` flow and ignored for other deployment creation sources.
+
 ## Development
 
 For building, testing, and generating documentation, see the [CONTRIBUTING.md](CONTRIBUTING.md) file which contains detailed instructions for all development commands.
