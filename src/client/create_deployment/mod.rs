@@ -16,8 +16,10 @@ use crate::{
 
 use super::{PullImageError, WatchDeploymentError};
 
+mod docker_params;
 mod progress;
 
+use docker_params::{apply_docker_params, docker_params_from_env};
 pub use progress::{CreateDeploymentProgress, CreateDeploymentStepOutcome};
 use progress::{CreateDeploymentProgressSender, create_progress_pairs};
 
@@ -43,6 +45,8 @@ pub enum CreateDeploymentError {
         "Image must not include a tag. Use the `image_tag` field to specify a tag. Got: \"{0}\""
     )]
     InvalidImage(String),
+    #[error("Invalid MONGODB_ATLAS_LOCAL_DOCKER_PARAMS: {0}")]
+    InvalidDockerParams(String),
 }
 
 impl<
@@ -94,6 +98,8 @@ impl<
             return Err(CreateDeploymentError::InvalidImage(image.clone()));
         }
 
+        let additional_host_config = docker_params_from_env()?;
+
         // Pull the image for Atlas Local if requested
         let will_pull_image = !deployment_options.skip_pull_image.unwrap_or(false);
         if will_pull_image {
@@ -123,7 +129,10 @@ impl<
 
         // Create the container with the correct configuration
         let create_container_options: CreateContainerOptions = (&deployment_options).into();
-        let create_container_config: ContainerCreateBody = (&deployment_options).into();
+        let mut create_container_config: ContainerCreateBody = (&deployment_options).into();
+        if let Some(additional_host_config) = additional_host_config {
+            apply_docker_params(&mut create_container_config, additional_host_config);
+        }
 
         // Get the cluster name
         // It is safe to unwrap because CreateContainerOptions::from will generate a random name if none is provided
