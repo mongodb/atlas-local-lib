@@ -1,5 +1,5 @@
 use bollard::{
-    models::ContainerCreateBody,
+    models::HostConfig,
     query_parameters::{CreateContainerOptions, StartContainerOptions},
 };
 use tokio::sync::oneshot;
@@ -60,6 +60,28 @@ impl<
         &self,
         deployment_options: CreateDeploymentOptions,
     ) -> CreateDeploymentProgress {
+        self.create_deployment_with_optional_host_config(deployment_options, None)
+    }
+
+    /// Creates a local Atlas deployment with additional Docker host configuration.
+    ///
+    /// Atlas Local retains ownership of the MongoDB port bindings and seed-data mounts.
+    pub fn create_deployment_with_host_config(
+        &self,
+        deployment_options: CreateDeploymentOptions,
+        additional_host_config: HostConfig,
+    ) -> CreateDeploymentProgress {
+        self.create_deployment_with_optional_host_config(
+            deployment_options,
+            Some(additional_host_config),
+        )
+    }
+
+    fn create_deployment_with_optional_host_config(
+        &self,
+        deployment_options: CreateDeploymentOptions,
+        additional_host_config: Option<HostConfig>,
+    ) -> CreateDeploymentProgress {
         let (sender, receiver) = create_progress_pairs();
         let client = self.clone();
 
@@ -72,7 +94,7 @@ impl<
             let mut progress: CreateDeploymentProgressSender = sender;
 
             let result = client
-                .create_deployment_inner(deployment_options, &mut progress)
+                .create_deployment_inner(deployment_options, additional_host_config, &mut progress)
                 .await;
 
             // Forward the result (success or error) to the receiver via the channel.
@@ -86,6 +108,7 @@ impl<
     async fn create_deployment_inner(
         &self,
         deployment_options: CreateDeploymentOptions,
+        additional_host_config: Option<HostConfig>,
         progress: &mut CreateDeploymentProgressSender,
     ) -> Result<Deployment, CreateDeploymentError> {
         if let Some(image) = &deployment_options.image
@@ -123,7 +146,8 @@ impl<
 
         // Create the container with the correct configuration
         let create_container_options: CreateContainerOptions = (&deployment_options).into();
-        let create_container_config: ContainerCreateBody = (&deployment_options).into();
+        let create_container_config =
+            deployment_options.to_container_create_body(additional_host_config);
 
         // Get the cluster name
         // It is safe to unwrap because CreateContainerOptions::from will generate a random name if none is provided
@@ -191,8 +215,8 @@ mod tests {
     use crate::models::{ContainerHealthStatus, ImageTag};
     use bollard::{
         models::{
-            ContainerConfig, ContainerCreateResponse, ContainerInspectResponse, ContainerState,
-            ContainerStateStatusEnum, HealthStatusEnum,
+            ContainerConfig, ContainerCreateBody, ContainerCreateResponse,
+            ContainerInspectResponse, ContainerState, ContainerStateStatusEnum, HealthStatusEnum,
         },
         query_parameters::InspectContainerOptions,
     };
@@ -390,6 +414,12 @@ mod tests {
 
         mock_docker
             .expect_create_container()
+            .withf(|_, config| {
+                config
+                    .host_config
+                    .as_ref()
+                    .is_some_and(|host_config| host_config.memory == Some(1024))
+            })
             .times(1)
             .returning(|_, _| {
                 Ok(ContainerCreateResponse {
@@ -417,9 +447,15 @@ mod tests {
             .returning(|_, _| Ok(create_test_container_inspect_response()));
 
         let client = Client::new(mock_docker);
+        let additional_host_config = HostConfig {
+            memory: Some(1024),
+            ..Default::default()
+        };
 
         // Act
-        let result = client.create_deployment(options).await;
+        let result = client
+            .create_deployment_with_host_config(options, additional_host_config)
+            .await;
 
         // Assert
         assert!(result.is_ok());

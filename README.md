@@ -95,6 +95,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 More examples can be found in `examples/*` and ran using `cargo run --example [example-name]`
 
+## Additional Docker host configuration
+
+The `Client::create_deployment_with_host_config` method accepts additional Bollard `HostConfig` values for programmatic callers. Atlas Local retains ownership of the MongoDB port binding and optional seed-data mount when combining the host configuration.
+
 ## Development
 
 For building, testing, and generating documentation, see the [CONTRIBUTING.md](CONTRIBUTING.md) file which contains detailed instructions for all development commands.

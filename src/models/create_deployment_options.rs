@@ -74,6 +74,17 @@ impl From<&CreateDeploymentOptions> for CreateContainerOptions {
 
 impl From<&CreateDeploymentOptions> for ContainerCreateBody {
     fn from(deployment_options: &CreateDeploymentOptions) -> Self {
+        deployment_options.to_container_create_body(None)
+    }
+}
+
+impl CreateDeploymentOptions {
+    pub(crate) fn to_container_create_body(
+        &self,
+        additional_host_config: Option<HostConfig>,
+    ) -> ContainerCreateBody {
+        let deployment_options = self;
+
         // Get the port bindings if available, otherwise default to binding a random avaiable port on 127.0.0.1
         let port_binding = deployment_options
             .mongodb_port_binding
@@ -207,7 +218,7 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             host_config: Some(HostConfig {
                 port_bindings: port_bindings_map,
                 binds: volume_bindings_map,
-                ..Default::default()
+                ..additional_host_config.unwrap_or_default()
             }),
             ..Default::default()
         }
