@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 /// Specifies how many lines to retrieve from the tail of the logs.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -83,10 +83,10 @@ pub struct LogsOptions {
     pub stderr: bool,
     /// Return logs from the given timestamp
     #[builder(default, setter(strip_option))]
-    pub since: Option<DateTime<Utc>>,
+    pub since: Option<Timestamp>,
     /// Return logs before the given timestamp
     #[builder(default, setter(strip_option))]
-    pub until: Option<DateTime<Utc>>,
+    pub until: Option<Timestamp>,
     /// Add timestamps to every log line
     #[builder(default = false)]
     pub timestamps: bool,
@@ -101,8 +101,8 @@ impl From<LogsOptions> for bollard::query_parameters::LogsOptions {
             follow: false,
             stdout: options.stdout,
             stderr: options.stderr,
-            since: options.since.map(|t| t.timestamp() as i32).unwrap_or(0),
-            until: options.until.map(|t| t.timestamp() as i32).unwrap_or(0),
+            since: options.since.map(|t| t.as_second() as i32).unwrap_or(0),
+            until: options.until.map(|t| t.as_second() as i32).unwrap_or(0),
             timestamps: options.timestamps,
             tail: options.tail.map(|t| t.to_string()).unwrap_or_default(),
         }
@@ -118,8 +118,8 @@ mod tests {
         let options = LogsOptions::builder()
             .stdout(true)
             .stderr(true)
-            .since(DateTime::from_timestamp(1234567890, 0).unwrap())
-            .until(DateTime::from_timestamp(1234567900, 0).unwrap())
+            .since(Timestamp::from_second(1234567890).unwrap())
+            .until(Timestamp::from_second(1234567900).unwrap())
             .timestamps(true)
             .tail(Tail::Number(100))
             .build();
