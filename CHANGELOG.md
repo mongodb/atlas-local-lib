@@ -1,3 +1,13 @@
+## [0.10.0] - 2026-11-18
+
+### 🐛 Bug Fixes
+
+- *(deps)* Remove unmaintained pin-utils from dependency tree ([#215](https://github.com/mongodb/atlas-local-lib/pull/215))
+- *(deps)* Migrate off unmaintained chrono (RUSTSEC-2026-0543) to jiff ([#225](https://github.com/mongodb/atlas-local-lib/pull/225))
+
+### ⚙️ Miscellaneous Tasks
+
+- Apix-action updates ([#223](https://github.com/mongodb/atlas-local-lib/pull/223))
 ## [0.9.0] - 2026-11-02
 
 ### 🚀 Features
