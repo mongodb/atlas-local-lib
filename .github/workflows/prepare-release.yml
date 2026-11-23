@@ -14,6 +14,10 @@ run-name: "Prepare release: ${{ inputs.version }}"
 permissions:
   contents: read
 
+env:
+  # Keep in sync with CARGO_ABOUT_VERSION in ci.yml
+  CARGO_ABOUT_VERSION: 0.8.4
+
 jobs:
   update-version:
     name: Update Version
@@ -49,7 +53,7 @@ jobs:
       - name: Install cargo-edit to update Cargo.toml version
         run: cargo binstall --no-confirm --locked cargo-edit
       - name: Install cargo tools for license verification
-        run: cargo binstall --no-confirm --locked cargo-about
+        run: cargo binstall --no-confirm --locked --version ${{ env.CARGO_ABOUT_VERSION }} cargo-about
       - name: Update Cargo.toml version
         id: set-version
         env:
@@ -66,7 +70,7 @@ jobs:
           VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Update third-party licenses
-        run: cargo about generate about.hbs > LICENSE-3RD-PARTY.txt
+        run: cargo about generate --frozen about.hbs > LICENSE-3RD-PARTY.txt
       - name: Generate changelog
         uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4
         with:
