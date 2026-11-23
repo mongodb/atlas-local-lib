@@ -35,7 +35,7 @@ jobs:
           fi
       - name: Set Apix Bot token
         id: app-token
-        uses: mongodb/apix-action/token@f38b50029361c9af7846889f34a02512e3fff34d
+        uses: mongodb/apix-action/token@ca63bdc0f33a15da45755eb6a54c072ba65d3923
         with:
           app-id: ${{ secrets.APIXBOT_APP_ID }}
           private-key: ${{ secrets.APIXBOT_APP_PEM }}
