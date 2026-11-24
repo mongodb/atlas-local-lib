@@ -97,7 +97,7 @@ More examples can be found in `examples/*` and ran using `cargo run --example [e
 
 ## Additional Docker host configuration
 
-The `Client::create_deployment_with_host_config` method accepts additional Bollard `HostConfig` values for programmatic callers. Atlas Local retains ownership of the MongoDB port binding and optional seed-data mount when combining the host configuration.
+The method accepts additional Bollard `HostConfig` values. Supplied `port_bindings` and `binds` replace Atlas Local's generated values. If either field is `None`, the generated value is retained. Other fields are passed through.
 
 ## Development
 

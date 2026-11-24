@@ -65,7 +65,9 @@ impl<
 
     /// Creates a local Atlas deployment with additional Docker host configuration.
     ///
-    /// Atlas Local retains ownership of the MongoDB port bindings and seed-data mounts.
+    /// Additional fields override their Atlas Local defaults.
+    /// Supplied `port_bindings` and `binds` replace the generated values.
+    /// Fields set to `None` retain their generated values.
     pub fn create_deployment_with_host_config(
         &self,
         deployment_options: CreateDeploymentOptions,
