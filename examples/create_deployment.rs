@@ -18,15 +18,15 @@ async fn main() -> Result<()> {
         load_sample_data: Some(true),
         ..Default::default()
     };
-    let deployment = client
+    let deployment1 = client
         .create_deployment(deployment1)
         .await
         .context("creating deployment local 1234")?;
 
     println!(
         "[{}] \t{}",
-        deployment.mongodb_version,
-        deployment.name.unwrap_or_default()
+        deployment1.mongodb_version,
+        deployment1.name.unwrap_or_default()
     );
 
     let deployment2_options = CreateDeploymentOptions {
