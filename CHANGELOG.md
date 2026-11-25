@@ -1,3 +1,16 @@
+## [0.10.1] - 2026-11-25
+
+### 🚀 Features
+
+- Expose custom HostConfig creation ([#222](https://github.com/mongodb/atlas-local-lib/pull/222))
+
+### 🐛 Bug Fixes
+
+- *(deps)* Bump url to 2.5.9 for RUSTSEC-2026-0592 ([#231](https://github.com/mongodb/atlas-local-lib/pull/231))
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Pin cargo-about and use --frozen when generating third-party notice ([#232](https://github.com/mongodb/atlas-local-lib/pull/232))
 ## [0.10.0] - 2026-11-18
 
 ### 🐛 Bug Fixes
