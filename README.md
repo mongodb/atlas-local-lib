@@ -95,6 +95,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 More examples can be found in `examples/*` and ran using `cargo run --example [example-name]`
 
+## Additional Docker host configuration
+
+The method accepts additional Bollard `HostConfig` values. Supplied `port_bindings` and `binds` replace Atlas Local's generated values. If either field is `None`, the generated value is retained. Other fields are passed through.
+
 ## Development
 
 For building, testing, and generating documentation, see the [CONTRIBUTING.md](CONTRIBUTING.md) file which contains detailed instructions for all development commands.

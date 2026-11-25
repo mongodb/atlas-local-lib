@@ -74,6 +74,17 @@ impl From<&CreateDeploymentOptions> for CreateContainerOptions {
 
 impl From<&CreateDeploymentOptions> for ContainerCreateBody {
     fn from(deployment_options: &CreateDeploymentOptions) -> Self {
+        deployment_options.to_container_create_body(None)
+    }
+}
+
+impl CreateDeploymentOptions {
+    pub(crate) fn to_container_create_body(
+        &self,
+        additional_host_config: Option<HostConfig>,
+    ) -> ContainerCreateBody {
+        let deployment_options = self;
+
         // Get the port bindings if available, otherwise default to binding a random avaiable port on 127.0.0.1
         let port_binding = deployment_options
             .mongodb_port_binding
@@ -96,6 +107,15 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
                 .map(|local_seed_location| {
                     vec![format!("{local_seed_location}:{LOCAL_SEED_LOCATION}:rw")]
                 });
+
+        // Caller values override Atlas Local's binding defaults.
+        let mut host_config = additional_host_config.unwrap_or_default();
+        if host_config.port_bindings.is_none() {
+            host_config.port_bindings = port_bindings_map;
+        }
+        if host_config.binds.is_none() {
+            host_config.binds = volume_bindings_map;
+        }
 
         // Set environment variables if they are provided in the deployment options
         let mut env_vars = [
@@ -204,11 +224,7 @@ impl From<&CreateDeploymentOptions> for ContainerCreateBody {
             image,
             labels,
             env,
-            host_config: Some(HostConfig {
-                port_bindings: port_bindings_map,
-                binds: volume_bindings_map,
-                ..Default::default()
-            }),
+            host_config: Some(host_config),
             ..Default::default()
         }
     }
@@ -325,6 +341,83 @@ mod tests {
             volumn_binds[0],
             format!("/host/seed-data:{}:rw", LOCAL_SEED_LOCATION)
         );
+    }
+
+    #[test]
+    fn additional_host_config_overrides_port_bindings_and_binds() {
+        let deployment_options = CreateDeploymentOptions {
+            local_seed_location: Some("/host/seed-data".to_string()),
+            mongodb_port_binding: Some(MongoDBPortBinding::new(Some(50000), BindingType::Loopback)),
+            ..Default::default()
+        };
+        let additional_host_config = HostConfig {
+            memory: Some(1024),
+            port_bindings: Some(std::collections::HashMap::from([(
+                "27017/tcp".to_string(),
+                Some(vec![PortBinding {
+                    host_ip: Some("0.0.0.0".to_string()),
+                    host_port: Some("27018".to_string()),
+                }]),
+            )])),
+            binds: Some(vec!["/custom:/custom:rw".to_string()]),
+            ..Default::default()
+        };
+
+        let container_create_body =
+            deployment_options.to_container_create_body(Some(additional_host_config));
+        let host_config = container_create_body.host_config.unwrap();
+        let port_bindings = host_config.port_bindings.unwrap();
+        let port_binding = port_bindings
+            .get("27017/tcp")
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .first()
+            .unwrap();
+
+        assert_eq!(port_binding.host_ip.as_deref(), Some("0.0.0.0"));
+        assert_eq!(port_binding.host_port.as_deref(), Some("27018"));
+        assert_eq!(
+            host_config.binds,
+            Some(vec!["/custom:/custom:rw".to_string()])
+        );
+        assert_eq!(host_config.memory, Some(1024));
+    }
+
+    #[test]
+    fn additional_host_config_uses_atlas_defaults_for_unset_bindings() {
+        let deployment_options = CreateDeploymentOptions {
+            local_seed_location: Some("/host/seed-data".to_string()),
+            mongodb_port_binding: Some(MongoDBPortBinding::new(Some(50000), BindingType::Loopback)),
+            ..Default::default()
+        };
+
+        let container_create_body = deployment_options.to_container_create_body(Some(HostConfig {
+            memory: Some(1024),
+            ..Default::default()
+        }));
+        let HostConfig {
+            port_bindings,
+            binds,
+            memory,
+            ..
+        } = container_create_body.host_config.unwrap();
+        let port_bindings = port_bindings.unwrap();
+        let port_binding = port_bindings
+            .get("27017/tcp")
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .first()
+            .unwrap();
+
+        assert_eq!(port_binding.host_ip.as_deref(), Some("127.0.0.1"));
+        assert_eq!(port_binding.host_port.as_deref(), Some("50000"));
+        assert_eq!(
+            binds,
+            Some(vec![format!("/host/seed-data:{LOCAL_SEED_LOCATION}:rw")])
+        );
+        assert_eq!(memory, Some(1024));
     }
 
     #[test]

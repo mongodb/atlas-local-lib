@@ -1,4 +1,6 @@
 #![cfg(feature = "e2e-tests")]
+use std::collections::HashMap;
+
 use atlas_local::{
     Client,
     client::CreateDeploymentStepOutcome,
@@ -7,7 +9,11 @@ use atlas_local::{
         WatchOptions,
     },
 };
-use bollard::{Docker, query_parameters::RemoveContainerOptionsBuilder};
+use bollard::{
+    Docker,
+    models::{HostConfig, PortBinding},
+    query_parameters::RemoveContainerOptionsBuilder,
+};
 use tokio::runtime::Handle;
 
 pub struct TestContainerCleaner {
@@ -55,13 +61,6 @@ async fn test_e2e_smoke_test() {
 
     let docker = Docker::connect_with_defaults().unwrap();
     let client = Client::new(docker);
-
-    // Count number of active deployments
-    let start_deployment_count = client
-        .list_deployments()
-        .await
-        .expect("Listing deployments")
-        .len();
 
     // Create a deployment
     let name = "test_deployment_name";
@@ -114,11 +113,13 @@ async fn test_e2e_smoke_test() {
         .list_deployments()
         .await
         .expect("Listing deployments");
-    assert_eq!(deployments.len() - start_deployment_count, 1);
-    assert_eq!(deployments.first().unwrap().name.as_deref(), Some(name));
+    let deployment = deployments
+        .iter()
+        .find(|deployment| deployment.name.as_deref() == Some(name))
+        .expect("created deployment should be listed");
 
     // Get port of created deployment to verify connection string
-    let port = match &deployments.first().unwrap().port_bindings {
+    let port = match &deployment.port_bindings {
         Some(MongoDBPortBinding { port, .. }) => *port,
         _ => panic!("No port binding found"),
     };
@@ -211,11 +212,67 @@ async fn test_e2e_smoke_test() {
         .await
         .expect("Deleting deployment");
 
-    // Count deployments and verify a deployment was deleted
-    let end_deployment_count = client
+    // Verify the deployment was deleted
+    let deployments = client
         .list_deployments()
         .await
-        .expect("Listing deployments")
-        .len();
-    assert_eq!(start_deployment_count, end_deployment_count);
+        .expect("Listing deployments");
+    assert!(
+        !deployments
+            .iter()
+            .any(|deployment| deployment.name.as_deref() == Some(name)),
+        "deleted deployment should not be listed"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_e2e_additional_host_config_overrides_generated_bindings() {
+    let mut container_cleaner = TestContainerCleaner::new();
+    let name = "test_host_config_overrides";
+    container_cleaner.add_container(name);
+
+    let docker = Docker::connect_with_defaults().unwrap();
+    let client = Client::new(docker.clone());
+    let options = CreateDeploymentOptions {
+        name: Some(name.to_string()),
+        local_seed_location: Some("/tmp/atlas-local-generated-seed".to_string()),
+        ..Default::default()
+    };
+    let additional_host_config = HostConfig {
+        port_bindings: Some(HashMap::from([(
+            "27017/tcp".to_string(),
+            Some(vec![PortBinding {
+                host_ip: Some("0.0.0.0".to_string()),
+                host_port: None,
+            }]),
+        )])),
+        binds: Some(Vec::new()),
+        ..Default::default()
+    };
+
+    client
+        .create_deployment_with_host_config(options, additional_host_config)
+        .await
+        .expect("create deployment with custom host config");
+
+    let container = docker
+        .inspect_container(name, None)
+        .await
+        .expect("inspect deployment container");
+    let host_config = container.host_config.expect("container host config");
+    let port_binding = host_config
+        .port_bindings
+        .as_ref()
+        .and_then(|bindings| bindings.get("27017/tcp"))
+        .and_then(|bindings| bindings.as_ref())
+        .and_then(|bindings| bindings.first())
+        .expect("MongoDB port binding");
+
+    assert_eq!(port_binding.host_ip.as_deref(), Some("0.0.0.0"));
+    assert!(
+        host_config
+            .binds
+            .as_ref()
+            .is_none_or(|binds| binds.is_empty())
+    );
 }
