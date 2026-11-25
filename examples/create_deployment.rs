@@ -16,10 +16,25 @@ async fn main() -> Result<()> {
     let deployment1 = CreateDeploymentOptions {
         name: Some("local1234".to_string()),
         load_sample_data: Some(true),
+        ..Default::default()
+    };
+    let deployment = client
+        .create_deployment(deployment1)
+        .await
+        .context("creating deployment local 1234")?;
+
+    println!(
+        "[{}] \t{}",
+        deployment.mongodb_version,
+        deployment.name.unwrap_or_default()
+    );
+
+    let deployment2_options = CreateDeploymentOptions {
+        name: Some("local5678".to_string()),
         mongodb_port_binding: Some(MongoDBPortBinding::new(Some(50000), BindingType::Loopback)),
         ..Default::default()
     };
-    // This overrides port 50000 above and lets Docker choose an available port.
+    // This overrides port 50000 and lets Docker choose an available port.
     let additional_host_config = HostConfig {
         memory: Some(512 * 1024 * 1024),
         port_bindings: Some(HashMap::from([(
@@ -31,21 +46,10 @@ async fn main() -> Result<()> {
         )])),
         ..Default::default()
     };
-    let deployment = client
-        .create_deployment_with_host_config(deployment1, additional_host_config)
-        .await
-        .context("creating deployment local 1234")?;
-
-    println!(
-        "[{}] \t{}",
-        deployment.mongodb_version,
-        deployment.name.unwrap_or_default()
-    );
-
     let deployment2 = client
-        .create_deployment(CreateDeploymentOptions::default())
+        .create_deployment_with_host_config(deployment2_options, additional_host_config)
         .await
-        .context("creating default deployment")?;
+        .context("creating deployment local 5678 with custom host config")?;
 
     println!(
         "[{}] \t{}",
