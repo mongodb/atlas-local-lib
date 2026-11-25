@@ -62,13 +62,6 @@ async fn test_e2e_smoke_test() {
     let docker = Docker::connect_with_defaults().unwrap();
     let client = Client::new(docker);
 
-    // Count number of active deployments
-    let start_deployment_count = client
-        .list_deployments()
-        .await
-        .expect("Listing deployments")
-        .len();
-
     // Create a deployment
     let name = "test_deployment_name";
     let username = "testuser";
@@ -120,11 +113,13 @@ async fn test_e2e_smoke_test() {
         .list_deployments()
         .await
         .expect("Listing deployments");
-    assert_eq!(deployments.len() - start_deployment_count, 1);
-    assert_eq!(deployments.first().unwrap().name.as_deref(), Some(name));
+    let deployment = deployments
+        .iter()
+        .find(|deployment| deployment.name.as_deref() == Some(name))
+        .expect("created deployment should be listed");
 
     // Get port of created deployment to verify connection string
-    let port = match &deployments.first().unwrap().port_bindings {
+    let port = match &deployment.port_bindings {
         Some(MongoDBPortBinding { port, .. }) => *port,
         _ => panic!("No port binding found"),
     };
@@ -217,13 +212,17 @@ async fn test_e2e_smoke_test() {
         .await
         .expect("Deleting deployment");
 
-    // Count deployments and verify a deployment was deleted
-    let end_deployment_count = client
+    // Verify the deployment was deleted
+    let deployments = client
         .list_deployments()
         .await
-        .expect("Listing deployments")
-        .len();
-    assert_eq!(start_deployment_count, end_deployment_count);
+        .expect("Listing deployments");
+    assert!(
+        !deployments
+            .iter()
+            .any(|deployment| deployment.name.as_deref() == Some(name)),
+        "deleted deployment should not be listed"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
