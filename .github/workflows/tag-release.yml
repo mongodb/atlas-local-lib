@@ -1,0 +1,73 @@
+name: Tag Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  tag-release:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'release/prepare-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set APIx Bot token
+        id: app-token
+        uses: mongodb/apix-action/token@ca63bdc0f33a15da45755eb6a54c072ba65d3923
+        with:
+          app-id: ${{ secrets.APIXBOT_APP_ID }}
+          private-key: ${{ secrets.APIXBOT_APP_PEM }}
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Tag merged release commit
+        env:
+          RELEASE_BRANCH: ${{ github.event.pull_request.head.ref }}
+          MERGE_COMMIT_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          VERSION="${RELEASE_BRANCH#release/prepare-v}"
+          VERSION_PATTERN='^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'
+          if ! [[ "$VERSION" =~ $VERSION_PATTERN ]]; then
+            echo "::error::Invalid release branch '$RELEASE_BRANCH'"
+            exit 1
+          fi
+
+          MANIFEST_VERSION=$(
+            cargo metadata --format-version 1 --no-deps |
+              jq -r '.packages[0].version'
+          )
+          if [[ "$VERSION" != "$MANIFEST_VERSION" ]]; then
+            echo "::error::Version mismatch"
+            echo "Branch: $VERSION"
+            echo "Cargo.toml: $MANIFEST_VERSION"
+            exit 1
+          fi
+
+          TAG="v$VERSION"
+          git fetch origin main --no-tags
+          if ! git merge-base --is-ancestor "$MERGE_COMMIT_SHA" FETCH_HEAD; then
+            echo "::error::Merged release commit is not on main"
+            exit 1
+          fi
+
+          TAG_REF="refs/tags/$TAG"
+          if git ls-remote --exit-code origin "$TAG_REF" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists"
+            exit 1
+          fi
+
+          git tag "$TAG" "$MERGE_COMMIT_SHA"
+          git push origin "refs/tags/$TAG"
