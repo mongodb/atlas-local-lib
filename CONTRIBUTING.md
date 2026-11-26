@@ -118,9 +118,9 @@ This generates the file containing all third-party license information for our d
 
 1. Run **Prepare Release** from the `main` branch in GitHub Actions and enter
    `patch`, `minor`, `major`, or an exact version.
-2. Review and merge the generated `release/prepare-v<version>` pull request. It
-   updates `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and
-   `LICENSE-3RD-PARTY.txt` through the normal branch-protection checks.
+2. Review and approve the generated `release/prepare-v<version>` pull request.
+   It updates `Cargo.toml`, `Cargo.lock`, `CHANGELOG.md`, and
+   `LICENSE-3RD-PARTY.txt`. Auto-merge completes it after required checks pass.
 3. After the PR is merged, **Tag Release** creates the matching `v<version>` tag
    on the merge commit. The tag starts the `release.yml` workflow, which
    publishes the GitHub release and crate.
